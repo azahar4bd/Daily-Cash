@@ -333,7 +333,7 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
           )}
         </div>
       ) : (
-        /* Persistent Floating Action Button when box is closed */
+        /* Persistent Floating Action Button (Small Icon) when box is closed */
         <div
           className={`fixed ${
             keyboardOpen ? "bottom-80 sm:bottom-84" : "bottom-16 sm:bottom-20"
@@ -345,12 +345,11 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
               setStaffPopupOpen(true);
               setStaffPopupMinimized(false);
             }}
-            className="flex items-center gap-2 rounded-2xl bg-purple-900 hover:bg-purple-800 active:bg-purple-950 text-white px-3.5 py-2.5 text-xs sm:text-sm font-black shadow-2xl ring-2 ring-purple-400/40 hover:ring-purple-300 transition cursor-pointer hover:scale-105 active:scale-95"
-            title="দেনা / পাওনা বক্স খুলুন"
+            className="relative flex h-11 w-11 sm:h-12 sm:w-12 items-center justify-center rounded-full bg-purple-900 hover:bg-purple-800 active:bg-purple-950 text-white shadow-2xl ring-2 ring-purple-400/50 hover:ring-purple-300 transition-all cursor-pointer hover:scale-110 active:scale-95"
+            title="Staff Dena / Poana (দেনা / পাওনা বক্স খুলুন)"
           >
-            <span className="text-base">👥</span>
-            <span>Staff Dena / Poana</span>
-            <span className="rounded-full bg-amber-400 text-purple-950 px-1.5 py-0.2 text-[10px] font-mono font-black">
+            <span className="text-xl sm:text-2xl leading-none select-none">👥</span>
+            <span className="absolute -top-1 -right-1 flex h-4 min-w-[16px] sm:h-5 sm:min-w-[20px] items-center justify-center rounded-full bg-amber-400 px-1 text-[9px] sm:text-[10px] font-mono font-black text-purple-950 shadow">
               {topStaffDiffs.length}
             </span>
           </button>
