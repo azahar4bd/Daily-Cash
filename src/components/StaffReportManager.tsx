@@ -246,14 +246,17 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
 
   return (
     <div className="space-y-6">
-      {/* Floating Popup */}
-      {staffPopupOpen && (
-        <div className="fixed bottom-16 right-4 sm:bottom-20 sm:right-6 z-40 bg-white shadow-2xl rounded-2xl border-2 border-purple-900 overflow-hidden">
+      {/* Floating Popup & Persistent Floating Button */}
+      {staffPopupOpen ? (
+        <div className="fixed bottom-16 right-4 sm:bottom-20 sm:right-6 z-40 bg-white shadow-2xl rounded-2xl border-2 border-purple-900 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
           <div
-            className="bg-purple-900 text-white px-3 py-1.5 flex items-center justify-between gap-3 text-xs font-bold cursor-pointer"
+            className="bg-purple-900 text-white px-3.5 py-2 flex items-center justify-between gap-3 text-xs font-bold cursor-pointer select-none"
             onClick={() => setStaffPopupMinimized(!staffPopupMinimized)}
           >
-            <span>Staff Dena / Poana</span>
+            <div className="flex items-center gap-1.5">
+              <span>👥</span>
+              <span>Staff Dena / Poana</span>
+            </div>
             <div className="flex items-center gap-1">
               <button
                 type="button"
@@ -261,7 +264,8 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
                   e.stopPropagation();
                   setStaffPopupMinimized(!staffPopupMinimized);
                 }}
-                className="hover:bg-purple-800 rounded px-1.5"
+                className="hover:bg-purple-800 rounded px-1.5 py-0.5 text-xs transition cursor-pointer"
+                title={staffPopupMinimized ? "বক্স বড় করুন" : "বক্স ছোট করুন"}
               >
                 {staffPopupMinimized ? "▲" : "▼"}
               </button>
@@ -271,9 +275,10 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
                   e.stopPropagation();
                   setStaffPopupOpen(false);
                 }}
-                className="hover:bg-rose-600 rounded px-1.5"
+                className="hover:bg-rose-600 rounded px-2 py-0.5 text-xs transition cursor-pointer font-bold"
+                title="বক্স বন্ধ করুন (ফ্লোটিং বাটন থাকবে)"
               >
-                ×
+                ✕
               </button>
             </div>
           </div>
@@ -301,6 +306,25 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
               </table>
             </div>
           )}
+        </div>
+      ) : (
+        /* Persistent Floating Action Button when box is closed */
+        <div className="fixed bottom-16 right-4 sm:bottom-20 sm:right-6 z-40 animate-in fade-in zoom-in-95 duration-150">
+          <button
+            type="button"
+            onClick={() => {
+              setStaffPopupOpen(true);
+              setStaffPopupMinimized(false);
+            }}
+            className="flex items-center gap-2 rounded-2xl bg-purple-900 hover:bg-purple-800 active:bg-purple-950 text-white px-3.5 py-2.5 text-xs sm:text-sm font-black shadow-2xl ring-2 ring-purple-400/40 hover:ring-purple-300 transition cursor-pointer hover:scale-105 active:scale-95"
+            title="দেনা / পাওনা বক্স খুলুন"
+          >
+            <span className="text-base">👥</span>
+            <span>Staff Dena / Poana</span>
+            <span className="rounded-full bg-amber-400 text-purple-950 px-1.5 py-0.2 text-[10px] font-mono font-black">
+              {topStaffDiffs.length}
+            </span>
+          </button>
         </div>
       )}
 
