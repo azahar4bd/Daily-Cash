@@ -313,12 +313,21 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
             </tbody>
             {rows.length > 0 && (
               <tfoot className="bg-slate-100 font-bold border-t-2 border-slate-300">
-                <tr>
-                  <td colSpan={4} className="px-3 py-2 text-right font-bold text-slate-800">
-                    Total Receive
+                <tr className="border-b border-slate-200">
+                  <td colSpan={4} className="px-3 py-1.5 text-right font-bold text-slate-700">
+                    Today's Receive (আজকের রিসিভ)
                   </td>
-                  <td className="px-3 py-2 text-right font-mono font-black text-green-800">
+                  <td className="px-3 py-1.5 text-right font-mono font-bold text-green-700">
                     {fmt(totalReceiveSum)}
+                  </td>
+                  <td />
+                </tr>
+                <tr className="bg-emerald-50">
+                  <td colSpan={4} className="px-3 py-2 text-right font-black text-emerald-900">
+                    Total Receive (হাতে নগদ সহ মোট রিসিভ)
+                  </td>
+                  <td className="px-3 py-2 text-right font-mono font-black text-emerald-800 text-sm sm:text-base">
+                    {fmt((opening?.prevCash || 0) + totalReceiveSum)}
                   </td>
                   <td />
                 </tr>

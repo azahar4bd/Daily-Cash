@@ -431,7 +431,21 @@ export function setGoogleSheetUrl(url: string): void {
 export function getSummary(targetDate: string): Summary {
   const allTx = getLocalTxs();
   const allSr = getLocalStaffReports();
-  const PERSONS = ["monir", "sakib", "mintu", "alamgir"];
+  const DEFAULT_PERSONS = ["monir", "sakib", "mintu", "alamgir"];
+
+  // Find all distinct staff names from default + categories + staff reports
+  const cats = getCategories("receive");
+  const staffSet = new Set<string>(DEFAULT_PERSONS);
+  cats.forEach((c) => {
+    const n = c.name.toLowerCase().trim();
+    if (!["bank withdraw", "fund receive", "others income"].includes(n)) {
+      staffSet.add(n);
+    }
+  });
+  allSr.forEach((s) => {
+    if (s.staffName) staffSet.add(s.staffName.toLowerCase().trim());
+  });
+  const allStaffNames = Array.from(staffSet);
 
   const dateSet = new Set<string>();
   allTx.forEach((t) => dateSet.add(t.txDate));
@@ -446,9 +460,11 @@ export function getSummary(targetDate: string): Summary {
   let todayCash = 0;
   let todayBank = 0;
   let todayReceive = 0;
-  let todayExpense = 0;
+  let todayPayment = 0;
+  let todayBankDeposit = 0;
+  let todayBankWithdraw = 0;
   const persons: Record<string, number> = Object.fromEntries(
-    PERSONS.map((p) => [p, 0])
+    allStaffNames.map((p) => [p, 0])
   );
 
   for (const d of sortedDates) {
@@ -459,111 +475,94 @@ export function getSummary(targetDate: string): Summary {
     const dayTx = allTx.filter((t) => t.txDate === d);
     const daySr = allSr.filter((s) => s.reportDate === d);
 
-    const staffAday = daySr.reduce(
-      (sum, s) =>
-        sum +
-        Number(s.loan) +
-        Number(s.rebate) +
-        Number(s.savings) +
-        Number(s.dps) +
-        Number(s.passbook) +
-        Number(s.admission),
-      0
-    );
-    const directStaffReceive = dayTx
-      .filter((t) => t.type === "receive" && PERSONS.some((p) => t.category.includes(p)))
-      .reduce((sum, t) => sum + Number(t.amount), 0);
-    const finalAday = staffAday > 0 ? staffAday : directStaffReceive;
+    // Sum of all receive transactions on day d
+    const txReceive = dayTx
+      .filter((t) => t.type === "receive")
+      .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
 
-    const bankWithdraw = dayTx
-      .filter((t) => t.type === "receive" && t.category.includes("bank withdraw"))
-      .reduce((sum, t) => sum + Number(t.amount), 0);
+    // Sum of all payment transactions on day d
+    const txPayment = dayTx
+      .filter((t) => t.type === "payment")
+      .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
 
-    const disburseLoans = dayTx.filter(
-      (t) =>
-        t.type === "payment" &&
-        (["jagoron", "agrossor", "buni", "sufolon", "mfce"].some((k) =>
-          t.category.includes(k)
-        ) ||
-          Boolean(t.subCategory))
-    );
-    const disburseAmt = disburseLoans.reduce((sum, t) => sum + Number(t.amount), 0);
-    const disburseCount = disburseLoans.length;
+    // Bank deposit (payment with category bank deposit)
+    const dayBankDeposit = dayTx
+      .filter(
+        (t) =>
+          t.type === "payment" &&
+          (t.category.toLowerCase().includes("bank deposit") ||
+            t.category.toLowerCase().includes("bank deposite"))
+      )
+      .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
 
-    let buniyadSum = 0;
-    let otherDisburseSum = 0;
-    disburseLoans.forEach((t) => {
-      if (t.category.includes("buni")) buniyadSum += Number(t.amount);
-      else otherDisburseSum += Number(t.amount);
-    });
-    const kallayan = Math.round(otherDisburseSum * 0.01 + buniyadSum * 0.005);
-    const loanFormAmt = disburseCount * 5;
-
-    const fundReceive = dayTx
-      .filter((t) => t.type === "receive" && t.category.includes("fund receive"))
-      .reduce((sum, t) => sum + Number(t.amount), 0);
-
-    const othersIncome = dayTx
+    // Bank withdraw (receive with category bank withdraw)
+    const dayBankWithdraw = dayTx
       .filter(
         (t) =>
           t.type === "receive" &&
-          !t.category.includes("bank withdraw") &&
-          !t.category.includes("fund receive") &&
-          !PERSONS.some((p) => t.category.includes(p))
+          t.category.toLowerCase().includes("bank withdraw")
       )
-      .reduce((sum, t) => sum + Number(t.amount), 0);
+      .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
 
-    const bankDeposit = dayTx
-      .filter(
-        (t) =>
-          t.type === "payment" &&
-          (t.category.includes("bank deposit") || t.category.includes("bank deposite"))
-      )
-      .reduce((sum, t) => sum + Number(t.amount), 0);
-
-    const staffReturn = daySr.reduce(
-      (sum, s) => sum + Number(s.savingsAdjust) + Number(s.nogodReturn),
+    // Fallback for earlier dates where staff reports were entered without receive txs
+    const staffAday = daySr.reduce(
+      (sum, s) =>
+        sum +
+        Number(s.loan || 0) +
+        Number(s.rebate || 0) +
+        Number(s.savings || 0) +
+        Number(s.dps || 0) +
+        Number(s.passbook || 0) +
+        Number(s.admission || 0),
       0
     );
+    const effectiveReceive =
+      txReceive > 0
+        ? txReceive
+        : dayTx.length === 0 && staffAday > 0
+        ? staffAday
+        : txReceive;
+    const effectivePayment = txPayment;
 
-    const othersExpense = dayTx
-      .filter(
-        (t) =>
-          t.type === "payment" &&
-          ![
-            "jagoron",
-            "agrossor",
-            "buni",
-            "sufolon",
-            "mfce",
-            "bank deposit",
-            "bank deposite",
-          ].some((k) => t.category.includes(k))
-      )
-      .reduce((sum, t) => sum + Number(t.amount), 0);
-
-    const dayIncome =
-      runningCash + finalAday + bankWithdraw + kallayan + loanFormAmt + othersIncome;
-    const dayExpenditure = disburseAmt + bankDeposit + staffReturn + othersExpense;
-    runningCash = Math.round(dayIncome - dayExpenditure);
-    runningBank = Math.round(runningBank + bankDeposit + fundReceive - bankWithdraw);
+    runningCash = Math.round(runningCash + effectiveReceive - effectivePayment);
+    runningBank = Math.round(runningBank + dayBankDeposit - dayBankWithdraw);
 
     if (d === targetDate) {
-      todayCash = runningCash;
-      todayBank = runningBank;
-      todayReceive = finalAday + bankWithdraw + kallayan + loanFormAmt + othersIncome;
-      todayExpense = dayExpenditure;
+      todayReceive = txReceive;
+      todayPayment = txPayment;
+      todayBankDeposit = dayBankDeposit;
+      todayBankWithdraw = dayBankWithdraw;
+
       dayTx.forEach((t) => {
         if (t.type === "receive") {
-          for (const p of PERSONS) {
-            if (t.category.includes(p)) {
-              persons[p] += Number(t.amount);
+          const cat = t.category.toLowerCase().trim();
+          for (const p of allStaffNames) {
+            if (cat === p || cat.includes(p) || p.includes(cat)) {
+              persons[p] = (persons[p] || 0) + (Number(t.amount) || 0);
               break;
             }
           }
         }
       });
     }
+  }
+
+  // Exact formulas specified by user:
+  // 1. ক্যাশ ইন হ্যান্ড = গত দিনের হাতে নগদ + আজ রিসিভ কৃত টাকা - আজ পেমেন্ট কৃত টাকা
+  todayCash = Math.round(prevCash + todayReceive - todayPayment);
+
+  // 2. ব্যাংক ব্যালেন্স = গতদিনের ব্যাংক ব্যালেন্স + আজকে ব্যাংকে জমা - আজকে ব্যাংক থেকে উত্তোলন
+  todayBank = Math.round(prevBank + todayBankDeposit - todayBankWithdraw);
+
+  // 3. মোট রিসিভ = গত দিনের হাতে নগদ সহ মোট রিসিবকৃত টাকা
+  const totalReceiveWithOpening = Math.round(prevCash + todayReceive);
+
+  // 4. মোট পেমেন্ট = আজকে মোট পেমেন্ট কৃত টাকা
+  const totalPayment = Math.round(todayPayment);
+
+  let totalStaffReceive = 0;
+  for (const p of allStaffNames) {
+    totalStaffReceive += persons[p] || 0;
   }
 
   return {
@@ -574,8 +573,14 @@ export function getSummary(targetDate: string): Summary {
     prevBank,
     todayCashInHand: todayCash,
     todayBankBalance: todayBank,
-    receive: todayReceive,
-    expense: todayExpense,
+    receive: totalReceiveWithOpening,
+    expense: totalPayment,
+    todayReceiveOnly: todayReceive,
+    todayPayment: totalPayment,
+    totalReceiveWithOpening,
+    todayBankDeposit,
+    todayBankWithdraw,
+    totalStaffReceive,
     persons,
   };
 }

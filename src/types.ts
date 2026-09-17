@@ -74,5 +74,11 @@ export type Summary = {
   todayBankBalance: number;
   receive: number;
   expense: number;
+  todayReceiveOnly?: number;
+  todayPayment?: number;
+  totalReceiveWithOpening?: number;
+  todayBankDeposit?: number;
+  todayBankWithdraw?: number;
+  totalStaffReceive?: number;
   persons: Record<string, number>;
 };

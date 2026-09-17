@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import CategoryInput from "./CategoryInput";
 import { fmt } from "./DenominationPopup";
 import ReportDenominationModal from "./ReportDenominationModal";
+import StaffCustomKeyboard, { StaffFieldKey } from "./StaffCustomKeyboard";
 import {
   getLocalStaffReports,
   saveStaffReport,
@@ -39,6 +40,8 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
   const [denomModalOpen, setDenomModalOpen] = useState(false);
   const [staffPopupOpen, setStaffPopupOpen] = useState(true);
   const [staffPopupMinimized, setStaffPopupMinimized] = useState(false);
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
+  const [activeKeyboardField, setActiveKeyboardField] = useState<StaffFieldKey>("loan");
   const [prevCash, setPrevCash] = useState(0);
   const [prevBank, setPrevBank] = useState(0);
   const [allTxList, setAllTxList] = useState<Tx[]>([]);
@@ -65,7 +68,12 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
   }, [selectedDate]);
 
   const handleSave = () => {
-    if (!form.staffName.trim()) return alert("Staff Name required");
+    if (!form.staffName.trim()) {
+      alert("Staff Name required");
+      setActiveKeyboardField("staffName");
+      setKeyboardOpen(true);
+      return;
+    }
 
     saveStaffReport({
       ...form,
@@ -83,7 +91,23 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
       savingsAdjust: "",
       nogodReturn: "",
     });
+    setActiveKeyboardField("staffName");
     loadData();
+  };
+
+  const handleReset = () => {
+    setForm({
+      staffName: "",
+      loan: "",
+      rebate: "",
+      savings: "",
+      dps: "",
+      admission: "",
+      passbook: "",
+      savingsAdjust: "",
+      nogodReturn: "",
+    });
+    setActiveKeyboardField("staffName");
   };
 
   const handleUpdate = () => {
@@ -230,10 +254,7 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
   const maxRowsCount = Math.max(incomeList.length, expenditureList.length);
 
   const todayCashInHand = todayAllReportTotalIncome - todayAllReportTotalExpenditure;
-  const fundReceiveToday = targetReceives
-    .filter((t) => t.category.toLowerCase().includes("fund receive"))
-    .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
-  const todayBankBalance = prevBank + expBankDeposit + fundReceiveToday - incomeBankWithdraw;
+  const todayBankBalance = prevBank - incomeBankWithdraw + expBankDeposit;
 
   const checkExpens = todayAllReportTotalExpenditure - expBankDeposit;
   const checkWithdraw = incomeBankWithdraw;
@@ -245,10 +266,14 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
   });
 
   return (
-    <div className="space-y-6">
+    <div className={`space-y-6 ${keyboardOpen ? "pb-80" : ""}`}>
       {/* Floating Popup & Persistent Floating Button */}
       {staffPopupOpen ? (
-        <div className="fixed bottom-16 right-4 sm:bottom-20 sm:right-6 z-40 bg-white shadow-2xl rounded-2xl border-2 border-purple-900 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+        <div
+          className={`fixed ${
+            keyboardOpen ? "bottom-80 sm:bottom-84" : "bottom-16 sm:bottom-20"
+          } right-4 sm:right-6 z-40 bg-white shadow-2xl rounded-2xl border-2 border-purple-900 overflow-hidden animate-in fade-in zoom-in-95 duration-150`}
+        >
           <div
             className="bg-purple-900 text-white px-3.5 py-2 flex items-center justify-between gap-3 text-xs font-bold cursor-pointer select-none"
             onClick={() => setStaffPopupMinimized(!staffPopupMinimized)}
@@ -309,7 +334,11 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
         </div>
       ) : (
         /* Persistent Floating Action Button when box is closed */
-        <div className="fixed bottom-16 right-4 sm:bottom-20 sm:right-6 z-40 animate-in fade-in zoom-in-95 duration-150">
+        <div
+          className={`fixed ${
+            keyboardOpen ? "bottom-80 sm:bottom-84" : "bottom-16 sm:bottom-20"
+          } right-4 sm:right-6 z-40 animate-in fade-in zoom-in-95 duration-150`}
+        >
           <button
             type="button"
             onClick={() => {
@@ -330,18 +359,52 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
 
       {/* Entry Form */}
       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <div className="mb-4 flex items-center justify-between border-b pb-3">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b pb-3">
           <h2 className="text-xl font-bold text-slate-900">Staff Collection Report Entry</h2>
-          <div className="text-xs font-mono font-bold text-slate-700 bg-slate-100 px-3 py-1 rounded-lg border border-slate-200">
-            Date: {selectedDate}
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setKeyboardOpen(!keyboardOpen)}
+              className={`rounded-xl px-3 py-1 text-xs font-bold transition flex items-center gap-1.5 shadow-xs border cursor-pointer ${
+                keyboardOpen
+                  ? "bg-indigo-600 text-white border-indigo-500 shadow-indigo-300 ring-2 ring-indigo-400/40"
+                  : "bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border-indigo-200"
+              }`}
+              title="কাস্টম কিবোর্ড অন/অফ করুন"
+            >
+              <span>⌨️ কাস্টম কিবোর্ড</span>
+              <span
+                className={`text-[10px] px-1.5 py-0.2 rounded font-mono font-bold ${
+                  keyboardOpen ? "bg-indigo-900 text-white" : "bg-indigo-200 text-indigo-900"
+                }`}
+              >
+                {keyboardOpen ? "ON" : "OFF"}
+              </span>
+            </button>
+            <div className="text-xs font-mono font-bold text-slate-700 bg-slate-100 px-3 py-1 rounded-lg border border-slate-200">
+              Date: {selectedDate}
+            </div>
           </div>
         </div>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
-          <div>
+          <div
+            onClick={() => {
+              setActiveKeyboardField("staffName");
+              setKeyboardOpen(true);
+            }}
+            className={`rounded-lg transition ${
+              keyboardOpen && activeKeyboardField === "staffName"
+                ? "ring-2 ring-indigo-500 p-0.5 bg-amber-50"
+                : ""
+            }`}
+          >
             <label className="mb-1 block text-xs font-bold text-slate-700">Staff Name</label>
             <CategoryInput
               value={form.staffName}
-              onChange={(v) => setForm({ ...form, staffName: v })}
+              onChange={(v) => {
+                setForm({ ...form, staffName: v });
+                setActiveKeyboardField("loan");
+              }}
               options={DEFAULT_STAFF}
             />
           </div>
@@ -350,9 +413,21 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
             <input
               type="number"
               value={form.loan}
+              onFocus={() => {
+                setActiveKeyboardField("loan");
+                setKeyboardOpen(true);
+              }}
+              onClick={() => {
+                setActiveKeyboardField("loan");
+                setKeyboardOpen(true);
+              }}
               onChange={(e) => setForm({ ...form, loan: e.target.value })}
               placeholder="0"
-              className="w-full rounded border border-slate-300 bg-yellow-50 px-2.5 py-1.5 text-right font-mono text-xs font-bold focus:outline-none"
+              className={`w-full rounded border px-2.5 py-1.5 text-right font-mono text-xs font-bold transition focus:outline-none ${
+                keyboardOpen && activeKeyboardField === "loan"
+                  ? "border-indigo-600 ring-2 ring-indigo-500 bg-amber-100 text-slate-950 scale-[1.02]"
+                  : "border-slate-300 bg-yellow-50 text-slate-900"
+              }`}
             />
           </div>
           <div>
@@ -360,9 +435,21 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
             <input
               type="number"
               value={form.rebate}
+              onFocus={() => {
+                setActiveKeyboardField("rebate");
+                setKeyboardOpen(true);
+              }}
+              onClick={() => {
+                setActiveKeyboardField("rebate");
+                setKeyboardOpen(true);
+              }}
               onChange={(e) => setForm({ ...form, rebate: e.target.value })}
               placeholder="0"
-              className="w-full rounded border border-slate-300 bg-amber-50 px-2.5 py-1.5 text-right font-mono text-xs font-bold focus:outline-none"
+              className={`w-full rounded border px-2.5 py-1.5 text-right font-mono text-xs font-bold transition focus:outline-none ${
+                keyboardOpen && activeKeyboardField === "rebate"
+                  ? "border-indigo-600 ring-2 ring-indigo-500 bg-amber-100 text-slate-950 scale-[1.02]"
+                  : "border-slate-300 bg-amber-50 text-slate-900"
+              }`}
             />
           </div>
           <div>
@@ -370,9 +457,21 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
             <input
               type="number"
               value={form.savings}
+              onFocus={() => {
+                setActiveKeyboardField("savings");
+                setKeyboardOpen(true);
+              }}
+              onClick={() => {
+                setActiveKeyboardField("savings");
+                setKeyboardOpen(true);
+              }}
               onChange={(e) => setForm({ ...form, savings: e.target.value })}
               placeholder="0"
-              className="w-full rounded border border-slate-300 bg-yellow-50 px-2.5 py-1.5 text-right font-mono text-xs font-bold focus:outline-none"
+              className={`w-full rounded border px-2.5 py-1.5 text-right font-mono text-xs font-bold transition focus:outline-none ${
+                keyboardOpen && activeKeyboardField === "savings"
+                  ? "border-indigo-600 ring-2 ring-indigo-500 bg-amber-100 text-slate-950 scale-[1.02]"
+                  : "border-slate-300 bg-yellow-50 text-slate-900"
+              }`}
             />
           </div>
           <div>
@@ -380,9 +479,21 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
             <input
               type="number"
               value={form.dps}
+              onFocus={() => {
+                setActiveKeyboardField("dps");
+                setKeyboardOpen(true);
+              }}
+              onClick={() => {
+                setActiveKeyboardField("dps");
+                setKeyboardOpen(true);
+              }}
               onChange={(e) => setForm({ ...form, dps: e.target.value })}
               placeholder="0"
-              className="w-full rounded border border-slate-300 px-2.5 py-1.5 text-right font-mono text-xs font-bold focus:outline-none"
+              className={`w-full rounded border px-2.5 py-1.5 text-right font-mono text-xs font-bold transition focus:outline-none ${
+                keyboardOpen && activeKeyboardField === "dps"
+                  ? "border-indigo-600 ring-2 ring-indigo-500 bg-amber-100 text-slate-950 scale-[1.02]"
+                  : "border-slate-300 text-slate-900"
+              }`}
             />
           </div>
           <div>
@@ -390,9 +501,21 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
             <input
               type="number"
               value={form.admission}
+              onFocus={() => {
+                setActiveKeyboardField("admission");
+                setKeyboardOpen(true);
+              }}
+              onClick={() => {
+                setActiveKeyboardField("admission");
+                setKeyboardOpen(true);
+              }}
               onChange={(e) => setForm({ ...form, admission: e.target.value })}
               placeholder="0"
-              className="w-full rounded border border-slate-300 px-2.5 py-1.5 text-right font-mono text-xs font-bold focus:outline-none"
+              className={`w-full rounded border px-2.5 py-1.5 text-right font-mono text-xs font-bold transition focus:outline-none ${
+                keyboardOpen && activeKeyboardField === "admission"
+                  ? "border-indigo-600 ring-2 ring-indigo-500 bg-amber-100 text-slate-950 scale-[1.02]"
+                  : "border-slate-300 text-slate-900"
+              }`}
             />
           </div>
           <div>
@@ -400,9 +523,21 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
             <input
               type="number"
               value={form.passbook}
+              onFocus={() => {
+                setActiveKeyboardField("passbook");
+                setKeyboardOpen(true);
+              }}
+              onClick={() => {
+                setActiveKeyboardField("passbook");
+                setKeyboardOpen(true);
+              }}
               onChange={(e) => setForm({ ...form, passbook: e.target.value })}
               placeholder="0"
-              className="w-full rounded border border-slate-300 px-2.5 py-1.5 text-right font-mono text-xs font-bold focus:outline-none"
+              className={`w-full rounded border px-2.5 py-1.5 text-right font-mono text-xs font-bold transition focus:outline-none ${
+                keyboardOpen && activeKeyboardField === "passbook"
+                  ? "border-indigo-600 ring-2 ring-indigo-500 bg-amber-100 text-slate-950 scale-[1.02]"
+                  : "border-slate-300 text-slate-900"
+              }`}
             />
           </div>
           <div>
@@ -410,9 +545,21 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
             <input
               type="number"
               value={form.savingsAdjust}
+              onFocus={() => {
+                setActiveKeyboardField("savingsAdjust");
+                setKeyboardOpen(true);
+              }}
+              onClick={() => {
+                setActiveKeyboardField("savingsAdjust");
+                setKeyboardOpen(true);
+              }}
               onChange={(e) => setForm({ ...form, savingsAdjust: e.target.value })}
               placeholder="0"
-              className="w-full rounded border border-rose-300 bg-rose-50 px-2.5 py-1.5 text-right font-mono text-xs font-bold text-rose-900 focus:outline-none"
+              className={`w-full rounded border px-2.5 py-1.5 text-right font-mono text-xs font-bold transition focus:outline-none ${
+                keyboardOpen && activeKeyboardField === "savingsAdjust"
+                  ? "border-indigo-600 ring-2 ring-indigo-500 bg-amber-100 text-slate-950 scale-[1.02]"
+                  : "border-rose-300 bg-rose-50 text-rose-900"
+              }`}
             />
           </div>
           <div>
@@ -420,38 +567,46 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
             <input
               type="number"
               value={form.nogodReturn}
+              onFocus={() => {
+                setActiveKeyboardField("nogodReturn");
+                setKeyboardOpen(true);
+              }}
+              onClick={() => {
+                setActiveKeyboardField("nogodReturn");
+                setKeyboardOpen(true);
+              }}
               onChange={(e) => setForm({ ...form, nogodReturn: e.target.value })}
               placeholder="0"
-              className="w-full rounded border border-rose-300 bg-rose-50 px-2.5 py-1.5 text-right font-mono text-xs font-bold text-rose-900 focus:outline-none"
+              className={`w-full rounded border px-2.5 py-1.5 text-right font-mono text-xs font-bold transition focus:outline-none ${
+                keyboardOpen && activeKeyboardField === "nogodReturn"
+                  ? "border-indigo-600 ring-2 ring-indigo-500 bg-amber-100 text-slate-950 scale-[1.02]"
+                  : "border-rose-300 bg-rose-50 text-rose-900"
+              }`}
             />
           </div>
         </div>
-        <div className="mt-4 flex gap-2">
+        <div className="mt-4 flex flex-wrap gap-2">
           <button
             type="button"
             onClick={handleSave}
-            className="rounded-lg bg-green-600 px-6 py-2 text-sm font-bold text-white shadow hover:bg-green-700"
+            className="rounded-lg bg-green-600 px-6 py-2 text-sm font-bold text-white shadow hover:bg-green-700 cursor-pointer"
           >
             Save Report
           </button>
           <button
             type="button"
-            onClick={() =>
-              setForm({
-                staffName: "",
-                loan: "",
-                rebate: "",
-                savings: "",
-                dps: "",
-                admission: "",
-                passbook: "",
-                savingsAdjust: "",
-                nogodReturn: "",
-              })
-            }
-            className="rounded-lg bg-slate-500 px-6 py-2 text-sm font-bold text-white hover:bg-slate-600"
+            onClick={handleReset}
+            className="rounded-lg bg-slate-500 px-6 py-2 text-sm font-bold text-white hover:bg-slate-600 cursor-pointer"
           >
             Reset
+          </button>
+          <button
+            type="button"
+            onClick={() => setKeyboardOpen(!keyboardOpen)}
+            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-bold text-white hover:bg-indigo-700 cursor-pointer flex items-center gap-1.5"
+          >
+            <span>⌨️</span>
+            <span>{keyboardOpen ? "Hide Keyboard (কিবোর্ড লুকান)" : "Custom Keyboard (কাস্টম কিবোর্ড)"}</span>
           </button>
         </div>
       </div>
@@ -763,6 +918,19 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
           date={selectedDate}
         />
       )}
+
+      {/* Custom Keyboard for Staff Collection Report Entry */}
+      <StaffCustomKeyboard
+        open={keyboardOpen}
+        activeField={activeKeyboardField}
+        values={form}
+        staffList={allStaffNames}
+        onFieldSelect={(field) => setActiveKeyboardField(field)}
+        onValueChange={(field, val) => setForm((prev) => ({ ...prev, [field]: val }))}
+        onSave={handleSave}
+        onReset={handleReset}
+        onClose={() => setKeyboardOpen(false)}
+      />
     </div>
   );
 }
