@@ -129,41 +129,6 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
       <div className="rounded-2xl border-t-4 border-green-500 bg-white p-5 sm:p-6 shadow-sm border border-slate-200">
         <h1 className="mb-4 text-2xl font-bold text-slate-900">Receive</h1>
         <div className="grid gap-4 md:grid-cols-2">
-          {/* Denomination / Amount Box - সবার উপরে (Moved to the very top) */}
-          <div className="md:col-span-2">
-            <div className="mb-1.5 flex items-center justify-between">
-              <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                <span>💰</span>
-                <span>Denomination / রিসিভ টাকার পরিমাণ (Amount)</span>
-              </label>
-              <button
-                type="button"
-                onClick={() => setDenomOpen(true)}
-                className="flex items-center gap-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 active:bg-amber-700 px-3 py-1 text-xs font-black text-slate-950 shadow-xs transition cursor-pointer"
-              >
-                <span>💳</span>
-                <span>Denomination গণনা করুন</span>
-              </button>
-            </div>
-            <div
-              onClick={() => setDenomOpen(true)}
-              className="group relative cursor-pointer"
-            >
-              <input
-                readOnly
-                value={form.amount ? fmt(form.amount) : ""}
-                placeholder="0 (ক্লিক করে নোটের ডিনোমিনেশন হিসাব করুন)"
-                onClick={() => setDenomOpen(true)}
-                onFocus={() => setDenomOpen(true)}
-                className="w-full cursor-pointer rounded-xl border-2 border-amber-300 bg-yellow-50 hover:bg-yellow-100/70 px-4 py-2.5 text-right font-mono text-xl sm:text-2xl font-black text-slate-900 focus:border-blue-500 focus:outline-none transition shadow-2xs group-hover:border-amber-400"
-              />
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-amber-900 bg-amber-200/90 px-2.5 py-1 rounded-lg pointer-events-none flex items-center gap-1">
-                <span>💵</span>
-                <span>Denomination</span>
-              </span>
-            </div>
-          </div>
-
           {/* Date */}
           <div>
             <label className="mb-1 block text-xs font-bold text-slate-700">Date</label>
@@ -193,8 +158,23 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
             />
           </div>
 
+          {/* Amount (Click for Denomination) */}
+          <div>
+            <label className="mb-1 block text-xs font-bold text-slate-700">
+              Amount (Click for Denomination)
+            </label>
+            <input
+              readOnly
+              value={form.amount ? fmt(form.amount) : ""}
+              placeholder="0 (ক্লিক করে ডিনোমিনেশন খুলুন)"
+              onClick={() => setDenomOpen(true)}
+              onFocus={() => setDenomOpen(true)}
+              className="w-full cursor-pointer rounded-lg border border-slate-300 bg-yellow-50 px-3 py-2 text-right font-mono text-lg font-bold focus:border-blue-500 focus:outline-none transition shadow-2xs hover:bg-yellow-100/70"
+            />
+          </div>
+
           {/* Description */}
-          <div className="md:col-span-2">
+          <div>
             <label className="mb-1 block text-xs font-bold text-slate-700">Description</label>
             <input
               value={form.description}
@@ -372,29 +352,6 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
               </button>
             </div>
             <div className="grid gap-4 md:grid-cols-2">
-              <div className="md:col-span-2">
-                <div className="mb-1 flex items-center justify-between">
-                  <label className="text-xs font-bold text-slate-700 flex items-center gap-1">
-                    <span>💰</span>
-                    <span>Denomination / রিসিভ টাকার পরিমাণ</span>
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => setEditDenomOpen(true)}
-                    className="flex items-center gap-1 rounded bg-amber-500 hover:bg-amber-600 px-2.5 py-0.5 text-xs font-bold text-slate-950 shadow-xs cursor-pointer"
-                  >
-                    💳 Denomination
-                  </button>
-                </div>
-                <input
-                  readOnly
-                  value={edit.amount ? fmt(edit.amount) : ""}
-                  placeholder="0"
-                  onClick={() => setEditDenomOpen(true)}
-                  className="w-full cursor-pointer rounded-xl border border-slate-300 bg-yellow-50 px-3 py-2 text-right font-mono text-lg font-bold"
-                />
-              </div>
-
               <div>
                 <label className="mb-1 block text-xs font-bold text-slate-700">Date</label>
                 <DatePicker
@@ -413,7 +370,18 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
                 />
               </div>
 
-              <div className="md:col-span-2">
+              <div>
+                <label className="mb-1 block text-xs font-bold text-slate-700">Amount</label>
+                <input
+                  readOnly
+                  value={edit.amount ? fmt(edit.amount) : ""}
+                  placeholder="0"
+                  onClick={() => setEditDenomOpen(true)}
+                  className="w-full cursor-pointer rounded-lg border border-slate-300 bg-yellow-50 px-3 py-2 text-right font-mono text-lg font-bold"
+                />
+              </div>
+
+              <div>
                 <label className="mb-1 block text-xs font-bold text-slate-700">Description</label>
                 <input
                   value={edit.description}
