@@ -67,6 +67,18 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
     return () => window.removeEventListener("tx-changed", loadData);
   }, [selectedDate]);
 
+  // Auto-scroll screen when switching fields so the active field stays in front
+  useEffect(() => {
+    if (!keyboardOpen) return;
+    const timer = setTimeout(() => {
+      const el = document.getElementById(`field-${activeKeyboardField}`);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    }, 50);
+    return () => clearTimeout(timer);
+  }, [activeKeyboardField, keyboardOpen]);
+
   const handleSave = () => {
     if (!form.staffName.trim()) {
       alert("Staff Name required");
@@ -136,7 +148,8 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
   const totalSavingsCombined = totalSavings + totalDps;
   const totalPassbook = reportsForTable.reduce((s, r) => s + Number(r.passbook || 0), 0);
   const totalAdmission = reportsForTable.reduce((s, r) => s + Number(r.admission || 0), 0);
-  const totalGrantTotal = totalLoanGross + totalSavingsCombined + totalPassbook + totalAdmission;
+  // Rebate loan-er sathe jog holeo grant total-e jog hobe na:
+  const totalGrantTotal = totalLoanBase + totalSavingsCombined + totalPassbook + totalAdmission;
   const totalAdjust = reportsForTable.reduce((s, r) => s + Number(r.savingsAdjust || 0), 0);
   const totalNogod = reportsForTable.reduce((s, r) => s + Number(r.nogodReturn || 0), 0);
   const totalReturnCombined = totalAdjust + totalNogod;
@@ -162,7 +175,8 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
     const stPassbook = staffReports.reduce((s, r) => s + Number(r.passbook || 0), 0);
     const stAdmission = staffReports.reduce((s, r) => s + Number(r.admission || 0), 0);
 
-    const todayAday = stLoan + stRebate + stSavings + stDps + stPassbook + stAdmission;
+    // Rebate is not added to cash collection aday:
+    const todayAday = stLoan + stSavings + stDps + stPassbook + stAdmission;
     const savingsReturn = staffReports.reduce((s, r) => s + Number(r.savingsAdjust || 0), 0);
 
     const todayDeposite = receiveTxs
@@ -254,7 +268,11 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
   const maxRowsCount = Math.max(incomeList.length, expenditureList.length);
 
   const todayCashInHand = todayAllReportTotalIncome - todayAllReportTotalExpenditure;
-  const todayBankBalance = prevBank - incomeBankWithdraw + expBankDeposit;
+  const fundReceiveToday = targetReceives
+    .filter((t) => t.category.toLowerCase().includes("fund receive"))
+    .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+  const todayBankBalance =
+    prevBank - incomeBankWithdraw + expBankDeposit + fundReceiveToday;
 
   const checkExpens = todayAllReportTotalExpenditure - expBankDeposit;
   const checkWithdraw = incomeBankWithdraw;
@@ -387,6 +405,7 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
         </div>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
           <div
+            id="field-staffName"
             onClick={() => {
               setActiveKeyboardField("staffName");
               setKeyboardOpen(true);
@@ -407,10 +426,12 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
               options={DEFAULT_STAFF}
             />
           </div>
-          <div>
+          <div id="field-loan">
             <label className="mb-1 block text-xs font-bold text-slate-700">Loan</label>
             <input
-              type="number"
+              type="text"
+              inputMode="none"
+              readOnly={keyboardOpen}
               value={form.loan}
               onFocus={() => {
                 setActiveKeyboardField("loan");
@@ -422,17 +443,19 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
               }}
               onChange={(e) => setForm({ ...form, loan: e.target.value })}
               placeholder="0"
-              className={`w-full rounded border px-2.5 py-1.5 text-right font-mono text-xs font-bold transition focus:outline-none ${
+              className={`w-full rounded border px-2.5 py-1.5 text-right font-mono text-xs font-bold transition focus:outline-none cursor-pointer ${
                 keyboardOpen && activeKeyboardField === "loan"
                   ? "border-indigo-600 ring-2 ring-indigo-500 bg-amber-100 text-slate-950 scale-[1.02]"
                   : "border-slate-300 bg-yellow-50 text-slate-900"
               }`}
             />
           </div>
-          <div>
+          <div id="field-rebate">
             <label className="mb-1 block text-xs font-bold text-slate-700">Rebate</label>
             <input
-              type="number"
+              type="text"
+              inputMode="none"
+              readOnly={keyboardOpen}
               value={form.rebate}
               onFocus={() => {
                 setActiveKeyboardField("rebate");
@@ -444,17 +467,19 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
               }}
               onChange={(e) => setForm({ ...form, rebate: e.target.value })}
               placeholder="0"
-              className={`w-full rounded border px-2.5 py-1.5 text-right font-mono text-xs font-bold transition focus:outline-none ${
+              className={`w-full rounded border px-2.5 py-1.5 text-right font-mono text-xs font-bold transition focus:outline-none cursor-pointer ${
                 keyboardOpen && activeKeyboardField === "rebate"
                   ? "border-indigo-600 ring-2 ring-indigo-500 bg-amber-100 text-slate-950 scale-[1.02]"
                   : "border-slate-300 bg-amber-50 text-slate-900"
               }`}
             />
           </div>
-          <div>
+          <div id="field-savings">
             <label className="mb-1 block text-xs font-bold text-slate-700">Savings</label>
             <input
-              type="number"
+              type="text"
+              inputMode="none"
+              readOnly={keyboardOpen}
               value={form.savings}
               onFocus={() => {
                 setActiveKeyboardField("savings");
@@ -466,17 +491,19 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
               }}
               onChange={(e) => setForm({ ...form, savings: e.target.value })}
               placeholder="0"
-              className={`w-full rounded border px-2.5 py-1.5 text-right font-mono text-xs font-bold transition focus:outline-none ${
+              className={`w-full rounded border px-2.5 py-1.5 text-right font-mono text-xs font-bold transition focus:outline-none cursor-pointer ${
                 keyboardOpen && activeKeyboardField === "savings"
                   ? "border-indigo-600 ring-2 ring-indigo-500 bg-amber-100 text-slate-950 scale-[1.02]"
                   : "border-slate-300 bg-yellow-50 text-slate-900"
               }`}
             />
           </div>
-          <div>
+          <div id="field-dps">
             <label className="mb-1 block text-xs font-bold text-slate-700">DPS</label>
             <input
-              type="number"
+              type="text"
+              inputMode="none"
+              readOnly={keyboardOpen}
               value={form.dps}
               onFocus={() => {
                 setActiveKeyboardField("dps");
@@ -488,17 +515,19 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
               }}
               onChange={(e) => setForm({ ...form, dps: e.target.value })}
               placeholder="0"
-              className={`w-full rounded border px-2.5 py-1.5 text-right font-mono text-xs font-bold transition focus:outline-none ${
+              className={`w-full rounded border px-2.5 py-1.5 text-right font-mono text-xs font-bold transition focus:outline-none cursor-pointer ${
                 keyboardOpen && activeKeyboardField === "dps"
                   ? "border-indigo-600 ring-2 ring-indigo-500 bg-amber-100 text-slate-950 scale-[1.02]"
                   : "border-slate-300 text-slate-900"
               }`}
             />
           </div>
-          <div>
+          <div id="field-admission">
             <label className="mb-1 block text-xs font-bold text-slate-700">Admission</label>
             <input
-              type="number"
+              type="text"
+              inputMode="none"
+              readOnly={keyboardOpen}
               value={form.admission}
               onFocus={() => {
                 setActiveKeyboardField("admission");
@@ -510,17 +539,19 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
               }}
               onChange={(e) => setForm({ ...form, admission: e.target.value })}
               placeholder="0"
-              className={`w-full rounded border px-2.5 py-1.5 text-right font-mono text-xs font-bold transition focus:outline-none ${
+              className={`w-full rounded border px-2.5 py-1.5 text-right font-mono text-xs font-bold transition focus:outline-none cursor-pointer ${
                 keyboardOpen && activeKeyboardField === "admission"
                   ? "border-indigo-600 ring-2 ring-indigo-500 bg-amber-100 text-slate-950 scale-[1.02]"
                   : "border-slate-300 text-slate-900"
               }`}
             />
           </div>
-          <div>
+          <div id="field-passbook">
             <label className="mb-1 block text-xs font-bold text-slate-700">Passbook</label>
             <input
-              type="number"
+              type="text"
+              inputMode="none"
+              readOnly={keyboardOpen}
               value={form.passbook}
               onFocus={() => {
                 setActiveKeyboardField("passbook");
@@ -532,17 +563,19 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
               }}
               onChange={(e) => setForm({ ...form, passbook: e.target.value })}
               placeholder="0"
-              className={`w-full rounded border px-2.5 py-1.5 text-right font-mono text-xs font-bold transition focus:outline-none ${
+              className={`w-full rounded border px-2.5 py-1.5 text-right font-mono text-xs font-bold transition focus:outline-none cursor-pointer ${
                 keyboardOpen && activeKeyboardField === "passbook"
                   ? "border-indigo-600 ring-2 ring-indigo-500 bg-amber-100 text-slate-950 scale-[1.02]"
                   : "border-slate-300 text-slate-900"
               }`}
             />
           </div>
-          <div>
+          <div id="field-savingsAdjust">
             <label className="mb-1 block text-xs font-bold text-slate-700">Savings Adjust</label>
             <input
-              type="number"
+              type="text"
+              inputMode="none"
+              readOnly={keyboardOpen}
               value={form.savingsAdjust}
               onFocus={() => {
                 setActiveKeyboardField("savingsAdjust");
@@ -554,17 +587,19 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
               }}
               onChange={(e) => setForm({ ...form, savingsAdjust: e.target.value })}
               placeholder="0"
-              className={`w-full rounded border px-2.5 py-1.5 text-right font-mono text-xs font-bold transition focus:outline-none ${
+              className={`w-full rounded border px-2.5 py-1.5 text-right font-mono text-xs font-bold transition focus:outline-none cursor-pointer ${
                 keyboardOpen && activeKeyboardField === "savingsAdjust"
                   ? "border-indigo-600 ring-2 ring-indigo-500 bg-amber-100 text-slate-950 scale-[1.02]"
                   : "border-rose-300 bg-rose-50 text-rose-900"
               }`}
             />
           </div>
-          <div>
+          <div id="field-nogodReturn">
             <label className="mb-1 block text-xs font-bold text-slate-700">Nogod Return</label>
             <input
-              type="number"
+              type="text"
+              inputMode="none"
+              readOnly={keyboardOpen}
               value={form.nogodReturn}
               onFocus={() => {
                 setActiveKeyboardField("nogodReturn");
@@ -576,7 +611,7 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
               }}
               onChange={(e) => setForm({ ...form, nogodReturn: e.target.value })}
               placeholder="0"
-              className={`w-full rounded border px-2.5 py-1.5 text-right font-mono text-xs font-bold transition focus:outline-none ${
+              className={`w-full rounded border px-2.5 py-1.5 text-right font-mono text-xs font-bold transition focus:outline-none cursor-pointer ${
                 keyboardOpen && activeKeyboardField === "nogodReturn"
                   ? "border-indigo-600 ring-2 ring-indigo-500 bg-amber-100 text-slate-950 scale-[1.02]"
                   : "border-rose-300 bg-rose-50 text-rose-900"
@@ -694,7 +729,8 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
                   const totalSavingsRow = savingsVal + dpsVal;
                   const passbookVal = Number(r.passbook) || 0;
                   const admissionVal = Number(r.admission) || 0;
-                  const grantTotalRow = grossLoan + totalSavingsRow + passbookVal + admissionVal;
+                  // Rebate loan-er sathe jog holeo grant total-e jog hobe na:
+                  const grantTotalRow = baseLoan + totalSavingsRow + passbookVal + admissionVal;
                   const adjustVal = Number(r.savingsAdjust) || 0;
                   const nogodVal = Number(r.nogodReturn) || 0;
                   const totalReturnRow = adjustVal + nogodVal;

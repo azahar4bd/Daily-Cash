@@ -99,14 +99,13 @@ export default function DenominationPopup({
     label: string;
     onClick: () => void;
     className?: string;
-    key?: string | number;
   }) => (
     <button
       type="button"
       onPointerDown={(e) => e.preventDefault()}
       onMouseDown={(e) => e.preventDefault()}
       onClick={onClick}
-      className={`h-11 select-none rounded-lg text-lg font-bold shadow-sm active:scale-95 active:bg-slate-300 transition ${className}`}
+      className={`h-10 select-none rounded-lg text-base sm:text-lg font-bold shadow-xs active:scale-95 active:bg-slate-300 transition cursor-pointer flex items-center justify-center ${className}`}
     >
       {label}
     </button>
@@ -114,11 +113,14 @@ export default function DenominationPopup({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-2 sm:p-4">
-      <div className="flex flex-col bg-white max-h-[96vh] w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
-        {/* header */}
-        <div className="flex items-center justify-between border-b bg-slate-900 px-4 py-2.5 text-white">
-          <h3 className="text-base sm:text-lg font-bold">Denomination</h3>
-          <div className="flex items-center gap-1">
+      <div className="flex flex-col bg-white max-h-[96vh] w-full max-w-md rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+        {/* Header */}
+        <div className="flex items-center justify-between border-b bg-slate-900 px-3.5 py-2 text-white">
+          <div className="flex items-center gap-1.5">
+            <span className="text-base">💰</span>
+            <h3 className="text-sm sm:text-base font-bold">Denomination</h3>
+          </div>
+          <div className="flex items-center gap-1.5">
             <button
               type="button"
               onClick={() => {
@@ -126,7 +128,7 @@ export default function DenominationPopup({
                 setTimeout(() => inputRefs.current[active]?.focus(), 0);
               }}
               title="Toggle keypad"
-              className={`rounded-lg px-2 py-1 text-sm font-semibold ${
+              className={`rounded-lg px-2 py-0.5 text-xs font-semibold cursor-pointer ${
                 showKeypad ? "bg-blue-600 text-white" : "text-slate-300 hover:bg-slate-800"
               }`}
             >
@@ -135,15 +137,31 @@ export default function DenominationPopup({
             <button
               type="button"
               onClick={onClose}
-              className="flex h-8 w-8 items-center justify-center rounded-full text-2xl text-slate-300 hover:bg-slate-800 hover:text-white"
+              className="flex h-7 w-7 items-center justify-center rounded-full text-xl text-slate-300 hover:bg-slate-800 hover:text-white cursor-pointer"
             >
               ×
             </button>
           </div>
         </div>
-        {/* fields */}
-        <div className="flex-1 overflow-auto px-3 py-3 sm:px-4">
-          <div className="flex flex-col gap-1.5 sm:gap-2">
+
+        {/* Total Balance - MOVED TO THE VERY TOP (নিচে থেকে সবার উপরে) */}
+        <div className="shrink-0 z-10 border-b-2 border-blue-900 bg-gradient-to-r from-blue-700 to-indigo-700 px-3.5 py-2 text-white shadow-xs flex items-center justify-between">
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs font-black uppercase tracking-wider text-blue-100">
+              Total Balance
+            </span>
+            <span className="text-[10px] bg-blue-900/60 rounded px-1.5 py-0.2 text-blue-200 font-mono">
+              TK
+            </span>
+          </div>
+          <span className="font-mono text-lg sm:text-xl font-black tracking-tight text-white drop-shadow-xs">
+            {fmt(total)}
+          </span>
+        </div>
+
+        {/* Denomination Rows - MADE COMPACT & SMALLER (ঘর ছোট করে দেওয়া হয়েছে) */}
+        <div className="flex-1 overflow-auto px-2.5 py-2 sm:px-3">
+          <div className="flex flex-col gap-1">
             {Array.from({ length: FIELD_COUNT }, (_, i) => {
               const isOther = i === FIELD_COUNT - 1;
               const on = i === active;
@@ -151,14 +169,14 @@ export default function DenominationPopup({
                 <div
                   key={i}
                   onClick={() => focusIdx(i)}
-                  className={`flex items-center gap-2 rounded-lg border-2 px-3 py-1.5 ${
-                    on ? "border-blue-600 bg-blue-50" : "border-slate-200 bg-white"
-                  } ${isOther ? "mt-1" : ""}`}
+                  className={`flex items-center gap-1.5 rounded-md border px-2 py-0.5 sm:py-1 cursor-pointer transition ${
+                    on ? "border-blue-600 bg-blue-50 ring-1 ring-blue-400" : "border-slate-200 bg-white hover:bg-slate-50"
+                  } ${isOther ? "mt-0.5 bg-amber-50/50" : ""}`}
                 >
-                  <span className={`w-14 shrink-0 text-right font-mono text-base sm:text-lg font-bold ${isOther ? "text-xs sm:text-sm" : ""}`}>
+                  <span className={`w-11 shrink-0 text-right font-mono text-xs sm:text-sm font-bold text-slate-800 ${isOther ? "text-[11px]" : ""}`}>
                     {labelOf(i)}
                   </span>
-                  <span className="text-slate-400">×</span>
+                  <span className="text-slate-400 text-xs">×</span>
                   <input
                     ref={(el) => {
                       inputRefs.current[i] = el;
@@ -183,12 +201,12 @@ export default function DenominationPopup({
                         focusIdx(i - 1);
                       }
                     }}
-                    className={`min-w-0 flex-1 rounded border px-2 py-0.5 text-right font-mono text-base sm:text-lg font-bold focus:border-blue-500 focus:outline-none ${
-                      showKeypad ? "caret-transparent" : ""
-                    } ${on && showKeypad ? "bg-white text-blue-900" : ""}`}
+                    className={`min-w-0 flex-1 rounded border border-slate-200 px-2 py-0.5 text-right font-mono text-xs sm:text-sm font-bold focus:border-blue-500 focus:outline-none ${
+                      showKeypad ? "caret-transparent cursor-pointer" : ""
+                    } ${on && showKeypad ? "bg-white text-blue-900 border-blue-400" : ""}`}
                   />
-                  <span className="text-slate-400">=</span>
-                  <span className="w-20 shrink-0 text-right font-mono text-xs sm:text-sm text-slate-800 font-bold">
+                  <span className="text-slate-400 text-xs">=</span>
+                  <span className="w-16 shrink-0 text-right font-mono text-xs font-bold text-slate-800">
                     {fmt(amountOf(i))}
                   </span>
                 </div>
@@ -196,68 +214,72 @@ export default function DenominationPopup({
             })}
           </div>
         </div>
-        {/* Total Balance - ALWAYS VISIBLE, never covered by scrolling */}
-        <div className="shrink-0 z-10 border-t-2 border-blue-900 bg-gradient-to-r from-blue-700 to-indigo-700 px-4 py-2.5 text-white shadow-md flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="text-xs sm:text-sm font-black uppercase tracking-wider text-blue-100">
-              Total Balance
-            </span>
-            <span className="text-[10px] bg-blue-900/60 rounded px-1.5 py-0.5 text-blue-200 font-mono">
-              TK
-            </span>
-          </div>
-          <span className="font-mono text-xl sm:text-2xl font-black tracking-tight text-white drop-shadow-xs">
-            {fmt(total)}
-          </span>
-        </div>
-        {/* footer: keypad or action buttons */}
+
+        {/* Footer: Keypad or Action Buttons (with CLOSE button on keyboard) */}
         {showKeypad ? (
-          <div className="border-t bg-slate-100 p-2.5">
-            <div className="grid grid-cols-5 gap-1.5">
-              <div className="col-span-4 grid grid-cols-4 gap-1.5">
+          <div className="border-t bg-slate-100 p-2">
+            <div className="grid grid-cols-5 gap-1">
+              <div className="col-span-4 grid grid-cols-4 gap-1">
                 {["7", "8", "9"].map((k) => (
-                  <Key key={k} label={k} onClick={() => press(k)} className="bg-white" />
+                  <Key key={k} label={k} onClick={() => press(k)} className="bg-white hover:bg-slate-50" />
                 ))}
-                <Key label="⌫" onClick={() => press("⌫")} className="bg-amber-100 text-amber-900" />
+                <Key label="⌫" onClick={() => press("⌫")} className="bg-amber-100 text-amber-900 hover:bg-amber-200" />
+
                 {["4", "5", "6"].map((k) => (
-                  <Key key={k} label={k} onClick={() => press(k)} className="bg-white" />
+                  <Key key={k} label={k} onClick={() => press(k)} className="bg-white hover:bg-slate-50" />
                 ))}
-                <Key label="C" onClick={() => press("C")} className="bg-rose-100 text-rose-800" />
+                <Key label="C" onClick={() => press("C")} className="bg-rose-100 text-rose-800 hover:bg-rose-200" />
+
                 {["1", "2", "3"].map((k) => (
-                  <Key key={k} label={k} onClick={() => press(k)} className="bg-white" />
+                  <Key key={k} label={k} onClick={() => press(k)} className="bg-white hover:bg-slate-50" />
                 ))}
-                <Key label="." onClick={() => press(".")} className="bg-white" />
-                <Key label="0" onClick={() => press("0")} className="bg-white" />
-                <Key label="00" onClick={() => press("00")} className="bg-white" />
-                <Key label="Reset" onClick={reset} className="bg-slate-500 !text-xs text-white" />
-                <Key label="Save" onClick={save} className="bg-emerald-600 !text-xs text-white" />
+                <Key label="." onClick={() => press(".")} className="bg-white hover:bg-slate-50" />
+
+                <Key label="0" onClick={() => press("0")} className="bg-white hover:bg-slate-50" />
+                <Key label="00" onClick={() => press("00")} className="bg-white hover:bg-slate-50" />
+                <Key label="Reset" onClick={reset} className="bg-slate-500 !text-xs text-white hover:bg-slate-600" />
+                <Key label="Save" onClick={save} className="bg-emerald-600 !text-xs text-white hover:bg-emerald-700 font-black" />
               </div>
-              <div className="grid grid-cols-1 grid-rows-4 gap-1.5">
-                <Key label="▲" onClick={() => focusIdx(active - 1)} className="bg-blue-100 text-blue-900" />
-                <div className="grid grid-cols-2 gap-1">
-                  <Key label="◄" onClick={() => focusIdx(active - 1)} className="bg-blue-100 text-blue-900 !text-sm" />
-                  <Key label="►" onClick={() => focusIdx(active + 1)} className="bg-blue-100 text-blue-900 !text-sm" />
+
+              {/* Navigation + CLOSE Button Column */}
+              <div className="grid grid-cols-1 grid-rows-4 gap-1">
+                <Key label="▲" onClick={() => focusIdx(active - 1)} className="bg-blue-100 text-blue-900 hover:bg-blue-200" />
+                <div className="grid grid-cols-2 gap-0.5">
+                  <Key label="◄" onClick={() => focusIdx(active - 1)} className="bg-blue-100 text-blue-900 !text-xs" />
+                  <Key label="►" onClick={() => focusIdx(active + 1)} className="bg-blue-100 text-blue-900 !text-xs" />
                 </div>
-                <Key label="▼" onClick={() => focusIdx(active + 1)} className="bg-blue-100 text-blue-900" />
-                <Key label="⏎" onClick={save} className="bg-blue-600 text-white" />
+                <Key label="▼" onClick={() => focusIdx(active + 1)} className="bg-blue-100 text-blue-900 hover:bg-blue-200" />
+                {/* Dedicated Close Button on the Keyboard */}
+                <Key
+                  label="✕ Close"
+                  onClick={onClose}
+                  className="bg-rose-600 hover:bg-rose-700 text-white !text-xs font-black shadow-xs ring-1 ring-rose-400"
+                />
               </div>
             </div>
           </div>
         ) : (
-          <div className="flex justify-end gap-2 border-t px-4 py-2.5 bg-slate-50">
+          <div className="flex justify-end gap-2 border-t px-3.5 py-2 bg-slate-50">
             <button
               type="button"
               onClick={save}
-              className="rounded-lg bg-green-600 px-6 py-2 text-sm font-bold text-white shadow hover:bg-green-700"
+              className="rounded-lg bg-green-600 px-5 py-1.5 text-xs font-bold text-white shadow hover:bg-green-700 cursor-pointer"
             >
               Save
             </button>
             <button
               type="button"
               onClick={reset}
-              className="rounded-lg bg-slate-500 px-6 py-2 text-sm font-semibold text-white hover:bg-slate-600"
+              className="rounded-lg bg-slate-500 px-5 py-1.5 text-xs font-semibold text-white hover:bg-slate-600 cursor-pointer"
             >
               Reset
+            </button>
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-lg bg-rose-600 px-5 py-1.5 text-xs font-bold text-white hover:bg-rose-700 cursor-pointer"
+            >
+              Close
             </button>
           </div>
         )}

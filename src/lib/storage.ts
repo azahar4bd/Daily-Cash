@@ -463,6 +463,7 @@ export function getSummary(targetDate: string): Summary {
   let todayPayment = 0;
   let todayBankDeposit = 0;
   let todayBankWithdraw = 0;
+  let todayFundReceive = 0;
   const persons: Record<string, number> = Object.fromEntries(
     allStaffNames.map((p) => [p, 0])
   );
@@ -475,63 +476,141 @@ export function getSummary(targetDate: string): Summary {
     const dayTx = allTx.filter((t) => t.txDate === d);
     const daySr = allSr.filter((s) => s.reportDate === d);
 
-    // Sum of all receive transactions on day d
-    const txReceive = dayTx
-      .filter((t) => t.type === "receive")
+    const targetReceives = dayTx.filter((t) => t.type === "receive");
+    const targetPayments = dayTx.filter((t) => t.type === "payment");
+
+    // Fund receive: directly increases bank balance only. NEVER counted in cash.
+    const dayFundReceive = targetReceives
+      .filter((t) => t.category.toLowerCase().includes("fund receive"))
       .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
 
-    // Sum of all payment transactions on day d
-    const txPayment = dayTx
-      .filter((t) => t.type === "payment")
+    // Bank withdraw (receive txs)
+    const dayBankWithdraw = targetReceives
+      .filter((t) => t.category.toLowerCase().includes("bank withdraw"))
       .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
 
-    // Bank deposit (payment with category bank deposit)
-    const dayBankDeposit = dayTx
+    // Cash receives excluding fund receive
+    const dayTxCashReceive = targetReceives
+      .filter((t) => !t.category.toLowerCase().includes("fund receive"))
+      .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+
+    // All payments
+    const dayTxPayment = targetPayments.reduce(
+      (sum, t) => sum + (Number(t.amount) || 0),
+      0
+    );
+
+    // Bank deposit (payments)
+    const dayBankDeposit = targetPayments
       .filter(
         (t) =>
-          t.type === "payment" &&
-          (t.category.toLowerCase().includes("bank deposit") ||
-            t.category.toLowerCase().includes("bank deposite"))
+          t.category.toLowerCase().includes("bank deposit") ||
+          t.category.toLowerCase().includes("bank deposite")
       )
       .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
 
-    // Bank withdraw (receive with category bank withdraw)
-    const dayBankWithdraw = dayTx
-      .filter(
-        (t) =>
-          t.type === "receive" &&
-          t.category.toLowerCase().includes("bank withdraw")
-      )
-      .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
-
-    // Fallback for earlier dates where staff reports were entered without receive txs
-    const staffAday = daySr.reduce(
+    // Staff reports collection without rebate (rebate is NOT in grant total or cash)
+    const srGrantTotalNoRebate = daySr.reduce(
       (sum, s) =>
         sum +
         Number(s.loan || 0) +
-        Number(s.rebate || 0) +
         Number(s.savings || 0) +
         Number(s.dps || 0) +
         Number(s.passbook || 0) +
         Number(s.admission || 0),
       0
     );
-    const effectiveReceive =
-      txReceive > 0
-        ? txReceive
-        : dayTx.length === 0 && staffAday > 0
-        ? staffAday
-        : txReceive;
-    const effectivePayment = txPayment;
 
-    runningCash = Math.round(runningCash + effectiveReceive - effectivePayment);
-    runningBank = Math.round(runningBank + dayBankDeposit - dayBankWithdraw);
+    // Disburse loans
+    const disburseLoans = targetPayments.filter((t) => {
+      const cat = t.category.toLowerCase().trim();
+      return (
+        ["jagoron", "agrossor", "buni", "sufolon", "mfce"].some((k) =>
+          cat.includes(k)
+        ) || Boolean(t.subCategory && t.subCategory.trim().length > 0)
+      );
+    });
+
+    let buniyadDisburseSum = 0;
+    let otherDisburseSum = 0;
+    for (const t of disburseLoans) {
+      const amt = Number(t.amount) || 0;
+      const cat = t.category.toLowerCase().trim();
+      if (cat.includes("buni")) buniyadDisburseSum += amt;
+      else otherDisburseSum += amt;
+    }
+    const dayKallayan = Math.round(
+      otherDisburseSum * 0.01 + buniyadDisburseSum * 0.005
+    );
+    const dayLoanForm = disburseLoans.length * 5;
+
+    const dayOthersIncome = targetReceives
+      .filter((t) => {
+        const c = t.category.toLowerCase().trim();
+        if (c.includes("bank withdraw") || c.includes("fund receive")) return false;
+        if (c.includes("welfare") || c.includes("kallayan") || c.includes("loan form"))
+          return false;
+        if (allStaffNames.some((st) => c.includes(st))) return false;
+        return true;
+      })
+      .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+
+    const expDisburse = disburseLoans.reduce(
+      (sum, t) => sum + (Number(t.amount) || 0),
+      0
+    );
+    const expSavingsReturn = daySr.reduce(
+      (sum, s) => sum + Number(s.savingsAdjust || 0) + Number(s.nogodReturn || 0),
+      0
+    );
+    const expOthers = targetPayments
+      .filter(
+        (t) =>
+          !["jagoron", "agrossor", "buni", "sufolon", "mfce", "bank deposit", "bank deposite"].some(
+            (k) => t.category.toLowerCase().includes(k)
+          )
+      )
+      .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+
+    // Report page Today Cash & Today Bank formulas for day d:
+    // Report page Today Cash and Today Bank will become next day's opening balances:
+    let dayClosingCash = runningCash;
+    if (daySr.length > 0 || disburseLoans.length > 0) {
+      const incomeAday =
+        srGrantTotalNoRebate > 0
+          ? srGrantTotalNoRebate
+          : targetReceives
+              .filter((t) =>
+                allStaffNames.some((st) => t.category.toLowerCase().includes(st))
+              )
+              .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+      const totalDayIncome =
+        runningCash +
+        incomeAday +
+        dayBankWithdraw +
+        dayKallayan +
+        dayLoanForm +
+        dayOthersIncome;
+      const totalDayExpenditure =
+        expDisburse + expBankDeposit + expSavingsReturn + expOthers;
+      dayClosingCash = Math.round(totalDayIncome - totalDayExpenditure);
+    } else {
+      dayClosingCash = Math.round(runningCash + dayTxCashReceive - dayTxPayment);
+    }
+
+    const dayClosingBank = Math.round(
+      runningBank - dayBankWithdraw + dayBankDeposit + dayFundReceive
+    );
+
+    runningCash = dayClosingCash;
+    runningBank = dayClosingBank;
 
     if (d === targetDate) {
-      todayReceive = txReceive;
-      todayPayment = txPayment;
+      todayReceive = dayTxCashReceive;
+      todayPayment = dayTxPayment;
       todayBankDeposit = dayBankDeposit;
       todayBankWithdraw = dayBankWithdraw;
+      todayFundReceive = dayFundReceive;
 
       dayTx.forEach((t) => {
         if (t.type === "receive") {
@@ -548,11 +627,13 @@ export function getSummary(targetDate: string): Summary {
   }
 
   // Exact formulas specified by user:
-  // 1. ক্যাশ ইন হ্যান্ড = গত দিনের হাতে নগদ + আজ রিসিভ কৃত টাকা - আজ পেমেন্ট কৃত টাকা
+  // 1. ক্যাশ ইন হ্যান্ড = গত দিনের হাতে নগদ + আজ রিসিভ কৃত টাকা - আজ পেমেন্ট কৃত টাকা (Fund receive বাদ)
   todayCash = Math.round(prevCash + todayReceive - todayPayment);
 
-  // 2. ব্যাংক ব্যালেন্স = গতদিনের ব্যাংক ব্যালেন্স + আজকে ব্যাংকে জমা - আজকে ব্যাংক থেকে উত্তোলন
-  todayBank = Math.round(prevBank + todayBankDeposit - todayBankWithdraw);
+  // 2. ব্যাংক ব্যালেন্স = গতদিনের ব্যাংক ব্যালেন্স + আজকে ব্যাংকে জমা - আজকে ব্যাংক থেকে উত্তোলন + Fund Receive
+  todayBank = Math.round(
+    prevBank + todayBankDeposit - todayBankWithdraw + todayFundReceive
+  );
 
   // 3. মোট রিসিভ = গত দিনের হাতে নগদ সহ মোট রিসিবকৃত টাকা
   const totalReceiveWithOpening = Math.round(prevCash + todayReceive);

@@ -120,6 +120,46 @@ export default function StaffCustomKeyboard({
     onFieldSelect("loan");
   };
 
+  // Support physical keyboard keys on desktop while preventing mobile keyboard
+  React.useEffect(() => {
+    if (!open) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore if user is inside a select or outside form
+      if (e.target instanceof HTMLSelectElement) return;
+
+      if (e.key >= "0" && e.key <= "9") {
+        e.preventDefault();
+        handleDigit(e.key);
+      } else if (e.key === "Backspace") {
+        e.preventDefault();
+        handleBackspace();
+      } else if (e.key === "Tab") {
+        e.preventDefault();
+        if (e.shiftKey) handlePrev();
+        else handleNext();
+      } else if (e.key === "ArrowDown" || e.key === "ArrowRight") {
+        e.preventDefault();
+        handleNext();
+      } else if (e.key === "ArrowUp" || e.key === "ArrowLeft") {
+        e.preventDefault();
+        handlePrev();
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        if (activeField === "nogodReturn") {
+          onSave();
+        } else {
+          handleNext();
+        }
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        onClose();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [open, activeField, currentValue, currentIndex]);
+
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 bg-slate-950/95 text-white shadow-2xl border-t-4 border-indigo-600 backdrop-blur-md animate-in slide-in-from-bottom duration-200">
       <div className="mx-auto max-w-xl px-2 sm:px-3 pt-2 pb-3">
