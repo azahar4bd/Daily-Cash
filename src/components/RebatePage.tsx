@@ -113,9 +113,13 @@ export default function RebatePage() {
           <button
             type="button"
             onClick={() => setDbOpen(true)}
-            className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3.5 py-1.5 text-xs font-bold text-white shadow hover:bg-indigo-700 sm:text-sm cursor-pointer"
+            className="flex items-center gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 px-4 py-2 text-xs sm:text-sm font-black text-white shadow-md shadow-indigo-600/20 transition cursor-pointer"
           >
-            📋 Rate Database ({rates.length})
+            <span>📋</span>
+            <span>রেট ডাটাবেজ ও এডিট</span>
+            <span className="rounded-full bg-indigo-800/80 px-2 py-0.5 text-[11px] font-mono text-indigo-100">
+              {rates.length}
+            </span>
           </button>
         </div>
 

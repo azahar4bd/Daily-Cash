@@ -319,21 +319,30 @@ export default function PaymentPage({ selectedDate }: { selectedDate: string }) 
                 <div className="text-xs font-semibold">Kisti {nInstallments ? `(${nInstallments})` : ""}</div>
                 <div className="mt-1 font-mono text-base sm:text-lg font-bold text-right">{fmt(kistiAmount)}</div>
               </div>
-              <div className="rounded-xl bg-teal-600 p-2.5 text-white shadow-xs">
-                <div className="flex items-center justify-between text-xs font-semibold">
-                  <span className="truncate pr-1">
-                    Kallyan {form.category ? `(${titleCase(form.category)}: ${curKallyanCfg.percent}% + ${curKallyanCfg.fixed})` : `(${kallyanRule.percent}% + ${kallyanRule.fixed})`}
+              <div className="rounded-xl bg-linear-to-br from-teal-600 to-emerald-700 p-2.5 text-white shadow-sm ring-1 ring-teal-400/40 hover:shadow-md transition">
+                <div className="flex items-center justify-between text-xs font-bold">
+                  <span className="flex items-center gap-1 truncate pr-1">
+                    <span>🤝</span>
+                    <span>কল্যাণ (Kallyan)</span>
                   </span>
                   <button
                     type="button"
                     onClick={() => setKallyanSettingsOpen(true)}
-                    className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/30 text-xs hover:bg-white/50 transition cursor-pointer"
-                    title="Change Kallyan Rules for Disburse Categories"
+                    className="flex items-center gap-1 rounded-md bg-white/20 hover:bg-white/30 px-1.5 py-0.5 text-[10px] font-bold text-white transition cursor-pointer shadow-2xs"
+                    title="কল্যাণ তহবিল সেটিংস পরিবর্তন করুন"
                   >
-                    ⚙
+                    <span>⚙️</span>
+                    <span>সেটিংস</span>
                   </button>
                 </div>
-                <div className="mt-1 font-mono text-base sm:text-lg font-bold text-right">{fmt(kallyanAmount)}</div>
+                <div className="mt-1 flex items-baseline justify-between">
+                  <span className="text-[10px] font-semibold text-teal-100 truncate" title={`${titleCase(form.category || "General")}: ${curKallyanCfg.percent}% + ${curKallyanCfg.fixed} Tk`}>
+                    {curKallyanCfg.percent}% + {curKallyanCfg.fixed}৳
+                  </span>
+                  <span className="font-mono text-base sm:text-lg font-black text-right">
+                    {fmt(kallyanAmount)}
+                  </span>
+                </div>
               </div>
               <div className="rounded-xl bg-blue-700 p-2.5 text-white shadow-xs">
                 <div className="text-xs font-semibold">Total (Amount + SC)</div>
