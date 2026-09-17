@@ -10,7 +10,8 @@ export function denomTotal(d: Denom, other: number) {
 export const fmt = (n: number | string) =>
   Math.round(Number(n) || 0).toLocaleString("en-IN");
 
-const FIELD_COUNT = NOTES.length + 1; // last = Other
+// Index 0 = Manual Entry (সরাসরি টাকা / Other), Index 1..10 = Notes (1000 down to 1)
+const FIELD_COUNT = 1 + NOTES.length;
 
 function detectMobile() {
   if (typeof window === "undefined") return false;
@@ -43,8 +44,12 @@ export default function DenominationPopup({
     if (open) {
       const m = detectMobile();
       setShowKeypad(m);
-      const v = NOTES.map((n) => (initial[String(n)] ? String(initial[String(n)]) : ""));
-      v.push(initialOther ? String(initialOther) : "");
+      // Index 0: Manual Entry (Other amount)
+      // Index 1..10: Notes
+      const v = [
+        initialOther ? String(initialOther) : "",
+        ...NOTES.map((n) => (initial[String(n)] ? String(initial[String(n)]) : "")),
+      ];
       setVals(v);
       setActive(0);
       setTimeout(() => inputRefs.current[0]?.focus(), 50);
@@ -54,14 +59,16 @@ export default function DenominationPopup({
   if (!open) return null;
 
   const d: Denom = {};
-  NOTES.forEach((n, i) => {
-    d[String(n)] = parseInt(vals[i] || "0", 10) || 0;
+  const other = Number(vals[0]) || 0;
+  NOTES.forEach((n, idx) => {
+    d[String(n)] = parseInt(vals[idx + 1] || "0", 10) || 0;
   });
-  const other = Number(vals[FIELD_COUNT - 1]) || 0;
   const total = denomTotal(d, other);
 
-  const amountOf = (i: number) => (i === FIELD_COUNT - 1 ? other : NOTES[i] * d[String(NOTES[i])]);
-  const labelOf = (i: number) => (i === FIELD_COUNT - 1 ? "Other" : String(NOTES[i]));
+  const amountOf = (i: number) =>
+    i === 0 ? other : NOTES[i - 1] * (d[String(NOTES[i - 1])] || 0);
+  const labelOf = (i: number) =>
+    i === 0 ? "Manual" : String(NOTES[i - 1]);
   const setVal = (i: number, v: string) => setVals((p) => p.map((x, k) => (k === i ? v : x)));
   const reset = () => setVals(Array(FIELD_COUNT).fill(""));
   const save = () => onDone(d, other, total);
@@ -78,12 +85,12 @@ export default function DenominationPopup({
   };
 
   const press = (key: string) => {
-    const isOther = active === FIELD_COUNT - 1;
+    const isManual = active === 0;
     const cur = vals[active];
     if (key === "⌫") return setVal(active, cur.slice(0, -1));
     if (key === "C") return setVal(active, "");
     if (key === ".") {
-      if (isOther && !cur.includes(".")) setVal(active, (cur || "0") + ".");
+      if (isManual && !cur.includes(".")) setVal(active, (cur || "0") + ".");
       return;
     }
     const next = (cur + key).replace(/^0+(?=\d)/, "");
@@ -159,22 +166,76 @@ export default function DenominationPopup({
           </span>
         </div>
 
-        {/* Denomination Rows - MADE COMPACT & SMALLER (ঘর ছোট করে দেওয়া হয়েছে) */}
+        {/* Denomination Rows: Manual Entry AT THE VERY TOP (নিচে থেকে সবার উপরে দেওয়া হলো) */}
         <div className="flex-1 overflow-auto px-2.5 py-2 sm:px-3">
           <div className="flex flex-col gap-1">
-            {Array.from({ length: FIELD_COUNT }, (_, i) => {
-              const isOther = i === FIELD_COUNT - 1;
-              const on = i === active;
+            
+            {/* ROW 0: Manual Entry Box (সবার উপরে) */}
+            {(() => {
+              const on = active === 0;
               return (
                 <div
-                  key={i}
+                  key="manual-entry-top"
+                  onClick={() => focusIdx(0)}
+                  className={`flex items-center gap-1.5 rounded-xl border-2 px-2.5 py-1 sm:py-1.5 cursor-pointer transition shadow-2xs mb-1 ${
+                    on
+                      ? "border-amber-500 bg-amber-50 ring-2 ring-amber-400/40"
+                      : "border-amber-300 bg-amber-50/60 hover:bg-amber-100/60"
+                  }`}
+                >
+                  <div className="flex items-center gap-1 shrink-0 w-24 sm:w-28">
+                    <span className="text-xs">✍️</span>
+                    <span className="text-xs font-black text-amber-900 truncate">
+                      Manual Entry
+                    </span>
+                  </div>
+                  <span className="text-amber-600 text-xs font-bold shrink-0">৳</span>
+                  <input
+                    ref={(el) => {
+                      inputRefs.current[0] = el;
+                    }}
+                    type="text"
+                    inputMode={showKeypad ? "none" : "decimal"}
+                    readOnly={showKeypad}
+                    value={vals[0]}
+                    placeholder="সরাসরি টাকা লিখুন..."
+                    onFocus={() => setActive(0)}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      if (/^\d*\.?\d*$/.test(v)) setVal(0, v);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "ArrowDown" || e.key === "Enter") {
+                        e.preventDefault();
+                        focusIdx(1);
+                      }
+                    }}
+                    className={`min-w-0 flex-1 rounded-lg border border-amber-300 bg-white px-2 py-0.5 sm:py-1 text-right font-mono text-xs sm:text-sm font-black text-slate-900 focus:border-amber-500 focus:outline-none ${
+                      showKeypad ? "caret-transparent cursor-pointer" : ""
+                    } ${on && showKeypad ? "ring-1 ring-amber-400" : ""}`}
+                  />
+                  <span className="text-slate-400 text-xs">=</span>
+                  <span className="w-16 shrink-0 text-right font-mono text-xs sm:text-sm font-black text-amber-900">
+                    {fmt(other)}
+                  </span>
+                </div>
+              );
+            })()}
+
+            {/* Note Rows: 1000 down to 1 */}
+            {NOTES.map((note, noteIdx) => {
+              const i = noteIdx + 1;
+              const on = active === i;
+              return (
+                <div
+                  key={note}
                   onClick={() => focusIdx(i)}
                   className={`flex items-center gap-1.5 rounded-md border px-2 py-0.5 sm:py-1 cursor-pointer transition ${
                     on ? "border-blue-600 bg-blue-50 ring-1 ring-blue-400" : "border-slate-200 bg-white hover:bg-slate-50"
-                  } ${isOther ? "mt-0.5 bg-amber-50/50" : ""}`}
+                  }`}
                 >
-                  <span className={`w-11 shrink-0 text-right font-mono text-xs sm:text-sm font-bold text-slate-800 ${isOther ? "text-[11px]" : ""}`}>
-                    {labelOf(i)}
+                  <span className="w-11 shrink-0 text-right font-mono text-xs sm:text-sm font-bold text-slate-800">
+                    {note}
                   </span>
                   <span className="text-slate-400 text-xs">×</span>
                   <input
@@ -182,14 +243,14 @@ export default function DenominationPopup({
                       inputRefs.current[i] = el;
                     }}
                     type="text"
-                    inputMode={showKeypad ? "none" : isOther ? "decimal" : "numeric"}
+                    inputMode={showKeypad ? "none" : "numeric"}
                     readOnly={showKeypad}
                     value={vals[i]}
-                    placeholder={isOther ? "Any" : "0"}
+                    placeholder="0"
                     onFocus={() => setActive(i)}
                     onChange={(e) => {
                       const v = e.target.value;
-                      if (isOther ? /^\d*\.?\d*$/.test(v) : /^\d*$/.test(v)) setVal(i, v);
+                      if (/^\d*$/.test(v)) setVal(i, v);
                     }}
                     onKeyDown={(e) => {
                       if (e.key === "ArrowDown" || e.key === "Enter") {
