@@ -1,0 +1,172 @@
+import { useEffect, useRef, useState } from "react";
+
+const pad = (n: number) => String(n).padStart(2, "0");
+const toISO = (y: number, m: number, d: number) => `${y}-${pad(m + 1)}-${pad(d)}`;
+export const todayISO = () => {
+  const t = new Date();
+  return toISO(t.getFullYear(), t.getMonth(), t.getDate());
+};
+
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const DAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
+
+export function formatDisplay(iso: string) {
+  if (!iso || !iso.includes("-")) return "";
+  const [y, m, d] = iso.split("-").map(Number);
+  if (!y || !m || !d || m < 1 || m > 12) return iso;
+  return `${pad(d)} ${MONTHS[m - 1]} ${y}`;
+}
+
+export default function DatePicker({
+  value,
+  onChange,
+  className = "",
+  dropUp = false,
+}: {
+  value: string;
+  onChange: (iso: string) => void;
+  className?: string;
+  dropUp?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const init = value && value.includes("-") ? value : todayISO();
+  const [vy, setVy] = useState(Number(init.slice(0, 4)) || new Date().getFullYear());
+  const [vm, setVm] = useState((Number(init.slice(5, 7)) || new Date().getMonth() + 1) - 1);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (open && value && value.includes("-")) {
+      const parts = value.split("-").map(Number);
+      if (parts[0]) setVy(parts[0]);
+      if (parts[1]) setVm(parts[1] - 1);
+    }
+  }, [open, value]);
+
+  useEffect(() => {
+    if (!open) return;
+    const h = (e: MouseEvent | TouchEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", h);
+    document.addEventListener("touchstart", h);
+    return () => {
+      document.removeEventListener("mousedown", h);
+      document.removeEventListener("touchstart", h);
+    };
+  }, [open]);
+
+  const firstDow = new Date(vy, vm, 1).getDay();
+  const daysIn = new Date(vy, vm + 1, 0).getDate();
+  const cells: (number | null)[] = [...Array(firstDow).fill(null), ...Array.from({ length: daysIn }, (_, i) => i + 1)];
+  while (cells.length % 7) cells.push(null);
+
+  const prevMonth = () => {
+    if (vm === 0) {
+      setVm(11);
+      setVy(vy - 1);
+    } else setVm(vm - 1);
+  };
+  const nextMonth = () => {
+    if (vm === 11) {
+      setVm(0);
+      setVy(vy + 1);
+    } else setVm(vm + 1);
+  };
+  const pick = (iso: string) => {
+    onChange(iso);
+    setOpen(false);
+  };
+
+  const t = todayISO();
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className={`flex w-full items-center justify-between rounded border border-slate-300 bg-white px-2.5 py-1.5 text-left font-semibold text-slate-800 focus:border-blue-500 focus:outline-none ${className}`}
+      >
+        <span className="truncate">{formatDisplay(value) || "Select Date"}</span>
+        <span className="ml-1 text-slate-400">▼</span>
+      </button>
+      {open && (
+        <div
+          className={`absolute z-50 w-72 rounded-xl border border-slate-300 bg-white p-3 shadow-2xl text-slate-900 ${
+            dropUp ? "bottom-full mb-2 right-0 sm:left-auto" : "left-0 mt-1"
+          }`}
+        >
+          <div className="mb-2 flex items-center justify-between">
+            <button type="button" onClick={prevMonth} className="h-8 w-8 rounded-full text-lg hover:bg-slate-100">
+              ‹
+            </button>
+            <div className="flex items-center gap-1 font-semibold">
+              <select
+                value={vm}
+                onChange={(e) => setVm(Number(e.target.value))}
+                className="rounded border border-slate-300 px-1 py-0.5 text-xs font-bold"
+              >
+                {MONTHS.map((m, i) => (
+                  <option key={m} value={i}>
+                    {m}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={vy}
+                onChange={(e) => setVy(Number(e.target.value))}
+                className="rounded border border-slate-300 px-1 py-0.5 text-xs font-bold"
+              >
+                {Array.from({ length: 11 }, (_, i) => vy - 5 + i).map((y) => (
+                  <option key={y} value={y}>
+                    {y}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <button type="button" onClick={nextMonth} className="h-8 w-8 rounded-full text-lg hover:bg-slate-100">
+              ›
+            </button>
+          </div>
+          <div className="grid grid-cols-7 text-center text-xs font-semibold text-slate-500">
+            {DAYS.map((d) => (
+              <div key={d} className="py-1">
+                {d}
+              </div>
+            ))}
+          </div>
+          <div className="grid grid-cols-7 gap-0.5 text-center text-sm">
+            {cells.map((d, i) => {
+              if (!d) return <div key={i} />;
+              const iso = toISO(vy, vm, d);
+              const sel = iso === value;
+              const isT = iso === t;
+              return (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => pick(iso)}
+                  className={`h-9 rounded-lg transition ${
+                    sel
+                      ? "bg-blue-600 font-bold text-white shadow-sm"
+                      : isT
+                      ? "border border-blue-500 font-semibold text-blue-700 hover:bg-blue-50"
+                      : "hover:bg-slate-100 text-slate-800"
+                  }`}
+                >
+                  {d}
+                </button>
+              );
+            })}
+          </div>
+          <button
+            type="button"
+            onClick={() => pick(t)}
+            className="mt-2 w-full rounded-lg bg-slate-100 py-1.5 text-xs font-semibold hover:bg-slate-200"
+          >
+            Today
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}

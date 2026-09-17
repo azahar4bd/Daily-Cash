@@ -1,0 +1,6 @@
+{
+  "name": "Cash Gobra - Bandhu Kallyan Foundation",
+  "description": "Cash Gobra Microfinance and Cash Management App for Bandhu Kallyan Foundation, Netlify deploy-ready",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
