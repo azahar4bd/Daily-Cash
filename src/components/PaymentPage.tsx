@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import DatePicker from "./DatePicker";
 import PaymentCategoryManager from "./PaymentCategoryManager";
+import PaymentCategoryDropdown from "./PaymentCategoryDropdown";
 import ScSettings from "./ScSettings";
 import KallyanSettings from "./KallyanSettings";
 import PaymentDenominationModal from "./PaymentDenominationModal";
@@ -174,43 +175,25 @@ export default function PaymentPage({ selectedDate }: { selectedDate: string }) 
               className="px-3 py-2"
             />
           </div>
-          {/* Category */}
+          {/* Category with Scrollable Box */}
           <div>
             <div className="mb-1 flex items-center justify-between">
-              <label className="text-xs font-bold text-slate-700">Category</label>
+              <label className="text-xs font-bold text-slate-700">Category (খাত)</label>
               <button
                 type="button"
                 onClick={() => setManageOpen(true)}
-                className="text-xs font-bold text-blue-600 hover:underline"
+                className="text-xs font-bold text-blue-600 hover:underline cursor-pointer"
               >
                 Manage
               </button>
             </div>
-            <select
+            <PaymentCategoryDropdown
               value={form.category}
-              onChange={(e) => setForm({ ...form, category: e.target.value, subCategory: "" })}
-              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-bold text-slate-800 focus:border-blue-500 focus:outline-none cursor-pointer"
-            >
-              <option value="">-- Select Category --</option>
-              {disburseCats.length > 0 && (
-                <optgroup label="Disburse / Loan Categories">
-                  {disburseCats.map((c) => (
-                    <option key={c.id} value={c.name}>
-                      {titleCase(c.name)}
-                    </option>
-                  ))}
-                </optgroup>
-              )}
-              {expenseCats.length > 0 && (
-                <optgroup label="Expense Categories">
-                  {expenseCats.map((c) => (
-                    <option key={c.id} value={c.name}>
-                      {titleCase(c.name)}
-                    </option>
-                  ))}
-                </optgroup>
-              )}
-            </select>
+              onChange={(cat) => setForm({ ...form, category: cat, subCategory: "" })}
+              disburseCats={disburseCats}
+              expenseCats={expenseCats}
+              onManageClick={() => setManageOpen(true)}
+            />
           </div>
           {/* Sub Category */}
           {isCurrentDisburse && (
@@ -465,32 +448,14 @@ export default function PaymentPage({ selectedDate }: { selectedDate: string }) 
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-bold text-slate-700">Category</label>
-                <select
+                <label className="mb-1 block text-xs font-bold text-slate-700">Category (খাত)</label>
+                <PaymentCategoryDropdown
                   value={edit.category}
-                  onChange={(e) => setEdit({ ...edit, category: e.target.value, subCategory: "" })}
-                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-bold text-slate-800 focus:border-blue-500 focus:outline-none cursor-pointer"
-                >
-                  <option value="">-- Select Category --</option>
-                  {disburseCats.length > 0 && (
-                    <optgroup label="Disburse / Loan Categories">
-                      {disburseCats.map((c) => (
-                        <option key={c.id} value={c.name}>
-                          {titleCase(c.name)}
-                        </option>
-                      ))}
-                    </optgroup>
-                  )}
-                  {expenseCats.length > 0 && (
-                    <optgroup label="Expense Categories">
-                      {expenseCats.map((c) => (
-                        <option key={c.id} value={c.name}>
-                          {titleCase(c.name)}
-                        </option>
-                      ))}
-                    </optgroup>
-                  )}
-                </select>
+                  onChange={(cat) => setEdit({ ...edit, category: cat, subCategory: "" })}
+                  disburseCats={disburseCats}
+                  expenseCats={expenseCats}
+                  onManageClick={() => setManageOpen(true)}
+                />
               </div>
               {isDisburseCategory(edit.category) && (
                 <div>

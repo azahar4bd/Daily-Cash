@@ -5,6 +5,22 @@
   margin: 8mm 10mm;
 }
 
+/* Hide any Netlify injected floating badge, drawer, HUD or feedback widget */
+[data-netlify-hud],
+[data-netlify-drawer],
+#netlify-drawer,
+iframe#netlify-hud,
+iframe[src*="netlify"],
+.netlify-badge,
+.netlify-hud-btn,
+div[class*="netlify-hud"] {
+  display: none !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  opacity: 0 !important;
+  z-index: -9999 !important;
+}
+
 @media print {
   html,
   body {
