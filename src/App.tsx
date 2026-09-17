@@ -7,6 +7,7 @@ import StaffReportManager from "./components/StaffReportManager";
 import CashSheet from "./components/CashSheet";
 import BottomMenu from "./components/BottomMenu";
 import { todayISO } from "./components/DatePicker";
+import { initNeonSync } from "./lib/neonSync";
 
 export default function App() {
   const [currentTab, setCurrentTab] = useState<string>("receive");
@@ -27,6 +28,9 @@ export default function App() {
   };
 
   useEffect(() => {
+    // Initialize Neon Cloud Database Synchronization
+    initNeonSync();
+
     try {
       const saved = localStorage.getItem("app_master_date");
       if (saved && saved.includes("-") && saved !== selectedDate) {

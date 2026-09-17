@@ -1,6 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import DatePicker, { todayISO } from "./DatePicker";
 import GoogleSheetSyncModal from "./GoogleSheetSyncModal";
+import NeonSyncModal from "./NeonSyncModal";
+import { getStoredSyncState, type NeonSyncState } from "@/lib/neon";
 
 const pages = [
   { id: "receive", label: "Receive", labelBn: "জমা (Receive)", icon: "📥" },
@@ -22,8 +24,18 @@ export default function BottomMenu({
   onDateChange: (date: string) => void;
 }) {
   const [sheetModalOpen, setSheetModalOpen] = useState(false);
+  const [neonModalOpen, setNeonModalOpen] = useState(false);
   const [threeLineMenuOpen, setThreeLineMenuOpen] = useState(false);
+  const [syncState, setSyncState] = useState<NeonSyncState>(getStoredSyncState());
   const today = todayISO();
+
+  useEffect(() => {
+    const handler = (e: any) => {
+      if (e.detail) setSyncState(e.detail);
+    };
+    window.addEventListener("neon-sync-status-changed", handler);
+    return () => window.removeEventListener("neon-sync-status-changed", handler);
+  }, []);
 
   const handleSelectPage = (id: string) => {
     onTabChange(id);
@@ -37,11 +49,33 @@ export default function BottomMenu({
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-800 bg-slate-900/95 backdrop-blur-md text-white shadow-2xl">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-3 py-2 sm:px-4">
           
-          {/* Left: Brand & Google Sheet Tool */}
-          <div className="flex items-center gap-2">
+          {/* Left: Brand & Cloud Tools */}
+          <div className="flex items-center gap-1.5 sm:gap-2">
             <span className="font-black text-xs sm:text-sm tracking-tight whitespace-nowrap text-amber-400">
               Cash Gobra
             </span>
+
+            {/* Neon Cloud Database Status Button */}
+            <button
+              type="button"
+              onClick={() => setNeonModalOpen(true)}
+              className="flex items-center gap-1 rounded-lg bg-teal-900/80 hover:bg-teal-800 border border-teal-700/60 px-2 py-1 text-[11px] font-bold text-teal-200 transition shadow-xs whitespace-nowrap cursor-pointer"
+              title="Neon PostgreSQL Cloud Database Connected"
+            >
+              <span className="text-xs">🐘</span>
+              <span className="hidden xs:inline">Neon DB</span>
+              <span
+                className={`h-1.5 w-1.5 rounded-full ${
+                  syncState.isSyncing
+                    ? "bg-amber-400 animate-spin"
+                    : syncState.connected
+                    ? "bg-emerald-400 animate-pulse"
+                    : "bg-rose-400"
+                }`}
+              />
+            </button>
+
+            {/* Google Sheet Tool */}
             <button
               type="button"
               onClick={() => setSheetModalOpen(true)}
@@ -195,19 +229,31 @@ export default function BottomMenu({
             {/* Extra Tools Section */}
             <div className="border-t border-slate-800 pt-3 space-y-2">
               <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block px-1">
-                টুলস ও ক্লাউড সিঙ্ক
+                টুলস ও ক্লাউড ডাটাবেজ
               </span>
-              <div>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setThreeLineMenuOpen(false);
+                    setNeonModalOpen(true);
+                  }}
+                  className="flex items-center justify-center gap-1.5 rounded-xl bg-teal-900/60 hover:bg-teal-800/80 border border-teal-700/50 p-2.5 text-xs font-bold text-teal-200 transition cursor-pointer"
+                >
+                  <span className="text-base">🐘</span>
+                  <span>Neon Database</span>
+                </button>
+
                 <button
                   type="button"
                   onClick={() => {
                     setThreeLineMenuOpen(false);
                     setSheetModalOpen(true);
                   }}
-                  className="w-full flex items-center justify-center gap-2 rounded-xl bg-emerald-900/60 hover:bg-emerald-800/80 border border-emerald-700/50 p-2.5 text-xs font-bold text-emerald-200 transition cursor-pointer"
+                  className="flex items-center justify-center gap-1.5 rounded-xl bg-emerald-900/60 hover:bg-emerald-800/80 border border-emerald-700/50 p-2.5 text-xs font-bold text-emerald-200 transition cursor-pointer"
                 >
                   <span className="text-base">📊</span>
-                  <span>Google Sheet Sync</span>
+                  <span>Google Sheet</span>
                 </button>
               </div>
             </div>
@@ -216,6 +262,11 @@ export default function BottomMenu({
       )}
 
       {/* Modals */}
+      <NeonSyncModal
+        open={neonModalOpen}
+        onClose={() => setNeonModalOpen(false)}
+      />
+
       <GoogleSheetSyncModal
         open={sheetModalOpen}
         onClose={() => setSheetModalOpen(false)}

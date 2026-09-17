@@ -10,6 +10,7 @@ import type {
 } from "@/types";
 import { DEFAULT_CATEGORIES, DEFAULT_SUBCAT_RULES, DEFAULT_KALLYAN_RULE } from "./categories";
 import { DEFAULT_REBATE_RATES } from "./defaultRebateRates";
+import { enqueueNeonAction } from "./neonSync";
 
 const TX_KEY = "gobra_local_transactions";
 const SR_KEY = "gobra_local_staff_reports";
@@ -38,6 +39,7 @@ export function saveTx(payload: Omit<Tx, "id"> & { id?: number }): Tx {
   const updated = [newTx, ...list.filter((t) => t.id !== newTx.id)];
   localStorage.setItem(TX_KEY, JSON.stringify(updated));
   window.dispatchEvent(new Event("tx-changed"));
+  enqueueNeonAction({ type: "tx", payload: newTx });
   return newTx;
 }
 
@@ -48,6 +50,7 @@ export function updateTx(item: Tx): Tx {
   else list.unshift(item);
   localStorage.setItem(TX_KEY, JSON.stringify(list));
   window.dispatchEvent(new Event("tx-changed"));
+  enqueueNeonAction({ type: "tx", payload: item });
   return item;
 }
 
@@ -55,6 +58,7 @@ export function deleteTx(id: number): void {
   const list = getLocalTxs().filter((t) => t.id !== id);
   localStorage.setItem(TX_KEY, JSON.stringify(list));
   window.dispatchEvent(new Event("tx-changed"));
+  enqueueNeonAction({ type: "tx_del", payload: id });
 }
 
 export function getLocalStaffReports(date?: string): StaffReportItem[] {
@@ -77,6 +81,7 @@ export function saveStaffReport(item: Omit<StaffReportItem, "id"> & { id?: numbe
   const updated = [newSr, ...list.filter((r) => r.id !== newSr.id)];
   localStorage.setItem(SR_KEY, JSON.stringify(updated));
   window.dispatchEvent(new Event("tx-changed"));
+  enqueueNeonAction({ type: "sr", payload: newSr });
   return newSr;
 }
 
@@ -87,6 +92,7 @@ export function updateStaffReport(item: StaffReportItem): StaffReportItem {
   else list.unshift(item);
   localStorage.setItem(SR_KEY, JSON.stringify(list));
   window.dispatchEvent(new Event("tx-changed"));
+  enqueueNeonAction({ type: "sr", payload: item });
   return item;
 }
 
@@ -94,6 +100,7 @@ export function deleteStaffReport(id: number): void {
   const list = getLocalStaffReports().filter((r) => r.id !== id);
   localStorage.setItem(SR_KEY, JSON.stringify(list));
   window.dispatchEvent(new Event("tx-changed"));
+  enqueueNeonAction({ type: "sr_del", payload: id });
 }
 
 export function getCategories(type: string): Cat[] {
@@ -128,6 +135,7 @@ export function addCategory(type: string, name: string): Cat {
   const newCat: Cat = { id: Date.now(), type, name: clean };
   all.push(newCat);
   localStorage.setItem(CAT_KEY, JSON.stringify(all));
+  enqueueNeonAction({ type: "cat", payload: newCat });
   return newCat;
 }
 
@@ -135,8 +143,11 @@ export function updateCategory(id: number, name: string): void {
   const raw = localStorage.getItem(CAT_KEY);
   const all: Cat[] = raw ? JSON.parse(raw) : [];
   const item = all.find((c) => c.id === id);
-  if (item) item.name = name.trim().toLowerCase();
-  localStorage.setItem(CAT_KEY, JSON.stringify(all));
+  if (item) {
+    item.name = name.trim().toLowerCase();
+    localStorage.setItem(CAT_KEY, JSON.stringify(all));
+    enqueueNeonAction({ type: "cat", payload: item });
+  }
 }
 
 export function deleteCategory(id: number): void {
@@ -144,6 +155,7 @@ export function deleteCategory(id: number): void {
   const all: Cat[] = raw ? JSON.parse(raw) : [];
   const filtered = all.filter((c) => c.id !== id);
   localStorage.setItem(CAT_KEY, JSON.stringify(filtered));
+  enqueueNeonAction({ type: "cat_del", payload: id });
 }
 
 export const DEFAULT_SC_RATES: ScRate[] = [
@@ -176,11 +188,13 @@ export function saveScRate(r: Omit<ScRate, "id"> & { id?: number }): void {
   const next = { ...r, id: r.id || Date.now() };
   const updated = [next, ...list.filter((x) => x.id !== next.id)];
   localStorage.setItem(SC_KEY, JSON.stringify(updated));
+  enqueueNeonAction({ type: "sc", payload: next });
 }
 
 export function deleteScRate(id: number): void {
   const list = getScRates().filter((x) => x.id !== id);
   localStorage.setItem(SC_KEY, JSON.stringify(list));
+  enqueueNeonAction({ type: "sc_del", payload: id });
 }
 
 export function getSubCategoryRules(): SubCategoryRule[] {
@@ -201,11 +215,13 @@ export function saveSubCategoryRule(rule: SubCategoryRule): void {
   const next = { ...rule, id: rule.id || Date.now() };
   const updated = [next, ...list.filter((r) => r.id !== next.id)];
   localStorage.setItem(SUBCAT_RULE_KEY, JSON.stringify(updated));
+  enqueueNeonAction({ type: "subcat", payload: next });
 }
 
 export function deleteSubCategoryRule(id: number): void {
   const list = getSubCategoryRules().filter((r) => r.id !== id);
   localStorage.setItem(SUBCAT_RULE_KEY, JSON.stringify(list));
+  enqueueNeonAction({ type: "subcat_del", payload: id });
 }
 
 export const REBATE_VERSION_KEY = "gobra_rebate_db_v6";
@@ -411,6 +427,7 @@ export function saveKallyanRule(rule: KallyanRule): void {
   try {
     localStorage.setItem(KALLYAN_RULE_KEY, JSON.stringify(rule));
     window.dispatchEvent(new CustomEvent("kallyan-rule-changed", { detail: rule }));
+    enqueueNeonAction({ type: "kallyan", payload: rule });
   } catch {}
 }
 
