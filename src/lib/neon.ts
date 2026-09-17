@@ -10,7 +10,7 @@ import type {
 } from "@/types";
 
 export const NEON_DATABASE_URL =
-  import.meta.env.VITE_NEON_DATABASE_URL ||
+  (typeof import.meta !== "undefined" && import.meta.env?.VITE_NEON_DATABASE_URL) ||
   "postgresql://neondb_owner:npg_ZWT8gcO4xuym@ep-aged-night-b3r0h0bv.c-4.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require";
 
 // Create Neon serverless HTTP sql client
