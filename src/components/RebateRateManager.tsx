@@ -343,17 +343,6 @@ export default function RebateRateManager({
               <span>{showEditPanel ? "প্যানেল বন্ধ করুন" : "ডাটাবেজ এডিট ও ফর্ম"}</span>
             </button>
 
-            {/* Reset Button */}
-            <button
-              type="button"
-              onClick={() => setShowResetConfirm(true)}
-              className="rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 px-3 py-2 text-xs font-bold text-slate-200 cursor-pointer flex items-center gap-1"
-              title="Reset database to initial defaults"
-            >
-              <span>🔄</span>
-              <span>রিসেট</span>
-            </button>
-
             <button
               onClick={onClose}
               className="hidden sm:block text-2xl text-slate-400 hover:text-white transition cursor-pointer px-1.5 leading-none"
@@ -1244,44 +1233,6 @@ export default function RebateRateManager({
                 className="flex-1 rounded-xl bg-rose-600 hover:bg-rose-700 py-2.5 text-xs sm:text-sm font-bold text-white shadow transition cursor-pointer flex items-center justify-center gap-1"
               >
                 ✓ হ্যাঁ, ডিলিট করুন
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Reset Confirmation Modal */}
-      {showResetConfirm && (
-        <div className="fixed inset-0 z-70 flex items-center justify-center bg-slate-950/70 p-4 animate-in fade-in">
-          <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl border border-slate-200">
-            <div className="flex items-center gap-3 mb-3 text-amber-600">
-              <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center text-xl shrink-0">
-                🔄
-              </div>
-              <div>
-                <h4 className="text-base font-bold text-slate-900">ডাটাবেজ রিসেট</h4>
-                <p className="text-xs text-slate-500">প্রথম আদি অবস্থায় ফিরিয়ে আনা হবে</p>
-              </div>
-            </div>
-
-            <p className="text-xs text-slate-600 mb-4 leading-relaxed">
-              Rebate database-এর Jagoron, Agrossor, Buniyed, Sufolon, MFCE এর সকল স্ট্যান্ডার্ড কিস্তির রেট পুনরায় প্রাথমিক অবস্থায় ফিরে যাবে।
-            </p>
-
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setShowResetConfirm(false)}
-                className="flex-1 rounded-xl bg-slate-200 hover:bg-slate-300 py-2.5 text-xs sm:text-sm font-bold text-slate-700 transition cursor-pointer"
-              >
-                ✕ বাতিল
-              </button>
-              <button
-                type="button"
-                onClick={executeResetDefaults}
-                className="flex-1 rounded-xl bg-amber-600 hover:bg-amber-700 py-2.5 text-xs sm:text-sm font-bold text-white shadow transition cursor-pointer flex items-center justify-center gap-1"
-              >
-                ✓ হ্যাঁ, রিসেট করুন
               </button>
             </div>
           </div>

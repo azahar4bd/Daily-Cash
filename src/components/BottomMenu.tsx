@@ -1,7 +1,6 @@
 import { useState } from "react";
 import DatePicker, { todayISO } from "./DatePicker";
 import GoogleSheetSyncModal from "./GoogleSheetSyncModal";
-import NetlifyGuideModal from "./NetlifyGuideModal";
 
 const pages = [
   { id: "receive", label: "Receive", labelBn: "জমা (Receive)", icon: "📥" },
@@ -23,7 +22,6 @@ export default function BottomMenu({
   onDateChange: (date: string) => void;
 }) {
   const [sheetModalOpen, setSheetModalOpen] = useState(false);
-  const [netlifyModalOpen, setNetlifyModalOpen] = useState(false);
   const [threeLineMenuOpen, setThreeLineMenuOpen] = useState(false);
   const today = todayISO();
 
@@ -47,7 +45,7 @@ export default function BottomMenu({
             <button
               type="button"
               onClick={() => setSheetModalOpen(true)}
-              className="hidden sm:flex items-center gap-1 rounded-lg bg-emerald-700/80 hover:bg-emerald-600 px-2 py-1 text-[11px] font-bold text-white transition shadow-xs whitespace-nowrap cursor-pointer"
+              className="hidden sm:flex items-center gap-1 rounded-lg bg-emerald-700/80 hover:bg-emerald-600 px-2.5 py-1 text-[11px] font-bold text-white transition shadow-xs whitespace-nowrap cursor-pointer"
               title="Connect to Google Sheet"
             >
               <span>📊</span>
@@ -199,29 +197,17 @@ export default function BottomMenu({
               <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block px-1">
                 টুলস ও ক্লাউড সিঙ্ক
               </span>
-              <div className="grid grid-cols-2 gap-2">
+              <div>
                 <button
                   type="button"
                   onClick={() => {
                     setThreeLineMenuOpen(false);
                     setSheetModalOpen(true);
                   }}
-                  className="flex items-center gap-2 rounded-xl bg-emerald-900/60 hover:bg-emerald-800/80 border border-emerald-700/50 p-2.5 text-xs font-bold text-emerald-200 transition cursor-pointer"
+                  className="w-full flex items-center justify-center gap-2 rounded-xl bg-emerald-900/60 hover:bg-emerald-800/80 border border-emerald-700/50 p-2.5 text-xs font-bold text-emerald-200 transition cursor-pointer"
                 >
                   <span className="text-base">📊</span>
-                  <span>Google Sheet</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setThreeLineMenuOpen(false);
-                    setNetlifyModalOpen(true);
-                  }}
-                  className="flex items-center gap-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 p-2.5 text-xs font-bold text-slate-300 transition cursor-pointer"
-                >
-                  <span className="text-base">🌐</span>
-                  <span>Netlify Guide</span>
+                  <span>Google Sheet Sync</span>
                 </button>
               </div>
             </div>
@@ -233,11 +219,6 @@ export default function BottomMenu({
       <GoogleSheetSyncModal
         open={sheetModalOpen}
         onClose={() => setSheetModalOpen(false)}
-      />
-
-      <NetlifyGuideModal
-        open={netlifyModalOpen}
-        onClose={() => setNetlifyModalOpen(false)}
       />
     </>
   );
