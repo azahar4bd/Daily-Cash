@@ -444,24 +444,20 @@ export default function CashSheet({
           <table className="w-full border-collapse border border-black text-xs sm:text-sm print:text-xs">
             <tbody>
               <tr>
-                <td className="w-[55%] border border-black px-3 py-1.5 sm:py-2 print:py-2 font-medium">
+                <td className="w-2/3 sm:w-3/4 border border-black px-3 py-1.5 sm:py-2 print:py-2 font-medium">
                   Closing Cash in Hand: TK (BDT)
                 </td>
-                <td className="w-[25%] border border-black px-3 py-1.5 sm:py-2 print:py-2 text-right font-mono font-bold">
+                <td className="w-1/3 sm:w-1/4 border border-black px-3 py-1.5 sm:py-2 print:py-2 text-right font-mono font-bold">
                   {fmt(closingCash)}
-                </td>
-                <td className="w-[20%] border border-black px-3 py-1.5 sm:py-2 print:py-2 text-right font-mono text-slate-900">
-                  ({closingCash.toFixed(2)})
                 </td>
               </tr>
               <tr>
-                <td className="w-[55%] border border-black px-3 py-1.5 sm:py-2 print:py-2 font-medium">
+                <td className="w-2/3 sm:w-3/4 border border-black px-3 py-1.5 sm:py-2 print:py-2 font-medium">
                   Closing Cash at Bank: TK (BDT)
                 </td>
-                <td className="w-[25%] border border-black px-3 py-1.5 sm:py-2 print:py-2 text-right font-mono font-bold">
+                <td className="w-1/3 sm:w-1/4 border border-black px-3 py-1.5 sm:py-2 print:py-2 text-right font-mono font-bold">
                   {fmt(closingBank)}
                 </td>
-                <td className="w-[20%] border border-black px-3 py-1.5 sm:py-2 print:py-2"></td>
               </tr>
             </tbody>
           </table>
