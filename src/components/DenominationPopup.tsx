@@ -52,7 +52,9 @@ export default function DenominationPopup({
       ];
       setVals(v);
       setActive(0);
-      setTimeout(() => inputRefs.current[0]?.focus(), 50);
+      if (!m) {
+        setTimeout(() => inputRefs.current[0]?.focus(), 50);
+      }
     }
   }, [open, initial, initialOther]);
 
@@ -78,8 +80,12 @@ export default function DenominationPopup({
     setActive(c);
     const el = inputRefs.current[c];
     if (el) {
-      el.focus();
-      if (!showKeypad) el.select();
+      if (showKeypad) {
+        el.blur();
+      } else {
+        el.focus();
+        el.select();
+      }
       el.scrollIntoView({ block: "nearest" });
     }
   };
@@ -194,13 +200,23 @@ export default function DenominationPopup({
                       inputRefs.current[0] = el;
                     }}
                     type="text"
-                    inputMode="decimal"
+                    inputMode={showKeypad ? "none" : "decimal"}
+                    readOnly={showKeypad}
                     value={vals[0]}
                     placeholder=""
                     autoComplete="off"
                     autoCorrect="off"
                     spellCheck="false"
-                    onFocus={() => setActive(0)}
+                    onFocus={(e) => {
+                      setActive(0);
+                      if (showKeypad) e.target.blur();
+                    }}
+                    onTouchStart={(e) => {
+                      if (showKeypad) {
+                        e.preventDefault();
+                        setActive(0);
+                      }
+                    }}
                     onChange={(e) => {
                       const v = e.target.value;
                       if (/^\d*\.?\d*$/.test(v)) setVal(0, v);
@@ -244,13 +260,23 @@ export default function DenominationPopup({
                       inputRefs.current[i] = el;
                     }}
                     type="text"
-                    inputMode="numeric"
+                    inputMode={showKeypad ? "none" : "numeric"}
+                    readOnly={showKeypad}
                     value={vals[i]}
                     placeholder=""
                     autoComplete="off"
                     autoCorrect="off"
                     spellCheck="false"
-                    onFocus={() => setActive(i)}
+                    onFocus={(e) => {
+                      setActive(i);
+                      if (showKeypad) e.target.blur();
+                    }}
+                    onTouchStart={(e) => {
+                      if (showKeypad) {
+                        e.preventDefault();
+                        setActive(i);
+                      }
+                    }}
                     onChange={(e) => {
                       const v = e.target.value;
                       if (/^\d*$/.test(v)) setVal(i, v);

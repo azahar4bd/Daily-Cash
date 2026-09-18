@@ -42,9 +42,11 @@ export default function ReportDenominationModal({
       setCreditVals(Array(FIELD_COUNT).fill(""));
       setDebitVals(Array(FIELD_COUNT).fill(""));
       setActiveCell({ row: 0, col: "qty" });
-      setTimeout(() => {
-        inputRefs.current["0-qty"]?.focus();
-      }, 60);
+      if (!m) {
+        setTimeout(() => {
+          inputRefs.current["0-qty"]?.focus();
+        }, 60);
+      }
     }
   }, [open]);
 
@@ -99,8 +101,12 @@ export default function ReportDenominationModal({
     const key = `${row}-${col}`;
     const el = inputRefs.current[key];
     if (el) {
-      el.focus();
-      if (!showKeypad) el.select();
+      if (showKeypad) {
+        el.blur();
+      } else {
+        el.focus();
+        el.select();
+      }
       el.scrollIntoView({ block: "nearest", behavior: "smooth" });
     }
   };
@@ -288,10 +294,20 @@ export default function ReportDenominationModal({
                           inputRefs.current[`${i}-qty`] = el;
                         }}
                         type="text"
-                        inputMode={isOther ? "decimal" : "numeric"}
+                        inputMode={showKeypad ? "none" : (isOther ? "decimal" : "numeric")}
+                        readOnly={showKeypad}
                         value={qtyVals[i]}
                         placeholder={isOther ? "Any" : "0"}
-                        onFocus={() => focusCell(i, "qty")}
+                        onFocus={(e) => {
+                          if (showKeypad) e.target.blur();
+                          focusCell(i, "qty");
+                        }}
+                        onTouchStart={(e) => {
+                          if (showKeypad) {
+                            e.preventDefault();
+                            focusCell(i, "qty");
+                          }
+                        }}
                         onClick={() => focusCell(i, "qty")}
                         onChange={(e) => handleQtyChange(i, e.target.value)}
                         className={`w-full rounded border px-1.5 py-1 text-center font-mono text-xs sm:text-sm font-bold focus:outline-none transition select-text ${
@@ -310,10 +326,20 @@ export default function ReportDenominationModal({
                           inputRefs.current[`${i}-credit`] = el;
                         }}
                         type="text"
-                        inputMode="decimal"
+                        inputMode={showKeypad ? "none" : "decimal"}
+                        readOnly={showKeypad}
                         value={creditVals[i]}
                         placeholder="0"
-                        onFocus={() => focusCell(i, "credit")}
+                        onFocus={(e) => {
+                          if (showKeypad) e.target.blur();
+                          focusCell(i, "credit");
+                        }}
+                        onTouchStart={(e) => {
+                          if (showKeypad) {
+                            e.preventDefault();
+                            focusCell(i, "credit");
+                          }
+                        }}
                         onClick={() => focusCell(i, "credit")}
                         onChange={(e) => handleCreditChange(i, e.target.value)}
                         className={`w-full rounded border px-1.5 py-1 text-right font-mono text-xs sm:text-sm font-bold focus:outline-none transition select-text ${
@@ -329,10 +355,20 @@ export default function ReportDenominationModal({
                           inputRefs.current[`${i}-debit`] = el;
                         }}
                         type="text"
-                        inputMode="decimal"
+                        inputMode={showKeypad ? "none" : "decimal"}
+                        readOnly={showKeypad}
                         value={debitVals[i]}
                         placeholder="0"
-                        onFocus={() => focusCell(i, "debit")}
+                        onFocus={(e) => {
+                          if (showKeypad) e.target.blur();
+                          focusCell(i, "debit");
+                        }}
+                        onTouchStart={(e) => {
+                          if (showKeypad) {
+                            e.preventDefault();
+                            focusCell(i, "debit");
+                          }
+                        }}
                         onClick={() => focusCell(i, "debit")}
                         onChange={(e) => handleDebitChange(i, e.target.value)}
                         className={`w-full rounded border px-1.5 py-1 text-right font-mono text-xs sm:text-sm font-bold focus:outline-none transition select-text ${

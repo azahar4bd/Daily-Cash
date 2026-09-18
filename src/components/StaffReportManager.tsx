@@ -581,6 +581,7 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
             <CategoryInput
               value={form.staffName}
               disabled={dayClosed}
+              readOnly={true}
               onChange={(v) => {
                 if (dayClosed) return;
                 setForm({ ...form, staffName: v });
@@ -604,7 +605,8 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
               readOnly={true}
               disabled={dayClosed}
               value={form.loan}
-              onFocus={() => handleFieldClick("loan")}
+              onFocus={(e) => { e.target.blur(); handleFieldClick("loan"); }}
+              onTouchStart={(e) => { e.preventDefault(); handleFieldClick("loan"); }}
               onClick={() => handleFieldClick("loan")}
               onChange={(e) => {
                 const val = e.target.value;
@@ -644,7 +646,8 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
               readOnly={true}
               disabled={dayClosed}
               value={form.rebate}
-              onFocus={() => handleFieldClick("rebate")}
+              onFocus={(e) => { e.target.blur(); handleFieldClick("rebate"); }}
+              onTouchStart={(e) => { e.preventDefault(); handleFieldClick("rebate"); }}
               onClick={() => handleFieldClick("rebate")}
               onChange={(e) => {
                 const val = e.target.value;
@@ -684,7 +687,8 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
               readOnly={true}
               disabled={dayClosed}
               value={form.savings}
-              onFocus={() => handleFieldClick("savings")}
+              onFocus={(e) => { e.target.blur(); handleFieldClick("savings"); }}
+              onTouchStart={(e) => { e.preventDefault(); handleFieldClick("savings"); }}
               onClick={() => handleFieldClick("savings")}
               onChange={(e) => {
                 const val = e.target.value;
@@ -724,7 +728,8 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
               readOnly={true}
               disabled={dayClosed}
               value={form.dps}
-              onFocus={() => handleFieldClick("dps")}
+              onFocus={(e) => { e.target.blur(); handleFieldClick("dps"); }}
+              onTouchStart={(e) => { e.preventDefault(); handleFieldClick("dps"); }}
               onClick={() => handleFieldClick("dps")}
               onChange={(e) => {
                 const val = e.target.value;
@@ -764,7 +769,8 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
               readOnly={true}
               disabled={dayClosed}
               value={form.admission}
-              onFocus={() => handleFieldClick("admission")}
+              onFocus={(e) => { e.target.blur(); handleFieldClick("admission"); }}
+              onTouchStart={(e) => { e.preventDefault(); handleFieldClick("admission"); }}
               onClick={() => handleFieldClick("admission")}
               onChange={(e) => {
                 const val = e.target.value;
@@ -804,7 +810,8 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
               readOnly={true}
               disabled={dayClosed}
               value={form.passbook}
-              onFocus={() => handleFieldClick("passbook")}
+              onFocus={(e) => { e.target.blur(); handleFieldClick("passbook"); }}
+              onTouchStart={(e) => { e.preventDefault(); handleFieldClick("passbook"); }}
               onClick={() => handleFieldClick("passbook")}
               onChange={(e) => {
                 const val = e.target.value;
@@ -844,7 +851,8 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
               readOnly={true}
               disabled={dayClosed}
               value={form.savingsAdjust}
-              onFocus={() => handleFieldClick("savingsAdjust")}
+              onFocus={(e) => { e.target.blur(); handleFieldClick("savingsAdjust"); }}
+              onTouchStart={(e) => { e.preventDefault(); handleFieldClick("savingsAdjust"); }}
               onClick={() => handleFieldClick("savingsAdjust")}
               onChange={(e) => {
                 const val = e.target.value;
@@ -884,7 +892,8 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
               readOnly={true}
               disabled={dayClosed}
               value={form.nogodReturn}
-              onFocus={() => handleFieldClick("nogodReturn")}
+              onFocus={(e) => { e.target.blur(); handleFieldClick("nogodReturn"); }}
+              onTouchStart={(e) => { e.preventDefault(); handleFieldClick("nogodReturn"); }}
               onClick={() => handleFieldClick("nogodReturn")}
               onChange={(e) => {
                 const val = e.target.value;
@@ -1400,7 +1409,13 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
                       inputMode="none"
                       readOnly={true}
                       value={rawVal}
-                      onFocus={() => {
+                      onFocus={(e) => {
+                        e.target.blur();
+                        setActiveKeyboardField(key);
+                        setKeyboardOpen(true);
+                      }}
+                      onTouchStart={(e) => {
+                        e.preventDefault();
                         setActiveKeyboardField(key);
                         setKeyboardOpen(true);
                       }}

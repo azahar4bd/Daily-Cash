@@ -6,11 +6,13 @@ export default function CategoryInput({
   onChange,
   options,
   disabled = false,
+  readOnly = false,
 }: {
   value: string;
   onChange: (v: string) => void;
   options: string[];
   disabled?: boolean;
+  readOnly?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [hi, setHi] = useState(0);
@@ -36,21 +38,25 @@ export default function CategoryInput({
       <input
         value={titleCase(value)}
         disabled={disabled}
-        placeholder="Type first letter or select..."
+        readOnly={readOnly}
+        inputMode={readOnly ? "none" : undefined}
+        placeholder={readOnly ? "Select option..." : "Type first letter or select..."}
         onChange={(e) => {
-          if (disabled) return;
+          if (disabled || readOnly) return;
           onChange(e.target.value.toLowerCase());
           setTyping(true);
           setOpen(true);
           setHi(0);
         }}
-        onFocus={() => {
+        onFocus={(e) => {
           if (disabled) return;
+          if (readOnly) e.target.blur();
           setTyping(false);
           setOpen(true);
         }}
-        onClick={() => {
+        onClick={(e) => {
           if (disabled) return;
+          if (readOnly) e.currentTarget.blur();
           setTyping(false);
           setOpen(true);
         }}
