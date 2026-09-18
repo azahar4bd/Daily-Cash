@@ -12,7 +12,6 @@ import {
 } from "@/lib/storage";
 
 const STANDARD_DURATIONS = ["Week", "Month", "1.5 Year", "2 Year"];
-const PAGE_SIZE_OPTIONS = [20, 50, 100, "All"] as const;
 
 type EditTab = "rate" | "item" | "category_rename" | "duration_rename";
 
@@ -27,10 +26,6 @@ export default function RebateRateManager({
   const [filterProduct, setFilterProduct] = useState("");
   const [filterDuration, setFilterDuration] = useState("");
   const [search, setSearch] = useState("");
-
-  // Pagination state
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState<number | "All">(25);
 
   // Unified Edit Panel state
   const [showEditPanel, setShowEditPanel] = useState(false);
@@ -103,11 +98,6 @@ export default function RebateRateManager({
     }
   }, [durations, renameFromDuration]);
 
-  // Reset to page 1 on filter or search change
-  useEffect(() => {
-    setPage(1);
-  }, [filterProduct, filterDuration, search, pageSize]);
-
   const filtered = useMemo(() => {
     return rates.filter((r) => {
       if (filterProduct && r.product !== filterProduct) return false;
@@ -125,15 +115,6 @@ export default function RebateRateManager({
       return true;
     });
   }, [rates, filterProduct, filterDuration, search]);
-
-  const totalItems = filtered.length;
-  const totalPages = pageSize === "All" ? 1 : Math.max(1, Math.ceil(totalItems / pageSize));
-
-  const paginatedList = useMemo(() => {
-    if (pageSize === "All") return filtered;
-    const start = (page - 1) * pageSize;
-    return filtered.slice(start, start + pageSize);
-  }, [filtered, page, pageSize]);
 
   // Handler: Add Single Rate
   const handleAddRate = () => {
@@ -899,7 +880,7 @@ export default function RebateRateManager({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200 font-medium">
-                    {paginatedList.map((r, idx) => (
+                    {filtered.map((r, idx) => (
                       <tr
                         key={r.id}
                         className={`transition ${
@@ -955,54 +936,24 @@ export default function RebateRateManager({
           )}
         </div>
 
-        {/* Footer with Pagination Controls */}
+        {/* Footer with Total Row Status & Scroll Hint (No Pagination) */}
         <div className="border-t bg-slate-50 px-4 sm:px-6 py-3 flex flex-col sm:flex-row items-center justify-between gap-2.5 text-xs text-slate-600 shrink-0">
-          <div className="flex items-center gap-2">
-            <span className="font-bold">পৃষ্ঠা প্রতি প্রদর্শন:</span>
-            <div className="flex items-center gap-1">
-              {PAGE_SIZE_OPTIONS.map((opt) => (
-                <button
-                  key={opt}
-                  type="button"
-                  onClick={() => setPageSize(opt)}
-                  className={`rounded-lg px-2.5 py-1 font-bold text-xs cursor-pointer transition ${
-                    pageSize === opt
-                      ? "bg-indigo-600 text-white shadow-2xs"
-                      : "bg-white border border-slate-300 text-slate-700 hover:bg-slate-100"
-                  }`}
-                >
-                  {opt}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {pageSize !== "All" && totalPages > 1 && (
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                disabled={page <= 1}
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                className="rounded-xl border border-slate-300 bg-white px-3 py-1 font-bold text-xs disabled:opacity-40 hover:bg-slate-100 cursor-pointer disabled:cursor-not-allowed transition"
-              >
-                ← পূর্ববর্তী
-              </button>
-
-              <span className="font-semibold text-slate-700">
-                পৃষ্ঠা <b className="font-mono text-slate-900">{page}</b> /{" "}
-                <b className="font-mono text-slate-900">{totalPages}</b>
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="font-bold text-slate-700">মোট রেট এন্ট্রি:</span>
+            <span className="font-mono font-black text-indigo-950 bg-indigo-100 px-2.5 py-0.5 rounded-full border border-indigo-200 text-xs">
+              {filtered.length} টি
+            </span>
+            {(filterProduct || filterDuration || search) && (
+              <span className="text-[11px] text-slate-500 font-medium">
+                (সর্বমোট {rates.length} টির মধ্যে ফিল্টারকৃত)
               </span>
-
-              <button
-                type="button"
-                disabled={page >= totalPages}
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                className="rounded-xl border border-slate-300 bg-white px-3 py-1 font-bold text-xs disabled:opacity-40 hover:bg-slate-100 cursor-pointer disabled:cursor-not-allowed transition"
-              >
-                পরবর্তী →
-              </button>
-            </div>
-          )}
+            )}
+          </div>
+          <div className="text-[11px] text-slate-500 font-semibold flex items-center gap-2">
+            <span>↕️ স্ক্রোল করে সকল রো দেখুন</span>
+            <span>•</span>
+            <span>↔️ ডানে-বামে টেনে সম্পূর্ণ টেবিল দেখুন</span>
+          </div>
         </div>
       </div>
 
