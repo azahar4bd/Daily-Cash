@@ -36,6 +36,12 @@ export function evaluateMathExpression(input: string): string {
   }
   if (!expr) return "";
 
+  // Convert Bengali numerals ০-৯ to 0-9
+  const bnDigits = ["০", "১", "২", "৩", "৪", "৫", "৬", "৭", "৮", "৯"];
+  for (let i = 0; i < 10; i++) {
+    expr = expr.split(bnDigits[i]).join(String(i));
+  }
+
   // If already a plain number
   if (/^-?\d+(\.\d+)?$/.test(expr)) return expr;
 

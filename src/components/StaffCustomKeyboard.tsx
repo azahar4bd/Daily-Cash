@@ -43,6 +43,7 @@ interface StaffCustomKeyboardProps {
   onSave: () => void;
   onReset: () => void;
   onClose: () => void;
+  isEdit?: boolean;
 }
 
 export default function StaffCustomKeyboard({
@@ -55,6 +56,7 @@ export default function StaffCustomKeyboard({
   onSave,
   onReset,
   onClose,
+  isEdit = false,
 }: StaffCustomKeyboardProps) {
   if (!open) return null;
 
@@ -155,9 +157,9 @@ export default function StaffCustomKeyboard({
     if (!open) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (
-        e.target instanceof HTMLInputElement ||
         e.target instanceof HTMLTextAreaElement ||
-        e.target instanceof HTMLSelectElement
+        e.target instanceof HTMLSelectElement ||
+        (e.target instanceof HTMLInputElement && !e.target.readOnly)
       ) {
         return;
       }
@@ -210,7 +212,7 @@ export default function StaffCustomKeyboard({
         <div className="flex items-center justify-between pb-1.5 border-b border-slate-800 gap-2">
           <div className="flex items-center gap-2 overflow-hidden">
             <span className="text-xs sm:text-sm font-black text-amber-400 bg-amber-400/20 px-2 py-0.5 rounded border border-amber-400/30 whitespace-nowrap">
-              ⌨️ {currentDef.label} ({currentDef.bn})
+              ⌨️ {isEdit ? "এডিট: " : ""}{currentDef.label} ({currentDef.bn})
             </span>
             <div className="text-sm sm:text-base font-mono font-black text-emerald-400 truncate">
               {currentDef.isNumeric ? (
@@ -510,10 +512,10 @@ export default function StaffCustomKeyboard({
             type="button"
             onClick={onSave}
             className="rounded-xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 active:scale-95 py-2 text-[11px] sm:text-xs font-black text-white shadow flex items-center justify-center gap-1 cursor-pointer transition ring-1 ring-emerald-400/40"
-            title="রিপোর্ট সেভ করুন"
+            title={isEdit ? "রিপোর্ট আপডেট করুন" : "রিপোর্ট সেভ করুন"}
           >
             <span>💾</span>
-            <span>সেভ</span>
+            <span>{isEdit ? "আপডেট" : "সেভ"}</span>
           </button>
           <button
             type="button"

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import CategoryInput from "./CategoryInput";
 import { fmt } from "./DenominationPopup";
 import ReportDenominationModal from "./ReportDenominationModal";
-import StaffCustomKeyboard, { StaffFieldKey } from "./StaffCustomKeyboard";
+import StaffCustomKeyboard, { StaffFieldKey, STAFF_FIELDS } from "./StaffCustomKeyboard";
 import { titleCase } from "@/lib/categories";
 import {
   getLocalStaffReports,
@@ -39,6 +39,7 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
     nogodReturn: "",
   });
   const [edit, setEdit] = useState<StaffReportItem | null>(null);
+  const [originalEditReport, setOriginalEditReport] = useState<StaffReportItem | null>(null);
   const [filterStaff, setFilterStaff] = useState<string>("");
   const [denomModalOpen, setDenomModalOpen] = useState(false);
   const [staffPopupOpen, setStaffPopupOpen] = useState(false);
@@ -84,13 +85,14 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
   useEffect(() => {
     if (!keyboardOpen) return;
     const timer = setTimeout(() => {
-      const el = document.getElementById(`field-${activeKeyboardField}`);
+      const fieldId = edit ? `edit-field-${activeKeyboardField}` : `field-${activeKeyboardField}`;
+      const el = document.getElementById(fieldId);
       if (el) {
         el.scrollIntoView({ behavior: "smooth", block: "center" });
       }
     }, 50);
     return () => clearTimeout(timer);
-  }, [activeKeyboardField, keyboardOpen]);
+  }, [activeKeyboardField, keyboardOpen, edit]);
 
   const handleSave = () => {
     if (dayClosed) {
@@ -155,16 +157,18 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
     }
     updateStaffReport({
       ...edit,
-      loan: evaluateMathExpression(edit.loan) || "0",
-      rebate: evaluateMathExpression(edit.rebate) || "0",
-      savings: evaluateMathExpression(edit.savings) || "0",
-      dps: evaluateMathExpression(edit.dps) || "0",
-      admission: evaluateMathExpression(edit.admission) || "0",
-      passbook: evaluateMathExpression(edit.passbook) || "0",
-      savingsAdjust: evaluateMathExpression(edit.savingsAdjust) || "0",
-      nogodReturn: evaluateMathExpression(edit.nogodReturn) || "0",
+      loan: evaluateMathExpression(String(edit.loan || "0")) || "0",
+      rebate: evaluateMathExpression(String(edit.rebate || "0")) || "0",
+      savings: evaluateMathExpression(String(edit.savings || "0")) || "0",
+      dps: evaluateMathExpression(String(edit.dps || "0")) || "0",
+      admission: evaluateMathExpression(String(edit.admission || "0")) || "0",
+      passbook: evaluateMathExpression(String(edit.passbook || "0")) || "0",
+      savingsAdjust: evaluateMathExpression(String(edit.savingsAdjust || "0")) || "0",
+      nogodReturn: evaluateMathExpression(String(edit.nogodReturn || "0")) || "0",
     });
     setEdit(null);
+    setOriginalEditReport(null);
+    setKeyboardOpen(false);
     loadData();
   };
 
@@ -480,17 +484,26 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
             />
           </div>
           <div id="field-loan">
-            <label className="mb-1 block text-xs font-bold text-slate-700">Loan</label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-xs font-bold text-slate-700">Loan</label>
+              {/[+\-*/]/.test(form.loan) && (
+                <span className="text-[10px] font-mono font-bold text-emerald-700 bg-emerald-100 px-1 py-0.2 rounded border border-emerald-300">
+                  ={fmt(Number(evaluateMathExpression(form.loan)) || 0)}
+                </span>
+              )}
+            </div>
             <input
               type="text"
-              inputMode={keyboardOpen ? "none" : "text"}
-              readOnly={keyboardOpen}
+              inputMode="none"
+              readOnly={true}
               value={form.loan}
               onFocus={() => {
                 setActiveKeyboardField("loan");
+                setKeyboardOpen(true);
               }}
               onClick={() => {
                 setActiveKeyboardField("loan");
+                setKeyboardOpen(true);
               }}
               onChange={(e) => {
                 const val = e.target.value;
@@ -501,7 +514,7 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
                 }
               }}
               onBlur={() => {
-                if (form.loan && form.loan.includes("+")) {
+                if (form.loan && /[+\-*/]/.test(form.loan)) {
                   setForm({ ...form, loan: evaluateMathExpression(form.loan) });
                 }
               }}
@@ -514,17 +527,26 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
             />
           </div>
           <div id="field-rebate">
-            <label className="mb-1 block text-xs font-bold text-slate-700">Rebate</label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-xs font-bold text-slate-700">Rebate</label>
+              {/[+\-*/]/.test(form.rebate) && (
+                <span className="text-[10px] font-mono font-bold text-emerald-700 bg-emerald-100 px-1 py-0.2 rounded border border-emerald-300">
+                  ={fmt(Number(evaluateMathExpression(form.rebate)) || 0)}
+                </span>
+              )}
+            </div>
             <input
               type="text"
-              inputMode={keyboardOpen ? "none" : "text"}
-              readOnly={keyboardOpen}
+              inputMode="none"
+              readOnly={true}
               value={form.rebate}
               onFocus={() => {
                 setActiveKeyboardField("rebate");
+                setKeyboardOpen(true);
               }}
               onClick={() => {
                 setActiveKeyboardField("rebate");
+                setKeyboardOpen(true);
               }}
               onChange={(e) => {
                 const val = e.target.value;
@@ -535,7 +557,7 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
                 }
               }}
               onBlur={() => {
-                if (form.rebate && form.rebate.includes("+")) {
+                if (form.rebate && /[+\-*/]/.test(form.rebate)) {
                   setForm({ ...form, rebate: evaluateMathExpression(form.rebate) });
                 }
               }}
@@ -548,17 +570,26 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
             />
           </div>
           <div id="field-savings">
-            <label className="mb-1 block text-xs font-bold text-slate-700">Savings</label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-xs font-bold text-slate-700">Savings</label>
+              {/[+\-*/]/.test(form.savings) && (
+                <span className="text-[10px] font-mono font-bold text-emerald-700 bg-emerald-100 px-1 py-0.2 rounded border border-emerald-300">
+                  ={fmt(Number(evaluateMathExpression(form.savings)) || 0)}
+                </span>
+              )}
+            </div>
             <input
               type="text"
-              inputMode={keyboardOpen ? "none" : "text"}
-              readOnly={keyboardOpen}
+              inputMode="none"
+              readOnly={true}
               value={form.savings}
               onFocus={() => {
                 setActiveKeyboardField("savings");
+                setKeyboardOpen(true);
               }}
               onClick={() => {
                 setActiveKeyboardField("savings");
+                setKeyboardOpen(true);
               }}
               onChange={(e) => {
                 const val = e.target.value;
@@ -569,7 +600,7 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
                 }
               }}
               onBlur={() => {
-                if (form.savings && form.savings.includes("+")) {
+                if (form.savings && /[+\-*/]/.test(form.savings)) {
                   setForm({ ...form, savings: evaluateMathExpression(form.savings) });
                 }
               }}
@@ -582,17 +613,26 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
             />
           </div>
           <div id="field-dps">
-            <label className="mb-1 block text-xs font-bold text-slate-700">DPS</label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-xs font-bold text-slate-700">DPS</label>
+              {/[+\-*/]/.test(form.dps) && (
+                <span className="text-[10px] font-mono font-bold text-emerald-700 bg-emerald-100 px-1 py-0.2 rounded border border-emerald-300">
+                  ={fmt(Number(evaluateMathExpression(form.dps)) || 0)}
+                </span>
+              )}
+            </div>
             <input
               type="text"
-              inputMode={keyboardOpen ? "none" : "text"}
-              readOnly={keyboardOpen}
+              inputMode="none"
+              readOnly={true}
               value={form.dps}
               onFocus={() => {
                 setActiveKeyboardField("dps");
+                setKeyboardOpen(true);
               }}
               onClick={() => {
                 setActiveKeyboardField("dps");
+                setKeyboardOpen(true);
               }}
               onChange={(e) => {
                 const val = e.target.value;
@@ -603,7 +643,7 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
                 }
               }}
               onBlur={() => {
-                if (form.dps && form.dps.includes("+")) {
+                if (form.dps && /[+\-*/]/.test(form.dps)) {
                   setForm({ ...form, dps: evaluateMathExpression(form.dps) });
                 }
               }}
@@ -616,17 +656,26 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
             />
           </div>
           <div id="field-admission">
-            <label className="mb-1 block text-xs font-bold text-slate-700">Admission</label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-xs font-bold text-slate-700">Admission</label>
+              {/[+\-*/]/.test(form.admission) && (
+                <span className="text-[10px] font-mono font-bold text-emerald-700 bg-emerald-100 px-1 py-0.2 rounded border border-emerald-300">
+                  ={fmt(Number(evaluateMathExpression(form.admission)) || 0)}
+                </span>
+              )}
+            </div>
             <input
               type="text"
-              inputMode={keyboardOpen ? "none" : "text"}
-              readOnly={keyboardOpen}
+              inputMode="none"
+              readOnly={true}
               value={form.admission}
               onFocus={() => {
                 setActiveKeyboardField("admission");
+                setKeyboardOpen(true);
               }}
               onClick={() => {
                 setActiveKeyboardField("admission");
+                setKeyboardOpen(true);
               }}
               onChange={(e) => {
                 const val = e.target.value;
@@ -637,7 +686,7 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
                 }
               }}
               onBlur={() => {
-                if (form.admission && form.admission.includes("+")) {
+                if (form.admission && /[+\-*/]/.test(form.admission)) {
                   setForm({ ...form, admission: evaluateMathExpression(form.admission) });
                 }
               }}
@@ -650,17 +699,26 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
             />
           </div>
           <div id="field-passbook">
-            <label className="mb-1 block text-xs font-bold text-slate-700">Passbook</label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-xs font-bold text-slate-700">Passbook</label>
+              {/[+\-*/]/.test(form.passbook) && (
+                <span className="text-[10px] font-mono font-bold text-emerald-700 bg-emerald-100 px-1 py-0.2 rounded border border-emerald-300">
+                  ={fmt(Number(evaluateMathExpression(form.passbook)) || 0)}
+                </span>
+              )}
+            </div>
             <input
               type="text"
-              inputMode={keyboardOpen ? "none" : "text"}
-              readOnly={keyboardOpen}
+              inputMode="none"
+              readOnly={true}
               value={form.passbook}
               onFocus={() => {
                 setActiveKeyboardField("passbook");
+                setKeyboardOpen(true);
               }}
               onClick={() => {
                 setActiveKeyboardField("passbook");
+                setKeyboardOpen(true);
               }}
               onChange={(e) => {
                 const val = e.target.value;
@@ -671,7 +729,7 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
                 }
               }}
               onBlur={() => {
-                if (form.passbook && form.passbook.includes("+")) {
+                if (form.passbook && /[+\-*/]/.test(form.passbook)) {
                   setForm({ ...form, passbook: evaluateMathExpression(form.passbook) });
                 }
               }}
@@ -684,17 +742,26 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
             />
           </div>
           <div id="field-savingsAdjust">
-            <label className="mb-1 block text-xs font-bold text-slate-700">Savings Adjust</label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-xs font-bold text-slate-700">Savings Adjust</label>
+              {/[+\-*/]/.test(form.savingsAdjust) && (
+                <span className="text-[10px] font-mono font-bold text-emerald-700 bg-emerald-100 px-1 py-0.2 rounded border border-emerald-300">
+                  ={fmt(Number(evaluateMathExpression(form.savingsAdjust)) || 0)}
+                </span>
+              )}
+            </div>
             <input
               type="text"
-              inputMode={keyboardOpen ? "none" : "text"}
-              readOnly={keyboardOpen}
+              inputMode="none"
+              readOnly={true}
               value={form.savingsAdjust}
               onFocus={() => {
                 setActiveKeyboardField("savingsAdjust");
+                setKeyboardOpen(true);
               }}
               onClick={() => {
                 setActiveKeyboardField("savingsAdjust");
+                setKeyboardOpen(true);
               }}
               onChange={(e) => {
                 const val = e.target.value;
@@ -705,7 +772,7 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
                 }
               }}
               onBlur={() => {
-                if (form.savingsAdjust && form.savingsAdjust.includes("+")) {
+                if (form.savingsAdjust && /[+\-*/]/.test(form.savingsAdjust)) {
                   setForm({ ...form, savingsAdjust: evaluateMathExpression(form.savingsAdjust) });
                 }
               }}
@@ -718,17 +785,26 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
             />
           </div>
           <div id="field-nogodReturn">
-            <label className="mb-1 block text-xs font-bold text-slate-700">Nogod Return</label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-xs font-bold text-slate-700">Nogod Return</label>
+              {/[+\-*/]/.test(form.nogodReturn) && (
+                <span className="text-[10px] font-mono font-bold text-emerald-700 bg-emerald-100 px-1 py-0.2 rounded border border-emerald-300">
+                  ={fmt(Number(evaluateMathExpression(form.nogodReturn)) || 0)}
+                </span>
+              )}
+            </div>
             <input
               type="text"
-              inputMode={keyboardOpen ? "none" : "text"}
-              readOnly={keyboardOpen}
+              inputMode="none"
+              readOnly={true}
               value={form.nogodReturn}
               onFocus={() => {
                 setActiveKeyboardField("nogodReturn");
+                setKeyboardOpen(true);
               }}
               onClick={() => {
                 setActiveKeyboardField("nogodReturn");
+                setKeyboardOpen(true);
               }}
               onChange={(e) => {
                 const val = e.target.value;
@@ -739,7 +815,7 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
                 }
               }}
               onBlur={() => {
-                if (form.nogodReturn && form.nogodReturn.includes("+")) {
+                if (form.nogodReturn && /[+\-*/]/.test(form.nogodReturn)) {
                   setForm({ ...form, nogodReturn: evaluateMathExpression(form.nogodReturn) });
                 }
               }}
@@ -904,15 +980,32 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
                       <td className="border border-[#d4a373] px-1 py-1 text-center whitespace-nowrap">
                         <button
                           type="button"
-                          onClick={() => setEdit(r)}
-                          className="mr-1 rounded bg-blue-600 px-2 py-0.5 text-xs text-white"
+                          onClick={() => {
+                            setOriginalEditReport({ ...r });
+                            setEdit({
+                              ...r,
+                              loan: String(r.loan ?? ""),
+                              rebate: String(r.rebate ?? ""),
+                              savings: String(r.savings ?? ""),
+                              dps: String(r.dps ?? ""),
+                              admission: String(r.admission ?? ""),
+                              passbook: String(r.passbook ?? ""),
+                              savingsAdjust: String(r.savingsAdjust ?? ""),
+                              nogodReturn: String(r.nogodReturn ?? ""),
+                            });
+                            setActiveKeyboardField("loan");
+                            setKeyboardOpen(true);
+                          }}
+                          className="mr-1 rounded bg-blue-600 hover:bg-blue-700 px-2.5 py-1 text-xs font-bold text-white shadow-xs cursor-pointer transition active:scale-95"
+                          title="এই স্টাফের রিপোর্ট এডিট করুন"
                         >
-                          Edit
+                          ✏️ Edit
                         </button>
                         <button
                           type="button"
                           onClick={() => handleDelete(r.id)}
-                          className="rounded bg-rose-600 px-2 py-0.5 text-xs text-white"
+                          className="rounded bg-rose-600 hover:bg-rose-700 px-2 py-1 text-xs font-bold text-white shadow-xs cursor-pointer transition active:scale-95"
+                          title="এই রিপোর্ট মুছুন"
                         >
                           Del
                         </button>
@@ -1080,33 +1173,81 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
         />
       )}
 
-      {/* Staff Report Edit Modal (Staff wise Edit working) */}
+      {/* Staff Report Edit Modal (Staff wise Edit with Custom Keyboard) */}
       {edit && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="max-h-[95vh] w-full max-w-xl overflow-y-auto rounded-2xl bg-white p-5 sm:p-6 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95">
+        <div className="fixed inset-0 z-40 flex items-start justify-center bg-black/60 p-2 sm:p-4 pt-3 sm:pt-6 pb-88 overflow-y-auto">
+          <div className="w-full max-w-xl rounded-2xl bg-white p-4 sm:p-6 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 my-auto">
+            {/* Header */}
             <div className="flex items-center justify-between border-b pb-3 mb-4">
               <div className="flex items-center gap-2">
                 <span className="text-xl">✏️</span>
-                <h3 className="text-base sm:text-lg font-bold text-slate-900">
-                  Edit Staff Report ({titleCase(edit.staffName)})
-                </h3>
+                <div>
+                  <h3 className="text-base sm:text-lg font-bold text-slate-900 leading-tight">
+                    Edit Staff Report ({titleCase(edit.staffName)})
+                  </h3>
+                  <span className="text-[11px] font-mono text-slate-500">Date: {selectedDate}</span>
+                </div>
               </div>
-              <button
-                type="button"
-                onClick={() => setEdit(null)}
-                className="text-2xl text-slate-400 hover:text-rose-600 cursor-pointer"
-              >
-                ×
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setKeyboardOpen(!keyboardOpen)}
+                  className={`rounded-xl px-2.5 py-1 text-xs font-bold transition flex items-center gap-1.5 shadow-xs border cursor-pointer ${
+                    keyboardOpen
+                      ? "bg-indigo-600 text-white border-indigo-500 shadow-indigo-300 ring-2 ring-indigo-400/40"
+                      : "bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border-indigo-200"
+                  }`}
+                  title="কাস্টম কিবোর্ড অন/অফ করুন"
+                >
+                  <span>⌨️ কিবোর্ড</span>
+                  <span
+                    className={`text-[10px] px-1.5 py-0.2 rounded font-mono font-bold ${
+                      keyboardOpen ? "bg-indigo-900 text-white" : "bg-indigo-200 text-indigo-900"
+                    }`}
+                  >
+                    {keyboardOpen ? "ON" : "OFF"}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEdit(null);
+                    setOriginalEditReport(null);
+                    setKeyboardOpen(false);
+                  }}
+                  className="text-2xl text-slate-400 hover:text-rose-600 cursor-pointer leading-none p-1"
+                  title="বন্ধ করুন"
+                >
+                  ×
+                </button>
+              </div>
             </div>
 
+            {/* Inputs Grid */}
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              <div className="col-span-2 sm:col-span-3">
-                <label className="mb-1 block text-xs font-bold text-slate-700">Staff Name</label>
+              {/* Staff Name */}
+              <div
+                id="edit-field-staffName"
+                onClick={() => {
+                  setActiveKeyboardField("staffName");
+                  setKeyboardOpen(true);
+                }}
+                className={`col-span-2 sm:col-span-3 rounded-xl transition p-2 cursor-pointer border ${
+                  keyboardOpen && activeKeyboardField === "staffName"
+                    ? "ring-2 ring-indigo-500 bg-amber-50 border-indigo-400"
+                    : "border-slate-200 bg-slate-50/50"
+                }`}
+              >
+                <label className="mb-1 block text-xs font-bold text-slate-700">
+                  Staff Name <span className="text-[10px] text-slate-500 font-normal">(স্টাফ নির্বাচন)</span>
+                </label>
                 <select
                   value={edit.staffName}
-                  onChange={(e) => setEdit({ ...edit, staffName: e.target.value })}
-                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-bold text-slate-800"
+                  onChange={(e) => {
+                    setEdit({ ...edit, staffName: e.target.value });
+                    setActiveKeyboardField("loan");
+                  }}
+                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-bold text-slate-800 focus:outline-none cursor-pointer"
                 >
                   {allStaffNames.map((st) => (
                     <option key={st} value={st}>
@@ -1116,126 +1257,196 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
                 </select>
               </div>
 
-              <div>
-                <label className="mb-1 block text-xs font-bold text-slate-700">Loan</label>
-                <input
-                  type="number"
-                  value={edit.loan}
-                  onChange={(e) => setEdit({ ...edit, loan: e.target.value })}
-                  placeholder="0"
-                  className="w-full rounded-lg border border-slate-300 px-3 py-1.5 text-right font-mono text-sm font-bold"
-                />
-              </div>
+              {/* Numeric Fields */}
+              {STAFF_FIELDS.filter((f) => f.isNumeric).map((f) => {
+                const key = f.key;
+                const isActive = keyboardOpen && activeKeyboardField === key;
+                const rawVal = edit[key] || "";
+                const hasFormula = /[+\-*/]/.test(rawVal);
+                const evalVal = hasFormula ? evaluateMathExpression(rawVal) : "";
+                const isDeduction = key === "savingsAdjust" || key === "nogodReturn";
 
-              <div>
-                <label className="mb-1 block text-xs font-bold text-slate-700">Rebate</label>
-                <input
-                  type="number"
-                  value={edit.rebate}
-                  onChange={(e) => setEdit({ ...edit, rebate: e.target.value })}
-                  placeholder="0"
-                  className="w-full rounded-lg border border-slate-300 px-3 py-1.5 text-right font-mono text-sm font-bold"
-                />
-              </div>
-
-              <div>
-                <label className="mb-1 block text-xs font-bold text-slate-700">Savings</label>
-                <input
-                  type="number"
-                  value={edit.savings}
-                  onChange={(e) => setEdit({ ...edit, savings: e.target.value })}
-                  placeholder="0"
-                  className="w-full rounded-lg border border-slate-300 px-3 py-1.5 text-right font-mono text-sm font-bold"
-                />
-              </div>
-
-              <div>
-                <label className="mb-1 block text-xs font-bold text-slate-700">DPS</label>
-                <input
-                  type="number"
-                  value={edit.dps}
-                  onChange={(e) => setEdit({ ...edit, dps: e.target.value })}
-                  placeholder="0"
-                  className="w-full rounded-lg border border-slate-300 px-3 py-1.5 text-right font-mono text-sm font-bold"
-                />
-              </div>
-
-              <div>
-                <label className="mb-1 block text-xs font-bold text-slate-700">Admission</label>
-                <input
-                  type="number"
-                  value={edit.admission}
-                  onChange={(e) => setEdit({ ...edit, admission: e.target.value })}
-                  placeholder="0"
-                  className="w-full rounded-lg border border-slate-300 px-3 py-1.5 text-right font-mono text-sm font-bold"
-                />
-              </div>
-
-              <div>
-                <label className="mb-1 block text-xs font-bold text-slate-700">Passbook</label>
-                <input
-                  type="number"
-                  value={edit.passbook}
-                  onChange={(e) => setEdit({ ...edit, passbook: e.target.value })}
-                  placeholder="0"
-                  className="w-full rounded-lg border border-slate-300 px-3 py-1.5 text-right font-mono text-sm font-bold"
-                />
-              </div>
-
-              <div>
-                <label className="mb-1 block text-xs font-bold text-slate-700">Savings Adjust</label>
-                <input
-                  type="number"
-                  value={edit.savingsAdjust}
-                  onChange={(e) => setEdit({ ...edit, savingsAdjust: e.target.value })}
-                  placeholder="0"
-                  className="w-full rounded-lg border border-rose-300 bg-rose-50 px-3 py-1.5 text-right font-mono text-sm font-bold text-rose-900"
-                />
-              </div>
-
-              <div>
-                <label className="mb-1 block text-xs font-bold text-slate-700">Nogod Return</label>
-                <input
-                  type="number"
-                  value={edit.nogodReturn}
-                  onChange={(e) => setEdit({ ...edit, nogodReturn: e.target.value })}
-                  placeholder="0"
-                  className="w-full rounded-lg border border-rose-300 bg-rose-50 px-3 py-1.5 text-right font-mono text-sm font-bold text-rose-900"
-                />
-              </div>
+                return (
+                  <div
+                    key={key}
+                    id={`edit-field-${key}`}
+                    onClick={() => {
+                      setActiveKeyboardField(key);
+                      setKeyboardOpen(true);
+                    }}
+                    className={`rounded-xl transition cursor-pointer p-1.5 border ${
+                      isActive
+                        ? "border-indigo-600 ring-2 ring-indigo-500 bg-amber-50/90 scale-[1.02] shadow-sm"
+                        : isDeduction
+                        ? "border-rose-200 bg-rose-50/50"
+                        : "border-slate-200 bg-slate-50/40"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="text-xs font-bold text-slate-700 truncate">
+                        {f.label} <span className="text-[10px] text-slate-500 font-normal">({f.bn})</span>
+                      </label>
+                      {hasFormula && (
+                        <span className="text-[10px] font-mono font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.2 rounded border border-emerald-300">
+                          ={fmt(Number(evalVal) || 0)}
+                        </span>
+                      )}
+                    </div>
+                    <input
+                      type="text"
+                      inputMode="none"
+                      readOnly={true}
+                      value={rawVal}
+                      onFocus={() => {
+                        setActiveKeyboardField(key);
+                        setKeyboardOpen(true);
+                      }}
+                      onClick={() => {
+                        setActiveKeyboardField(key);
+                        setKeyboardOpen(true);
+                      }}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val.endsWith("=")) {
+                          setEdit({ ...edit, [key]: evaluateMathExpression(val) });
+                        } else {
+                          setEdit({ ...edit, [key]: val });
+                        }
+                      }}
+                      onBlur={() => {
+                        if (rawVal && /[+\-*/]/.test(rawVal)) {
+                          setEdit({ ...edit, [key]: evaluateMathExpression(rawVal) });
+                        }
+                      }}
+                      placeholder={key === "loan" ? "0 (উদা: ১২+১২=২৪)" : "0"}
+                      className={`w-full rounded-lg border px-3 py-1.5 text-right font-mono text-sm font-bold transition focus:outline-none cursor-pointer ${
+                        isActive
+                          ? "border-indigo-600 bg-amber-100 text-slate-950 font-black shadow-inner"
+                          : isDeduction
+                          ? "border-rose-300 bg-white text-rose-900"
+                          : "border-slate-300 bg-white text-slate-900"
+                      }`}
+                    />
+                  </div>
+                );
+              })}
             </div>
 
-            <div className="flex items-center justify-end gap-3 mt-6 border-t pt-3">
+            {/* Live Totals summary inside edit modal */}
+            {(() => {
+              const editBaseLoan = Number(evaluateMathExpression(edit.loan || "0")) || 0;
+              const editRebate = Number(evaluateMathExpression(edit.rebate || "0")) || 0;
+              const editGrossLoan = editBaseLoan + editRebate;
+              const editSavings = Number(evaluateMathExpression(edit.savings || "0")) || 0;
+              const editDps = Number(evaluateMathExpression(edit.dps || "0")) || 0;
+              const editTotalSav = editSavings + editDps;
+              const editPassbook = Number(evaluateMathExpression(edit.passbook || "0")) || 0;
+              const editAdmission = Number(evaluateMathExpression(edit.admission || "0")) || 0;
+              const editGrantTotal = editBaseLoan + editTotalSav + editPassbook + editAdmission;
+              const editAdjust = Number(evaluateMathExpression(edit.savingsAdjust || "0")) || 0;
+              const editNogod = Number(evaluateMathExpression(edit.nogodReturn || "0")) || 0;
+              const editTotalReturn = editAdjust + editNogod;
+
+              return (
+                <div className="mt-4 rounded-xl bg-amber-50/70 border border-amber-200 p-2.5 text-xs">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 font-mono text-center">
+                    <div className="bg-white p-1.5 rounded border border-amber-100">
+                      <div className="text-[10px] text-slate-500 font-sans">Total Loan</div>
+                      <div className="font-bold text-slate-900">{fmt(editGrossLoan)}</div>
+                    </div>
+                    <div className="bg-white p-1.5 rounded border border-amber-100">
+                      <div className="text-[10px] text-slate-500 font-sans">Total Savings</div>
+                      <div className="font-bold text-slate-900">{fmt(editTotalSav)}</div>
+                    </div>
+                    <div className="bg-white p-1.5 rounded border border-amber-200">
+                      <div className="text-[10px] text-amber-900 font-sans font-bold">Grant Total</div>
+                      <div className="font-black text-amber-700 text-sm">{fmt(editGrantTotal)}</div>
+                    </div>
+                    <div className="bg-white p-1.5 rounded border border-rose-200">
+                      <div className="text-[10px] text-rose-700 font-sans font-bold">Total Return</div>
+                      <div className="font-black text-rose-700 text-sm">{fmt(editTotalReturn)}</div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Modal Actions */}
+            <div className="flex items-center justify-between gap-3 mt-4 border-t pt-3">
               <button
                 type="button"
-                onClick={() => setEdit(null)}
-                className="min-h-[44px] rounded-xl bg-slate-200 px-5 py-2 font-bold text-sm text-slate-700 hover:bg-slate-300 transition cursor-pointer"
+                onClick={() => {
+                  if (originalEditReport) setEdit({ ...originalEditReport });
+                }}
+                className="rounded-xl bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 px-3 py-2 font-bold text-xs transition cursor-pointer"
+                title="এডিটের পরিবর্তনগুলো বাতিল করে মূল মানে ফিরে যান"
               >
-                Cancel
+                🔄 মূল মানে রিসেট
               </button>
-              <button
-                type="button"
-                onClick={handleUpdate}
-                className="min-h-[44px] rounded-xl bg-blue-600 px-6 py-2 font-bold text-sm text-white hover:bg-blue-700 transition cursor-pointer"
-              >
-                Update Report
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEdit(null);
+                    setOriginalEditReport(null);
+                    setKeyboardOpen(false);
+                  }}
+                  className="rounded-xl bg-slate-200 px-4 py-2 font-bold text-xs text-slate-700 hover:bg-slate-300 transition cursor-pointer"
+                >
+                  বাতিল (Cancel)
+                </button>
+                <button
+                  type="button"
+                  onClick={handleUpdate}
+                  className="rounded-xl bg-blue-600 px-5 py-2 font-bold text-xs text-white hover:bg-blue-700 transition cursor-pointer flex items-center gap-1.5 shadow"
+                >
+                  <span>💾</span>
+                  <span>Update Report</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Custom Keyboard for Staff Collection Report Entry */}
+      {/* Custom Keyboard for Staff Collection Report Entry & Edit */}
       <StaffCustomKeyboard
         open={keyboardOpen}
         activeField={activeKeyboardField}
-        values={form}
+        values={
+          edit
+            ? {
+                staffName: edit.staffName || "",
+                loan: edit.loan || "",
+                rebate: edit.rebate || "",
+                savings: edit.savings || "",
+                dps: edit.dps || "",
+                admission: edit.admission || "",
+                passbook: edit.passbook || "",
+                savingsAdjust: edit.savingsAdjust || "",
+                nogodReturn: edit.nogodReturn || "",
+              }
+            : form
+        }
         staffList={allStaffNames}
         onFieldSelect={(field) => setActiveKeyboardField(field)}
-        onValueChange={(field, val) => setForm((prev) => ({ ...prev, [field]: val }))}
-        onSave={handleSave}
-        onReset={handleReset}
+        onValueChange={(field, val) => {
+          if (edit) {
+            setEdit((prev) => (prev ? { ...prev, [field]: val } : null));
+          } else {
+            setForm((prev) => ({ ...prev, [field]: val }));
+          }
+        }}
+        onSave={edit ? handleUpdate : handleSave}
+        onReset={
+          edit
+            ? () => {
+                if (originalEditReport) setEdit({ ...originalEditReport });
+              }
+            : handleReset
+        }
         onClose={() => setKeyboardOpen(false)}
+        isEdit={!!edit}
       />
     </div>
   );
