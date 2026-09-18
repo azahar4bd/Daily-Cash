@@ -448,13 +448,11 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
                 }
               : {
                   right: "16px",
-                  bottom: "75px",
+                  bottom: keyboardOpen ? "340px" : "75px",
                   touchAction: "none",
                 }
           }
-          className={`fixed z-40 select-none print:hidden drop-shadow-2xl cursor-grab active:cursor-grabbing touch-none ${
-            keyboardOpen ? "hidden" : "block"
-          }`}
+          className="fixed z-[60] select-none print:hidden drop-shadow-2xl cursor-grab active:cursor-grabbing touch-none block"
         >
           {staffPopupOpen ? (
             <div className="bg-white shadow-2xl rounded-2xl border-2 border-purple-900 overflow-hidden min-w-[240px] touch-none">

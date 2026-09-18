@@ -256,7 +256,7 @@ export default function StaffCustomKeyboard({
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg bg-rose-600 hover:bg-rose-500 active:scale-95 px-2.5 py-1 text-xs font-black text-white shadow flex items-center gap-1 cursor-pointer transition"
+              className="rounded-lg bg-red-600 hover:bg-red-700 active:bg-red-800 active:scale-95 px-2.5 py-1 text-xs font-black text-white shadow-md flex items-center gap-1 cursor-pointer transition border border-red-500 ring-1 ring-red-400/50"
               title="কিবোর্ড বন্ধ বা কোলাপ্স করুন"
             >
               ▼ কলাপ্স
@@ -520,7 +520,7 @@ export default function StaffCustomKeyboard({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-xl bg-slate-700 hover:bg-slate-600 active:bg-slate-800 active:scale-95 py-2 text-[11px] sm:text-xs font-black text-slate-200 shadow flex items-center justify-center gap-1 cursor-pointer transition border border-slate-600"
+            className="rounded-xl bg-red-600 hover:bg-red-700 active:bg-red-800 active:scale-95 py-2 text-[11px] sm:text-xs font-black text-white shadow-lg flex items-center justify-center gap-1 cursor-pointer transition border border-red-500 ring-2 ring-red-500/40"
             title="কিবোর্ড ক্লোজ করুন"
           >
             <span>✖</span>
