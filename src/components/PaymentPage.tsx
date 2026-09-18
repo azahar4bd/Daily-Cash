@@ -240,6 +240,7 @@ export default function PaymentPage({ selectedDate }: { selectedDate: string }) 
             </div>
             <PaymentCategoryDropdown
               value={form.category}
+              disabled={isDayClosed(form.txDate)}
               onChange={(cat) => setForm({ ...form, category: cat, subCategory: "" })}
               disburseCats={disburseCats}
               expenseCats={expenseCats}
@@ -262,8 +263,13 @@ export default function PaymentPage({ selectedDate }: { selectedDate: string }) 
               </div>
               <select
                 value={form.subCategory}
+                disabled={isDayClosed(form.txDate)}
                 onChange={(e) => setForm({ ...form, subCategory: e.target.value })}
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-bold text-slate-800 focus:border-blue-500 focus:outline-none cursor-pointer"
+                className={`w-full rounded-lg border px-3 py-2 text-sm font-bold focus:outline-none ${
+                  isDayClosed(form.txDate)
+                    ? "border-slate-300 bg-slate-100 text-slate-500 cursor-not-allowed opacity-60"
+                    : "border-slate-300 bg-white text-slate-800 focus:border-blue-500 cursor-pointer"
+                }`}
               >
                 <option value="">-- Select Sub Category --</option>
                 {allowedSubCategories.map((sub) => (
@@ -351,7 +357,8 @@ export default function PaymentPage({ selectedDate }: { selectedDate: string }) 
                 });
                 setMsg("");
               }}
-              className="min-h-[44px] rounded-xl bg-slate-500 px-6 py-2.5 font-bold text-sm text-white hover:bg-slate-600 active:scale-98 transition cursor-pointer"
+              disabled={isDayClosed(form.txDate)}
+              className="min-h-[44px] rounded-xl bg-slate-500 px-6 py-2.5 font-bold text-sm text-white hover:bg-slate-600 active:scale-98 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Reset
             </button>

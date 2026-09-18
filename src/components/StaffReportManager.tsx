@@ -204,6 +204,10 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
   };
 
   const handleReset = () => {
+    if (dayClosed) {
+      alert(`⚠️ এই তারিখের (${selectedDate}) দিন সমাপ্ত (Day Closed) রয়েছে। কোনো পরিবর্তন করা যাবে না।`);
+      return;
+    }
     setForm({
       staffName: "",
       loan: "",
@@ -576,6 +580,7 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
             <label className="mb-1 block text-xs font-bold text-slate-700">Staff Name</label>
             <CategoryInput
               value={form.staffName}
+              disabled={dayClosed}
               onChange={(v) => {
                 if (dayClosed) return;
                 setForm({ ...form, staffName: v });
@@ -917,7 +922,8 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
           <button
             type="button"
             onClick={handleReset}
-            className="rounded-lg bg-slate-500 px-6 py-2 text-sm font-bold text-white hover:bg-slate-600 cursor-pointer"
+            disabled={dayClosed}
+            className="rounded-lg bg-slate-500 px-6 py-2 text-sm font-bold text-white hover:bg-slate-600 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Reset
           </button>

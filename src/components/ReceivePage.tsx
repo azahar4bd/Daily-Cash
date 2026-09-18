@@ -205,6 +205,7 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
             </div>
             <CategoryInput
               value={form.category}
+              disabled={isDayClosed(form.txDate)}
               onChange={(v) => setForm({ ...form, category: v })}
               options={categoryNames}
             />
@@ -279,7 +280,8 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
                 });
                 setMsg("");
               }}
-              className="min-h-[44px] rounded-xl bg-slate-500 px-6 py-2.5 font-bold text-sm text-white hover:bg-slate-600 active:scale-98 transition cursor-pointer"
+              disabled={isDayClosed(form.txDate)}
+              className="min-h-[44px] rounded-xl bg-slate-500 px-6 py-2.5 font-bold text-sm text-white hover:bg-slate-600 active:scale-98 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Reset
             </button>
