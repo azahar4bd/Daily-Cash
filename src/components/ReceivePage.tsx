@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import CategoryInput from "./CategoryInput";
+import ReceiveCategoryDropdown from "./ReceiveCategoryDropdown";
 import DatePicker from "./DatePicker";
 import DenominationPopup, { fmt } from "./DenominationPopup";
 import CategoryManager from "./CategoryManager";
@@ -203,11 +203,12 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
                 ⚙ Manage
               </button>
             </div>
-            <CategoryInput
+            <ReceiveCategoryDropdown
               value={form.category}
               disabled={isDayClosed(form.txDate)}
               onChange={(v) => setForm({ ...form, category: v })}
-              options={categoryNames}
+              cats={cats}
+              onManageClick={() => setManage(true)}
             />
           </div>
 
@@ -522,10 +523,11 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
 
               <div>
                 <label className="mb-1 block text-xs font-bold text-slate-700">Category</label>
-                <CategoryInput
+                <ReceiveCategoryDropdown
                   value={edit.category}
                   onChange={(v) => setEdit({ ...edit, category: v })}
-                  options={categoryNames}
+                  cats={cats}
+                  onManageClick={() => setManage(true)}
                 />
               </div>
 

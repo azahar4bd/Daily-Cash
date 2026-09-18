@@ -127,9 +127,11 @@ export default function CategoryInput({
           {list.map((o, i) => (
             <li
               key={o}
-              onPointerDown={(e) => {
-                e.preventDefault();
+              onClick={() => {
                 selectOption(o);
+              }}
+              onMouseDown={(e) => {
+                e.preventDefault();
               }}
               className={`cursor-pointer px-3.5 py-2 text-xs sm:text-sm transition ${
                 i === hi
