@@ -22,6 +22,11 @@ div[class*="netlify-hud"] {
 }
 
 @media print {
+  @page {
+    size: A4 portrait;
+    margin: 6mm 8mm 6mm 8mm;
+  }
+
   html,
   body {
     background-color: white !important;
@@ -30,7 +35,10 @@ div[class*="netlify-hud"] {
     margin: 0 !important;
     padding: 0 !important;
     width: 100% !important;
-    font-size: 12px !important;
+    height: auto !important;
+    font-size: 11px !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 
   nav,
@@ -55,12 +63,13 @@ div[class*="netlify-hud"] {
 
   #cash-sheet-document {
     width: 100% !important;
-    max-width: 190mm !important;
-    min-height: 275mm !important;
-    margin: 0 auto !important;
+    max-width: 100% !important;
+    margin: 0 !important;
     padding: 0 !important;
     border: none !important;
     box-shadow: none !important;
+    page-break-after: avoid !important;
     page-break-inside: avoid !important;
+    break-inside: avoid !important;
   }
 }

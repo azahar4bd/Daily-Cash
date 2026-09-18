@@ -5,6 +5,7 @@ import {
   getLocalTxs,
   getLocalStaffReports,
 } from "@/lib/storage";
+import { fetchAppSettingFromNeon, upsertAppSettingInNeon } from "@/lib/neon";
 
 const GOOGLE_APPS_SCRIPT_TEMPLATE = `/**
  * GOOGLE APPS SCRIPT SYNC CODE - CASH GOBRA
@@ -88,20 +89,44 @@ export default function GoogleSheetSyncModal({
       setUrl(saved);
       setStatus("idle");
       setStatusMsg("");
+      if (!saved) {
+        fetchAppSettingFromNeon("google_sheet_url")
+          .then((cloudUrl) => {
+            if (cloudUrl && cloudUrl.startsWith("http")) {
+              setUrl(cloudUrl);
+              setGoogleSheetUrl(cloudUrl);
+            }
+          })
+          .catch(() => {});
+      }
     }
   }, [open]);
 
+  useEffect(() => {
+    const handleUrlChange = (e: any) => {
+      if (e?.detail && typeof e.detail === "string") {
+        setUrl(e.detail);
+      }
+    };
+    window.addEventListener("google-sheet-url-changed", handleUrlChange);
+    return () => window.removeEventListener("google-sheet-url-changed", handleUrlChange);
+  }, []);
+
   if (!open) return null;
 
-  const handleSaveUrl = () => {
-    if (!url || !url.startsWith("http")) {
+  const handleSaveUrl = async () => {
+    const clean = url.trim();
+    if (!clean || !clean.startsWith("http")) {
       setStatus("error");
       setStatusMsg("Valid Web App URL required");
       return;
     }
-    setGoogleSheetUrl(url);
+    setGoogleSheetUrl(clean);
+    try {
+      await upsertAppSettingInNeon("google_sheet_url", clean);
+    } catch {}
     setStatus("success");
-    setStatusMsg("URL saved successfully!");
+    setStatusMsg("URL সফলভাবে ডাটাবেজ ও ক্লাউডে সংরক্ষিত হয়েছে! অন্য যেকোনো ডিভাইসেও এটি স্বয়ংক্রিয়ভাবে পাওয়া যাবে।");
   };
 
   const handleTest = async () => {

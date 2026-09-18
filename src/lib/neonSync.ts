@@ -20,6 +20,8 @@ import {
   fetchDayClosuresFromNeon,
   upsertDayClosureInNeon,
   deleteDayClosureInNeon,
+  fetchAppSettingFromNeon,
+  upsertAppSettingInNeon,
   updateSyncState,
   getStoredSyncState,
 } from "./neon";
@@ -42,10 +44,11 @@ const SUBCAT_RULE_KEY = "gobra_local_subcat_rules";
 const REBATE_KEY = "gobra_local_rebate_rates";
 const KALLYAN_RULE_KEY = "gobra_local_kallyan_rule";
 const DAY_CLOSURES_KEY = "gobra_local_day_closures";
+const G_SHEET_KEY = "gobra_google_sheet_url";
 const QUEUE_KEY = "gobra_neon_sync_queue";
 
 interface SyncQueueItem {
-  type: "tx" | "tx_del" | "sr" | "sr_del" | "cat" | "cat_del" | "sc" | "sc_del" | "subcat" | "subcat_del" | "kallyan" | "day_close" | "day_reopen";
+  type: "tx" | "tx_del" | "sr" | "sr_del" | "cat" | "cat_del" | "sc" | "sc_del" | "subcat" | "subcat_del" | "kallyan" | "day_close" | "day_reopen" | "setting";
   payload: any;
 }
 
@@ -106,6 +109,8 @@ export async function flushNeonQueue(): Promise<void> {
         await upsertDayClosureInNeon(item.payload);
       } else if (item.type === "day_reopen") {
         await deleteDayClosureInNeon(item.payload);
+      } else if (item.type === "setting") {
+        await upsertAppSettingInNeon(item.payload.key, item.payload.value);
       }
     } catch (e) {
       console.warn("Failed to process queue item, keeping in retry queue:", item, e);
@@ -206,6 +211,25 @@ export async function syncAllWithNeon(): Promise<{ success: boolean; message: st
     }
     if (neonRebates.length > 0) {
       localStorage.setItem(REBATE_KEY, JSON.stringify(neonRebates));
+    }
+
+    // Sync Google Sheet URL and other app settings
+    try {
+      const cloudGSheetUrl = await fetchAppSettingFromNeon("google_sheet_url");
+      if (cloudGSheetUrl && cloudGSheetUrl.trim().startsWith("http")) {
+        const currentLocal = localStorage.getItem(G_SHEET_KEY) || "";
+        if (currentLocal !== cloudGSheetUrl) {
+          localStorage.setItem(G_SHEET_KEY, cloudGSheetUrl);
+          window.dispatchEvent(new CustomEvent("google-sheet-url-changed", { detail: cloudGSheetUrl }));
+        }
+      } else {
+        const localGSheetUrl = localStorage.getItem(G_SHEET_KEY) || "";
+        if (localGSheetUrl && localGSheetUrl.trim().startsWith("http")) {
+          await upsertAppSettingInNeon("google_sheet_url", localGSheetUrl.trim());
+        }
+      }
+    } catch (e) {
+      console.warn("Failed to sync google_sheet_url:", e);
     }
 
     const nowStr = new Date().toLocaleTimeString("bn-BD", { hour: "2-digit", minute: "2-digit", second: "2-digit" });

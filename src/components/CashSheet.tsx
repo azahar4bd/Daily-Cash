@@ -388,23 +388,23 @@ export default function CashSheet({
   };
 
   const renderContent = (isInteractive: boolean = true) => (
-    <div className="w-full bg-white p-3 sm:p-6 print:p-1.5 text-slate-950 font-sans flex flex-col justify-between">
+    <div className="w-full bg-white p-3 sm:p-5 print:p-0 text-slate-950 font-sans flex flex-col justify-between">
       <div>
         {/* Document Header */}
-        <div className="text-center mb-2 print:mb-1">
-          <h1 className="text-xl sm:text-2xl font-black font-serif text-slate-900 leading-tight">
+        <div className="text-center mb-1.5 print:mb-1">
+          <h1 className="text-xl sm:text-2xl print:text-lg font-black font-serif text-slate-900 leading-tight">
             Bandhu Kallyan Foundation
           </h1>
-          <p className="text-[11px] sm:text-xs font-bold text-slate-800 mt-0.5">
+          <p className="text-[11px] sm:text-xs print:text-[10px] font-bold text-slate-800 mt-0.5">
             GOBRA BRANCH-0014 Branch.
           </p>
-          <div className="my-1 inline-block border-2 border-blue-900 bg-white px-5 py-0.5 rounded-sm">
-            <span className="font-serif italic font-extrabold text-sm sm:text-base text-blue-950">
+          <div className="my-1 print:my-0.5 inline-block border-2 border-blue-900 bg-white px-5 print:px-3 py-0.5 rounded-sm">
+            <span className="font-serif italic font-extrabold text-sm sm:text-base print:text-xs text-blue-950">
               Cash &amp; Bank Information
             </span>
           </div>
           <div className="flex justify-end mt-0.5">
-            <div className="border border-slate-800 px-2.5 py-0.5 text-xs font-bold font-mono">
+            <div className="border border-slate-800 px-2.5 py-0.5 text-xs print:text-[10px] font-bold font-mono">
               Date: {selectedDate}
             </div>
           </div>
@@ -412,25 +412,25 @@ export default function CashSheet({
 
         {/* Section A: Cash & Bank Information */}
         <div className="mb-2 print:mb-1">
-          <div className="mb-0.5 flex items-center justify-between text-xs sm:text-sm font-bold text-slate-900">
+          <div className="mb-0.5 flex items-center justify-between text-xs sm:text-sm print:text-xs font-bold text-slate-900">
             <span>A. Cash &amp; Bank Information:</span>
             <span>Day: {getDayName(selectedDate)}</span>
           </div>
-          <table className="w-full border-collapse border-2 border-black text-xs sm:text-sm">
+          <table className="w-full border-collapse border-2 border-black text-xs sm:text-sm print:text-[11px]">
             <tbody>
               <tr>
-                <td className="w-2/3 border border-black px-3 py-1 font-medium">
+                <td className="w-2/3 border border-black px-3 py-1 print:py-0.5 font-medium">
                   Closing Cash in Hand: TK (BDT)
                 </td>
-                <td className="w-1/3 border border-black px-3 py-1 text-right font-mono font-bold">
+                <td className="w-1/3 border border-black px-3 py-1 print:py-0.5 text-right font-mono font-bold">
                   {fmt(closingCash)}
                 </td>
               </tr>
               <tr>
-                <td className="w-2/3 border border-black px-3 py-1 font-medium">
+                <td className="w-2/3 border border-black px-3 py-1 print:py-0.5 font-medium">
                   Closing Cash at Bank: TK (BDT)
                 </td>
-                <td className="w-1/3 border border-black px-3 py-1 text-right font-mono font-bold">
+                <td className="w-1/3 border border-black px-3 py-1 print:py-0.5 text-right font-mono font-bold">
                   {fmt(closingBank)}
                 </td>
               </tr>
@@ -453,16 +453,16 @@ export default function CashSheet({
               </button>
             )}
           </div>
-          <table className="w-full border-collapse border-2 border-black text-xs sm:text-sm">
+          <table className="w-full border-collapse border-2 border-black text-xs sm:text-sm print:text-[11px]">
             <thead>
               <tr className="bg-slate-100">
                 <th colSpan={2} className="border border-black px-2 py-0.5 text-center font-bold">Particulars</th>
-                <th rowSpan={2} className="w-28 sm:w-32 border border-black px-2 py-0.5 text-center font-bold">TK (BDT)</th>
-                <th rowSpan={2} className="w-12 sm:w-16 border border-black px-2 py-0.5 text-center font-bold">Ps</th>
+                <th rowSpan={2} className="w-28 sm:w-32 print:w-28 border border-black px-2 py-0.5 text-center font-bold">TK (BDT)</th>
+                <th rowSpan={2} className="w-12 sm:w-16 print:w-12 border border-black px-2 py-0.5 text-center font-bold">Ps</th>
               </tr>
               <tr className="bg-slate-100">
                 <th className="border border-black px-2 py-0.5 text-center font-semibold">Notes</th>
-                <th className="w-20 sm:w-24 border border-black px-2 py-0.5 text-center font-semibold">Quantity</th>
+                <th className="w-20 sm:w-24 print:w-20 border border-black px-2 py-0.5 text-center font-semibold">Quantity</th>
               </tr>
             </thead>
             <tbody>
@@ -474,19 +474,22 @@ export default function CashSheet({
                     <td className="border border-black px-2.5 py-0.5 text-center font-mono font-bold">{note}</td>
                     <td className="border border-black px-1.5 py-0.5 text-center">
                       {isInteractive ? (
-                        <input
-                          type="text"
-                          inputMode="numeric"
-                          autoComplete="off"
-                          autoCorrect="off"
-                          autoCapitalize="off"
-                          spellCheck={false}
-                          value={quantities[String(note)] || ""}
-                          onChange={(e) => handleQtyChange(String(note), e.target.value)}
-                          onFocus={(e) => e.target.select()}
-                          placeholder="0"
-                          className="w-full text-center font-mono text-xs sm:text-sm font-bold py-1 bg-yellow-50 focus:bg-amber-100 rounded border border-amber-300 focus:border-indigo-600 focus:outline-none transition cursor-text select-text"
-                        />
+                        <>
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            autoComplete="off"
+                            autoCorrect="off"
+                            autoCapitalize="off"
+                            spellCheck={false}
+                            value={quantities[String(note)] || ""}
+                            onChange={(e) => handleQtyChange(String(note), e.target.value)}
+                            onFocus={(e) => e.target.select()}
+                            placeholder="0"
+                            className="print:hidden w-full text-center font-mono text-xs sm:text-sm font-bold py-1 bg-yellow-50 focus:bg-amber-100 rounded border border-amber-300 focus:border-indigo-600 focus:outline-none transition cursor-text select-text"
+                          />
+                          <span className="hidden print:inline font-mono font-bold">{qty > 0 ? qty : "-"}</span>
+                        </>
                       ) : (
                         <span className="font-mono font-bold">{qty > 0 ? qty : "-"}</span>
                       )}
@@ -502,19 +505,22 @@ export default function CashSheet({
                 <td className="border border-black px-2.5 py-0.5 text-center">Coins (1+2+5)</td>
                 <td className="border border-black px-1.5 py-0.5 text-center">
                   {isInteractive ? (
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      autoComplete="off"
-                      autoCorrect="off"
-                      autoCapitalize="off"
-                      spellCheck={false}
-                      value={quantities.coins || ""}
-                      onChange={(e) => handleQtyChange("coins", e.target.value)}
-                      onFocus={(e) => e.target.select()}
-                      placeholder="0"
-                      className="w-full text-center font-mono text-xs sm:text-sm font-bold py-1 bg-yellow-50 focus:bg-amber-100 rounded border border-amber-300 focus:border-indigo-600 focus:outline-none transition cursor-text select-text"
-                    />
+                    <>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        autoComplete="off"
+                        autoCorrect="off"
+                        autoCapitalize="off"
+                        spellCheck={false}
+                        value={quantities.coins || ""}
+                        onChange={(e) => handleQtyChange("coins", e.target.value)}
+                        onFocus={(e) => e.target.select()}
+                        placeholder="0"
+                        className="print:hidden w-full text-center font-mono text-xs sm:text-sm font-bold py-1 bg-yellow-50 focus:bg-amber-100 rounded border border-amber-300 focus:border-indigo-600 focus:outline-none transition cursor-text select-text"
+                      />
+                      <span className="hidden print:inline font-mono font-bold">{quantities.coins || "-"}</span>
+                    </>
                   ) : (
                     <span>{quantities.coins || "-"}</span>
                   )}
@@ -533,7 +539,7 @@ export default function CashSheet({
               </tr>
             </tbody>
           </table>
-          <div className="mt-0.5 text-[11px] sm:text-xs font-semibold text-slate-800 truncate">
+          <div className="mt-0.5 text-[11px] sm:text-xs print:text-[10px] font-semibold text-slate-800 truncate">
             <span className="font-bold">In Word:</span> {numberToWords(totalDenomination)}
           </div>
         </div>
@@ -610,7 +616,7 @@ export default function CashSheet({
       </div>
 
       {/* Signatures */}
-      <div className="mt-4 print:mt-3 flex items-center justify-between px-10 text-xs sm:text-sm font-bold">
+      <div className="mt-3 print:mt-2 flex items-center justify-between px-10 print:px-6 text-xs sm:text-sm print:text-xs font-bold">
         <div className="w-32 border-t-2 border-slate-900 pt-1 text-center">Accountant</div>
         <div className="w-32 border-t-2 border-slate-900 pt-1 text-center">Manager</div>
       </div>
@@ -626,9 +632,12 @@ export default function CashSheet({
         @media print {
           @page {
             size: A4 portrait;
-            margin: 5mm;
+            margin: 6mm 8mm;
           }
-          body {
+          html, body {
+            margin: 0 !important;
+            padding: 0 !important;
+            height: auto !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
             background: white !important;
@@ -642,6 +651,15 @@ export default function CashSheet({
             box-shadow: none !important;
             page-break-after: avoid !important;
             page-break-inside: avoid !important;
+            break-inside: avoid !important;
+          }
+          table {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+          }
+          tr {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
           }
           .print\\:hidden {
             display: none !important;
@@ -739,7 +757,7 @@ export default function CashSheet({
       <div
         id="cash-sheet-document"
         ref={documentRef}
-        className="mx-auto max-w-[820px] shadow-lg border border-slate-300 print:border-none print:shadow-none"
+        className="w-full bg-white rounded-2xl shadow-sm border border-slate-300 overflow-hidden print:border-none print:shadow-none print:rounded-none print:m-0 print:p-0"
       >
         {renderContent(true)}
       </div>

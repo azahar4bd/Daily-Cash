@@ -519,8 +519,11 @@ export function getGoogleSheetUrl(): string {
 }
 
 export function setGoogleSheetUrl(url: string): void {
+  const clean = url.trim();
   try {
-    localStorage.setItem(G_SHEET_KEY, url.trim());
+    localStorage.setItem(G_SHEET_KEY, clean);
+    window.dispatchEvent(new CustomEvent("google-sheet-url-changed", { detail: clean }));
+    enqueueNeonAction({ type: "setting", payload: { key: "google_sheet_url", value: clean } });
   } catch {}
 }
 

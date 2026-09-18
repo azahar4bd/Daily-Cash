@@ -435,3 +435,55 @@ export async function deleteDayClosureInNeon(closeDate: string): Promise<void> {
   }
 }
 
+/**
+ * Ensure app_settings table exists in Neon
+ */
+export async function ensureAppSettingsTable(): Promise<void> {
+  try {
+    await sql`
+      CREATE TABLE IF NOT EXISTS app_settings (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL,
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      );
+    `;
+  } catch (e) {
+    console.warn("ensureAppSettingsTable failed:", e);
+  }
+}
+
+/**
+ * Fetch setting from Neon
+ */
+export async function fetchAppSettingFromNeon(key: string): Promise<string | null> {
+  try {
+    const rows = await sql`
+      SELECT value FROM app_settings WHERE key = ${key} LIMIT 1
+    `;
+    if (rows.length > 0 && rows[0].value) {
+      return String(rows[0].value);
+    }
+  } catch (e) {
+    console.warn(`fetchAppSettingFromNeon(${key}) error:`, e);
+  }
+  return null;
+}
+
+/**
+ * Save setting in Neon
+ */
+export async function upsertAppSettingInNeon(key: string, value: string): Promise<void> {
+  try {
+    await ensureAppSettingsTable();
+    await sql`
+      INSERT INTO app_settings (key, value, updated_at)
+      VALUES (${key}, ${value}, NOW())
+      ON CONFLICT (key) DO UPDATE SET
+        value = EXCLUDED.value,
+        updated_at = NOW();
+    `;
+  } catch (e) {
+    console.warn(`upsertAppSettingInNeon(${key}) error:`, e);
+  }
+}
+
