@@ -136,69 +136,7 @@ export default function CashSheet({
   const [isCollapsed, setIsCollapsed] = useState(true);
   const [dayClosed, setDayClosed] = useState(false);
   const [dayCloseModalOpen, setDayCloseModalOpen] = useState(false);
-  const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
   const documentRef = useRef<HTMLDivElement>(null);
-  const trackerRef = useRef<HTMLDivElement>(null);
-  const dragInfo = useRef({
-    isDragging: false,
-    startX: 0,
-    startY: 0,
-    elemStartX: 0,
-    elemStartY: 0,
-    hasMoved: false,
-  });
-
-  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (e.button !== 0 && e.pointerType === "mouse") return;
-    const rect = trackerRef.current?.getBoundingClientRect();
-    if (!rect) return;
-
-    dragInfo.current = {
-      isDragging: true,
-      startX: e.clientX,
-      startY: e.clientY,
-      elemStartX: rect.left,
-      elemStartY: rect.top,
-      hasMoved: false,
-    };
-    try {
-      e.currentTarget.setPointerCapture(e.pointerId);
-    } catch {}
-  };
-
-  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!dragInfo.current.isDragging) return;
-    const dx = e.clientX - dragInfo.current.startX;
-    const dy = e.clientY - dragInfo.current.startY;
-
-    if (Math.abs(dx) > 4 || Math.abs(dy) > 4) {
-      dragInfo.current.hasMoved = true;
-    }
-
-    const rect = trackerRef.current?.getBoundingClientRect();
-    const elemWidth = rect?.width || 110;
-    const elemHeight = rect?.height || 45;
-
-    const newX = Math.min(Math.max(8, dragInfo.current.elemStartX + dx), window.innerWidth - elemWidth - 8);
-    const newY = Math.min(Math.max(50, dragInfo.current.elemStartY + dy), window.innerHeight - elemHeight - 8);
-
-    setPosition({ x: newX, y: newY });
-  };
-
-  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!dragInfo.current.isDragging) return;
-    try {
-      e.currentTarget.releasePointerCapture(e.pointerId);
-    } catch {}
-    dragInfo.current.isDragging = false;
-  };
-
-  const handleTrackerClick = () => {
-    if (!dragInfo.current.hasMoved) {
-      setIsCollapsed((prev) => !prev);
-    }
-    dragInfo.current.hasMoved = false;
-  };
 
   const loadData = () => {
     // Exact Report Page figures for Cash in Hand and Bank Balance
@@ -961,33 +899,15 @@ export default function CashSheet({
         {renderContent(true)}
       </div>
 
-      {/* Draggable & Collapsible Difference Window (শুধুমাত্র পার্থক্য, ম্যানুয়ালি যে কোনো দিকে ড্র্যাগ করে সরানো যায়) */}
+      {/* Fixed Difference Window - Never moves with screen scroll, anchored cleanly above bottom menu */}
       <div
-        ref={trackerRef}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        onPointerCancel={handlePointerUp}
-        onClick={handleTrackerClick}
-        style={
-          position
-            ? {
-                left: `${position.x}px`,
-                top: `${position.y}px`,
-                right: "auto",
-                bottom: "auto",
-              }
-            : {
-                right: "16px",
-                bottom: "75px",
-              }
-        }
-        className="fixed z-50 print:hidden select-none touch-none cursor-grab active:cursor-grabbing transition-shadow drop-shadow-2xl"
+        className="fixed bottom-[72px] right-4 sm:right-6 z-40 print:hidden select-none transition-all drop-shadow-2xl"
       >
         {isCollapsed ? (
-          /* কলাপ্স অবস্থা: রিপোর্ট পেজের মতো ছোট গোল ফ্লোটিং বাটন */
+          /* কলাপ্স অবস্থা: ছোট গোল ফ্লোটিং বাটন */
           <div
-            className={`relative flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-full shadow-2xl border backdrop-blur-md transition-all hover:scale-110 active:scale-95 cursor-pointer ${
+            onClick={() => setIsCollapsed(false)}
+            className={`relative flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-full shadow-2xl border backdrop-blur-md transition-all hover:scale-105 active:scale-95 cursor-pointer ${
               diffDenomVsCash === 0
                 ? "bg-slate-900/95 border-emerald-500/80 text-emerald-300 ring-2 ring-emerald-500/30"
                 : "bg-slate-900/95 border-rose-500/80 text-rose-300 ring-2 ring-rose-500/30"
@@ -1010,23 +930,23 @@ export default function CashSheet({
             </span>
           </div>
         ) : (
-          /* এক্সপান্ড অবস্থা: ছোট উইন্ডো - শুধু ডিফারেন্ট সংখ্যা লিখতে যতটুকু জায়গা লাগে ততটুকু */
+          /* এক্সপান্ড অবস্থা: ছোট উইন্ডো */
           <div
-            className={`rounded-xl px-2.5 py-1.5 shadow-2xl border backdrop-blur-md transition-all w-auto min-w-[105px] max-w-[145px] ${
+            onClick={() => setIsCollapsed(true)}
+            className={`rounded-xl px-2.5 py-1.5 shadow-2xl border backdrop-blur-md transition-all w-auto min-w-[105px] max-w-[145px] cursor-pointer ${
               diffDenomVsCash === 0
                 ? "bg-slate-900/95 border-emerald-500/80 text-white ring-2 ring-emerald-500/30"
                 : "bg-slate-900/95 border-rose-500/80 text-white ring-2 ring-rose-500/30"
             }`}
-            title="টেনে সরানো যাবে / ক্লিক করলে ছোট হবে"
+            title="ক্লিক করলে ছোট / কোলাপ্স হবে"
           >
-            {/* ছোট হেডার ও ড্র্যাগ হ্যান্ডেল */}
+            {/* ছোট হেডার */}
             <div className="flex items-center justify-between gap-1 pb-1 border-b border-slate-800 text-[10px]">
               <span className="flex items-center gap-1 font-bold text-amber-400">
-                <span className="text-slate-400 text-[10px] cursor-grab">⠿</span>
                 <span>⚖️ ডিফারেন্স</span>
               </span>
               <span className="text-[10px] text-slate-400 hover:text-white cursor-pointer font-bold px-1 rounded">
-                ▲
+                ✕
               </span>
             </div>
 

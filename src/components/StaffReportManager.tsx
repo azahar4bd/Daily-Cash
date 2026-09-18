@@ -44,61 +44,6 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
   const [denomModalOpen, setDenomModalOpen] = useState(false);
   const [staffPopupOpen, setStaffPopupOpen] = useState(false);
   const [staffPopupMinimized, setStaffPopupMinimized] = useState(false);
-  const [floatingPos, setFloatingPos] = useState<{ x: number; y: number } | null>(null);
-  const floatingRef = useRef<HTMLDivElement>(null);
-  const dragInfo = useRef({
-    isDragging: false,
-    startX: 0,
-    startY: 0,
-    elemStartX: 0,
-    elemStartY: 0,
-    hasMoved: false,
-  });
-
-  const handleFloatingPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (e.button !== 0 && e.pointerType === "mouse") return;
-    const rect = floatingRef.current?.getBoundingClientRect();
-    if (!rect) return;
-
-    dragInfo.current = {
-      isDragging: true,
-      startX: e.clientX,
-      startY: e.clientY,
-      elemStartX: rect.left,
-      elemStartY: rect.top,
-      hasMoved: false,
-    };
-    try {
-      e.currentTarget.setPointerCapture(e.pointerId);
-    } catch {}
-  };
-
-  const handleFloatingPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!dragInfo.current.isDragging) return;
-    const dx = e.clientX - dragInfo.current.startX;
-    const dy = e.clientY - dragInfo.current.startY;
-
-    if (Math.abs(dx) > 4 || Math.abs(dy) > 4) {
-      dragInfo.current.hasMoved = true;
-    }
-
-    const rect = floatingRef.current?.getBoundingClientRect();
-    const elemWidth = rect?.width || 50;
-    const elemHeight = rect?.height || 50;
-
-    const newX = Math.min(Math.max(8, dragInfo.current.elemStartX + dx), window.innerWidth - elemWidth - 8);
-    const newY = Math.min(Math.max(50, dragInfo.current.elemStartY + dy), window.innerHeight - elemHeight - 8);
-
-    setFloatingPos({ x: newX, y: newY });
-  };
-
-  const handleFloatingPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!dragInfo.current.isDragging) return;
-    try {
-      e.currentTarget.releasePointerCapture(e.pointerId);
-    } catch {}
-    dragInfo.current.isDragging = false;
-  };
   const [keyboardOpen, setKeyboardOpen] = useState(false);
   const [activeKeyboardField, setActiveKeyboardField] = useState<StaffFieldKey>("loan");
   const [prevCash, setPrevCash] = useState(0);
@@ -405,39 +350,18 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
 
   return (
     <div className={`space-y-6 ${keyboardOpen ? "pb-80" : ""}`}>
-      {/* Draggable & Moveable Floating Widget (ক্যাশ বুক পেজের মতো টেনে যে কোনো জায়গায় সরানো যায়) */}
+      {/* Fixed Floating Widget - Never moves with screen scroll, anchored cleanly above bottom menu */}
       <div
-        ref={floatingRef}
-        onPointerDown={handleFloatingPointerDown}
-        onPointerMove={handleFloatingPointerMove}
-        onPointerUp={handleFloatingPointerUp}
-        onPointerCancel={handleFloatingPointerUp}
-        style={
-          floatingPos
-            ? {
-                left: `${floatingPos.x}px`,
-                top: `${floatingPos.y}px`,
-                right: "auto",
-                bottom: "auto",
-              }
-            : {
-                right: "16px",
-                bottom: keyboardOpen ? "320px" : "75px",
-              }
-        }
-        className="fixed z-40 select-none touch-none cursor-grab active:cursor-grabbing drop-shadow-2xl print:hidden"
+        className={`fixed bottom-[72px] right-4 sm:right-6 z-40 print:hidden select-none transition-all ${
+          keyboardOpen ? "hidden" : "block"
+        }`}
       >
         {staffPopupOpen ? (
           <div className="bg-white shadow-2xl rounded-2xl border-2 border-purple-900 overflow-hidden animate-in fade-in zoom-in-95 duration-150 min-w-[240px]">
             <div
               className="bg-purple-900 text-white px-3.5 py-2 flex items-center justify-between gap-3 text-xs font-bold cursor-pointer select-none"
-              onClick={() => {
-                if (!dragInfo.current.hasMoved) {
-                  setStaffPopupOpen(false);
-                }
-                dragInfo.current.hasMoved = false;
-              }}
-              title="টেনে যেকোনো দিকে সরাতে পারেন / ক্লিক করলে কোলাপ্স হবে"
+              onClick={() => setStaffPopupOpen(false)}
+              title="ক্লিক করলে বন্ধ হবে"
             >
               <div className="flex items-center gap-1.5">
                 <span>👥</span>
@@ -446,7 +370,6 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
               <div className="flex items-center gap-1">
                 <button
                   type="button"
-                  onPointerDown={(e) => e.stopPropagation()}
                   onClick={(e) => {
                     e.stopPropagation();
                     setStaffPopupOpen(false);
@@ -458,7 +381,6 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
                 </button>
                 <button
                   type="button"
-                  onPointerDown={(e) => e.stopPropagation()}
                   onClick={(e) => {
                     e.stopPropagation();
                     setStaffPopupOpen(false);
@@ -496,17 +418,14 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
             )}
           </div>
         ) : (
-          /* Persistent Floating Action Button (Small Icon) when box is closed - Drag & Moveable */
+          /* Persistent Floating Action Button - Fixed stationary position */
           <div
             onClick={() => {
-              if (!dragInfo.current.hasMoved) {
-                setStaffPopupOpen(true);
-                setStaffPopupMinimized(false);
-              }
-              dragInfo.current.hasMoved = false;
+              setStaffPopupOpen(true);
+              setStaffPopupMinimized(false);
             }}
-            className="relative flex h-11 w-11 sm:h-12 sm:w-12 items-center justify-center rounded-full bg-purple-900 hover:bg-purple-800 active:bg-purple-950 text-white shadow-2xl ring-2 ring-purple-400/50 hover:ring-purple-300 transition-all cursor-pointer hover:scale-110 active:scale-95"
-            title="Staff Dena / Poana (দেনা / পাওনা বক্স খুলুন — টেনে যেকোনো দিকে সরাতে পারেন)"
+            className="relative flex h-11 w-11 sm:h-12 sm:w-12 items-center justify-center rounded-full bg-purple-900 hover:bg-purple-800 active:bg-purple-950 text-white shadow-2xl ring-2 ring-purple-400/50 hover:ring-purple-300 transition-all cursor-pointer hover:scale-105 active:scale-95"
+            title="Staff Dena / Poana (দেনা / পাওনা বক্স খুলুন)"
           >
             <span className="text-xl sm:text-2xl leading-none select-none">👥</span>
             <span className="absolute -top-1 -right-1 flex h-4 min-w-[16px] sm:h-5 sm:min-w-[20px] items-center justify-center rounded-full bg-amber-400 px-1 text-[9px] sm:text-[10px] font-mono font-black text-purple-950 shadow">
