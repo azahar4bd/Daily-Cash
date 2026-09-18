@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from "react";
+import { createPortal } from "react-dom";
 import CategoryInput from "./CategoryInput";
 import { fmt } from "./DenominationPopup";
 import ReportDenominationModal from "./ReportDenominationModal";
@@ -44,6 +45,78 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
   const [denomModalOpen, setDenomModalOpen] = useState(false);
   const [staffPopupOpen, setStaffPopupOpen] = useState(false);
   const [staffPopupMinimized, setStaffPopupMinimized] = useState(false);
+  const [floatingPos, setFloatingPos] = useState<{ x: number; y: number } | null>(() => {
+    try {
+      const saved = localStorage.getItem("gobra_floating_pos_report");
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return null;
+  });
+  const floatingRef = useRef<HTMLDivElement>(null);
+  const isDragging = useRef(false);
+  const dragStart = useRef({ x: 0, y: 0, elemX: 0, elemY: 0, hasMoved: false });
+
+  const handleFloatingPointerDown = (e: React.PointerEvent) => {
+    if (e.button !== 0 && e.pointerType === "mouse") return;
+    const rect = floatingRef.current?.getBoundingClientRect();
+    if (!rect) return;
+
+    dragStart.current = {
+      x: e.clientX,
+      y: e.clientY,
+      elemX: rect.left,
+      elemY: rect.top,
+      hasMoved: false,
+    };
+    isDragging.current = true;
+    try {
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    } catch {}
+  };
+
+  const handleFloatingPointerMove = (e: React.PointerEvent) => {
+    if (!isDragging.current) return;
+    const dx = e.clientX - dragStart.current.x;
+    const dy = e.clientY - dragStart.current.y;
+
+    if (Math.abs(dx) > 4 || Math.abs(dy) > 4) {
+      dragStart.current.hasMoved = true;
+    }
+
+    if (dragStart.current.hasMoved) {
+      const rect = floatingRef.current?.getBoundingClientRect();
+      const w = rect?.width || 50;
+      const h = rect?.height || 50;
+      const maxX = Math.max(10, window.innerWidth - w - 8);
+      const maxY = Math.max(10, window.innerHeight - h - 8);
+      const newX = Math.max(8, Math.min(maxX, dragStart.current.elemX + dx));
+      const newY = Math.max(8, Math.min(maxY, dragStart.current.elemY + dy));
+      const nextPos = { x: newX, y: newY };
+      setFloatingPos(nextPos);
+      try {
+        localStorage.setItem("gobra_floating_pos_report", JSON.stringify(nextPos));
+      } catch {}
+    }
+  };
+
+  const handleFloatingPointerUp = (e: React.PointerEvent) => {
+    if (!isDragging.current) return;
+    isDragging.current = false;
+    try {
+      (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+    } catch {}
+  };
+
+  const handleFloatingClick = (e: React.MouseEvent) => {
+    if (dragStart.current.hasMoved) {
+      e.stopPropagation();
+      dragStart.current.hasMoved = false;
+      return;
+    }
+    setStaffPopupOpen((prev) => !prev);
+    setStaffPopupMinimized(false);
+  };
+
   const [keyboardOpen, setKeyboardOpen] = useState(false);
   const [activeKeyboardField, setActiveKeyboardField] = useState<StaffFieldKey>("loan");
   const [prevCash, setPrevCash] = useState(0);
@@ -350,90 +423,99 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
 
   return (
     <div className={`space-y-6 ${keyboardOpen ? "pb-80" : ""}`}>
-      {/* Fixed Floating Widget - Never moves with screen scroll, anchored cleanly above bottom menu */}
-      <div
-        className={`fixed bottom-[72px] right-4 sm:right-6 z-40 print:hidden select-none transition-all ${
-          keyboardOpen ? "hidden" : "block"
-        }`}
-      >
-        {staffPopupOpen ? (
-          <div className="bg-white shadow-2xl rounded-2xl border-2 border-purple-900 overflow-hidden animate-in fade-in zoom-in-95 duration-150 min-w-[240px]">
-            <div
-              className="bg-purple-900 text-white px-3.5 py-2 flex items-center justify-between gap-3 text-xs font-bold cursor-pointer select-none"
-              onClick={() => setStaffPopupOpen(false)}
-              title="ক্লিক করলে বন্ধ হবে"
-            >
-              <div className="flex items-center gap-1.5">
-                <span>👥</span>
-                <span>Staff Dena / Poana</span>
+      {/* Moveable Floating Widget - Attached to body via Portal to stay 100% fixed on screen scrolling */}
+      {typeof document !== "undefined" && createPortal(
+        <div
+          ref={floatingRef}
+          onPointerDown={handleFloatingPointerDown}
+          onPointerMove={handleFloatingPointerMove}
+          onPointerUp={handleFloatingPointerUp}
+          onPointerCancel={handleFloatingPointerUp}
+          style={
+            floatingPos
+              ? {
+                  left: `${floatingPos.x}px`,
+                  top: `${floatingPos.y}px`,
+                  right: "auto",
+                  bottom: "auto",
+                }
+              : {
+                  right: "16px",
+                  bottom: "75px",
+                }
+          }
+          className={`fixed z-40 select-none print:hidden drop-shadow-2xl cursor-grab active:cursor-grabbing ${
+            keyboardOpen ? "hidden" : "block"
+          }`}
+        >
+          {staffPopupOpen ? (
+            <div className="bg-white shadow-2xl rounded-2xl border-2 border-purple-900 overflow-hidden animate-in fade-in zoom-in-95 duration-150 min-w-[240px]">
+              <div
+                className="bg-purple-900 text-white px-3.5 py-2 flex items-center justify-between gap-3 text-xs font-bold cursor-grab active:cursor-grabbing select-none"
+                onClick={handleFloatingClick}
+                title="ধরে যেকোনো জায়গায় সরানো যাবে / ক্লিক করলে বন্ধ হবে"
+              >
+                <div className="flex items-center gap-1.5">
+                  <span className="text-slate-300">⠿</span>
+                  <span>👥</span>
+                  <span>Staff Dena / Poana</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setStaffPopupOpen(false);
+                    }}
+                    className="hover:bg-purple-800 rounded px-1.5 py-0.5 text-xs transition cursor-pointer"
+                    title="বক্স বন্ধ করুন"
+                  >
+                    ✕
+                  </button>
+                </div>
               </div>
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setStaffPopupOpen(false);
-                  }}
-                  className="hover:bg-purple-800 rounded px-1.5 py-0.5 text-xs transition cursor-pointer"
-                  title="বক্স ছোট / কোলাপ্স করুন"
-                >
-                  ▼
-                </button>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setStaffPopupOpen(false);
-                  }}
-                  className="hover:bg-rose-600 rounded px-2 py-0.5 text-xs transition cursor-pointer font-bold"
-                  title="বক্স বন্ধ করুন"
-                >
-                  ✕
-                </button>
-              </div>
+              {!staffPopupMinimized && (
+                <div className="p-1 bg-[#fdecd2]">
+                  <table className="border-collapse text-center text-xs font-sans w-full">
+                    <thead>
+                      <tr className="bg-[#fdecd2] border-b border-amber-300">
+                        {topStaffDiffs.map((s) => (
+                          <th key={s.name} className="border border-amber-300 px-3 py-1 font-bold text-indigo-950">
+                            {s.name}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr className="bg-emerald-400">
+                        {topStaffDiffs.map((s) => (
+                          <td key={s.name} className="border border-amber-300 px-3 py-1.5 font-black text-black font-mono">
+                            {s.diff}
+                          </td>
+                        ))}
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
-            {!staffPopupMinimized && (
-              <div className="p-1 bg-[#fdecd2]">
-                <table className="border-collapse text-center text-xs font-sans w-full">
-                  <thead>
-                    <tr className="bg-[#fdecd2] border-b border-amber-300">
-                      {topStaffDiffs.map((s) => (
-                        <th key={s.name} className="border border-amber-300 px-3 py-1 font-bold text-indigo-950">
-                          {s.name}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr className="bg-emerald-400">
-                      {topStaffDiffs.map((s) => (
-                        <td key={s.name} className="border border-amber-300 px-3 py-1.5 font-black text-black font-mono">
-                          {s.diff}
-                        </td>
-                      ))}
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        ) : (
-          /* Persistent Floating Action Button - Fixed stationary position */
-          <div
-            onClick={() => {
-              setStaffPopupOpen(true);
-              setStaffPopupMinimized(false);
-            }}
-            className="relative flex h-11 w-11 sm:h-12 sm:w-12 items-center justify-center rounded-full bg-purple-900 hover:bg-purple-800 active:bg-purple-950 text-white shadow-2xl ring-2 ring-purple-400/50 hover:ring-purple-300 transition-all cursor-pointer hover:scale-105 active:scale-95"
-            title="Staff Dena / Poana (দেনা / পাওনা বক্স খুলুন)"
-          >
-            <span className="text-xl sm:text-2xl leading-none select-none">👥</span>
-            <span className="absolute -top-1 -right-1 flex h-4 min-w-[16px] sm:h-5 sm:min-w-[20px] items-center justify-center rounded-full bg-amber-400 px-1 text-[9px] sm:text-[10px] font-mono font-black text-purple-950 shadow">
-              {topStaffDiffs.length}
-            </span>
-          </div>
-        )}
-      </div>
+          ) : (
+            /* Persistent Floating Action Button - Moveable & Clickable */
+            <div
+              onClick={handleFloatingClick}
+              className="relative flex h-11 w-11 sm:h-12 sm:w-12 items-center justify-center rounded-full bg-purple-900 hover:bg-purple-800 active:bg-purple-950 text-white shadow-2xl ring-2 ring-purple-400/50 hover:ring-purple-300 transition-all cursor-grab active:cursor-grabbing hover:scale-105 active:scale-95"
+              title="Staff Dena / Poana (টেনে যেকোনো দিকে সরানো যাবে / ক্লিক করলে খুলবে)"
+            >
+              <span className="text-xl sm:text-2xl leading-none select-none pointer-events-none">👥</span>
+              <span className="absolute -top-1 -right-1 flex h-4 min-w-[16px] sm:h-5 sm:min-w-[20px] items-center justify-center rounded-full bg-amber-400 px-1 text-[9px] sm:text-[10px] font-mono font-black text-purple-950 shadow pointer-events-none">
+                {topStaffDiffs.length}
+              </span>
+            </div>
+          )}
+        </div>,
+        document.body
+      )}
 
       {/* Entry Form */}
       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">

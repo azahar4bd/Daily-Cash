@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import DatePicker from "./DatePicker";
 import { fmt } from "./DenominationPopup";
 import { BKF_LOGO } from "@/assets/logoBase64";
@@ -136,7 +137,77 @@ export default function CashSheet({
   const [isCollapsed, setIsCollapsed] = useState(true);
   const [dayClosed, setDayClosed] = useState(false);
   const [dayCloseModalOpen, setDayCloseModalOpen] = useState(false);
+  const [position, setPosition] = useState<{ x: number; y: number } | null>(() => {
+    try {
+      const saved = localStorage.getItem("gobra_floating_pos_cashbook");
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return null;
+  });
   const documentRef = useRef<HTMLDivElement>(null);
+  const trackerRef = useRef<HTMLDivElement>(null);
+  const isDragging = useRef(false);
+  const dragStart = useRef({ x: 0, y: 0, elemX: 0, elemY: 0, hasMoved: false });
+
+  const handlePointerDown = (e: React.PointerEvent) => {
+    if (e.button !== 0 && e.pointerType === "mouse") return;
+    const rect = trackerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+
+    dragStart.current = {
+      x: e.clientX,
+      y: e.clientY,
+      elemX: rect.left,
+      elemY: rect.top,
+      hasMoved: false,
+    };
+    isDragging.current = true;
+    try {
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    } catch {}
+  };
+
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (!isDragging.current) return;
+    const dx = e.clientX - dragStart.current.x;
+    const dy = e.clientY - dragStart.current.y;
+
+    if (Math.abs(dx) > 4 || Math.abs(dy) > 4) {
+      dragStart.current.hasMoved = true;
+    }
+
+    if (dragStart.current.hasMoved) {
+      const rect = trackerRef.current?.getBoundingClientRect();
+      const w = rect?.width || 50;
+      const h = rect?.height || 50;
+      const maxX = Math.max(10, window.innerWidth - w - 8);
+      const maxY = Math.max(10, window.innerHeight - h - 8);
+      const newX = Math.max(8, Math.min(maxX, dragStart.current.elemX + dx));
+      const newY = Math.max(8, Math.min(maxY, dragStart.current.elemY + dy));
+      const nextPos = { x: newX, y: newY };
+      setPosition(nextPos);
+      try {
+        localStorage.setItem("gobra_floating_pos_cashbook", JSON.stringify(nextPos));
+      } catch {}
+    }
+  };
+
+  const handlePointerUp = (e: React.PointerEvent) => {
+    if (!isDragging.current) return;
+    isDragging.current = false;
+    try {
+      (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+    } catch {}
+  };
+
+  const handleTrackerClick = (e: React.MouseEvent) => {
+    if (dragStart.current.hasMoved) {
+      e.stopPropagation();
+      dragStart.current.hasMoved = false;
+      return;
+    }
+    setIsCollapsed((prev) => !prev);
+  };
 
   const loadData = () => {
     // Exact Report Page figures for Cash in Hand and Bank Balance
@@ -899,62 +970,46 @@ export default function CashSheet({
         {renderContent(true)}
       </div>
 
-      {/* Fixed Difference Window - Never moves with screen scroll, anchored cleanly above bottom menu */}
-      <div
-        className="fixed bottom-[72px] right-4 sm:right-6 z-40 print:hidden select-none transition-all drop-shadow-2xl"
-      >
-        {isCollapsed ? (
-          /* কলাপ্স অবস্থা: ছোট গোল ফ্লোটিং বাটন */
-          <div
-            onClick={() => setIsCollapsed(false)}
-            className={`relative flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-full shadow-2xl border backdrop-blur-md transition-all hover:scale-105 active:scale-95 cursor-pointer ${
-              diffDenomVsCash === 0
-                ? "bg-slate-900/95 border-emerald-500/80 text-emerald-300 ring-2 ring-emerald-500/30"
-                : "bg-slate-900/95 border-rose-500/80 text-rose-300 ring-2 ring-rose-500/30"
-            }`}
-            title="পার্থক্য ট্র্যাকার (ট্যাপ করলে খুলবে)"
-          >
-            <span className="text-lg sm:text-xl leading-none select-none">⚖️</span>
-            <span
-              className={`absolute -top-1 -right-1 flex h-4 min-w-[16px] sm:h-4.5 sm:min-w-[18px] items-center justify-center rounded-full px-1 text-[9px] font-mono font-black shadow ${
+      {/* Moveable Difference Window - Attached to body via Portal to stay 100% fixed on screen scrolling */}
+      {typeof document !== "undefined" && createPortal(
+        <div
+          ref={trackerRef}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerCancel={handlePointerUp}
+          style={
+            position
+              ? {
+                  left: `${position.x}px`,
+                  top: `${position.y}px`,
+                  right: "auto",
+                  bottom: "auto",
+                }
+              : {
+                  right: "16px",
+                  bottom: "75px",
+                }
+          }
+          className="fixed z-40 print:hidden select-none drop-shadow-2xl cursor-grab active:cursor-grabbing"
+        >
+          {isCollapsed ? (
+            /* কলাপ্স অবস্থা: ছোট গোল ফ্লোটিং বাটন - Moveable & Clickable */
+            <div
+              onClick={handleTrackerClick}
+              className={`relative flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-full shadow-2xl border backdrop-blur-md transition-all hover:scale-105 active:scale-95 cursor-grab active:cursor-grabbing ${
                 diffDenomVsCash === 0
-                  ? "bg-emerald-400 text-slate-950"
-                  : "bg-rose-500 text-white"
+                  ? "bg-slate-900/95 border-emerald-500/80 text-emerald-300 ring-2 ring-emerald-500/30"
+                  : "bg-slate-900/95 border-rose-500/80 text-rose-300 ring-2 ring-rose-500/30"
               }`}
+              title="পার্থক্য ট্র্যাকার (টেনে যেকোনো দিকে সরানো যাবে / ট্যাপ করলে খুলবে)"
             >
-              {diffDenomVsCash === 0
-                ? "0"
-                : diffDenomVsCash > 0
-                ? `+${fmt(diffDenomVsCash)}`
-                : `-${fmt(Math.abs(diffDenomVsCash))}`}
-            </span>
-          </div>
-        ) : (
-          /* এক্সপান্ড অবস্থা: ছোট উইন্ডো */
-          <div
-            onClick={() => setIsCollapsed(true)}
-            className={`rounded-xl px-2.5 py-1.5 shadow-2xl border backdrop-blur-md transition-all w-auto min-w-[105px] max-w-[145px] cursor-pointer ${
-              diffDenomVsCash === 0
-                ? "bg-slate-900/95 border-emerald-500/80 text-white ring-2 ring-emerald-500/30"
-                : "bg-slate-900/95 border-rose-500/80 text-white ring-2 ring-rose-500/30"
-            }`}
-            title="ক্লিক করলে ছোট / কোলাপ্স হবে"
-          >
-            {/* ছোট হেডার */}
-            <div className="flex items-center justify-between gap-1 pb-1 border-b border-slate-800 text-[10px]">
-              <span className="flex items-center gap-1 font-bold text-amber-400">
-                <span>⚖️ ডিফারেন্স</span>
-              </span>
-              <span className="text-[10px] text-slate-400 hover:text-white cursor-pointer font-bold px-1 rounded">
-                ✕
-              </span>
-            </div>
-
-            {/* শুধু ডিফারেন্স সংখ্যা */}
-            <div className="text-center py-1">
-              <div
-                className={`font-mono font-black text-sm sm:text-base leading-tight tracking-tight ${
-                  diffDenomVsCash === 0 ? "text-emerald-400" : "text-rose-400"
+              <span className="text-lg sm:text-xl leading-none select-none pointer-events-none">⚖️</span>
+              <span
+                className={`absolute -top-1 -right-1 flex h-4 min-w-[16px] sm:h-4.5 sm:min-w-[18px] items-center justify-center rounded-full px-1 text-[9px] font-mono font-black shadow pointer-events-none ${
+                  diffDenomVsCash === 0
+                    ? "bg-emerald-400 text-slate-950"
+                    : "bg-rose-500 text-white"
                 }`}
               >
                 {diffDenomVsCash === 0
@@ -962,11 +1017,62 @@ export default function CashSheet({
                   : diffDenomVsCash > 0
                   ? `+${fmt(diffDenomVsCash)}`
                   : `-${fmt(Math.abs(diffDenomVsCash))}`}
+              </span>
+            </div>
+          ) : (
+            /* এক্সপান্ড অবস্থা: ছোট উইন্ডো - Moveable & Clickable */
+            <div
+              className={`rounded-xl px-2.5 py-1.5 shadow-2xl border backdrop-blur-md transition-all w-auto min-w-[105px] max-w-[145px] ${
+                diffDenomVsCash === 0
+                  ? "bg-slate-900/95 border-emerald-500/80 text-white ring-2 ring-emerald-500/30"
+                  : "bg-slate-900/95 border-rose-500/80 text-white ring-2 ring-rose-500/30"
+              }`}
+              title="টেনে যেকোনো জায়গায় সরানো যাবে"
+            >
+              {/* ছোট হেডার ও ড্র্যাগ বার */}
+              <div
+                onClick={handleTrackerClick}
+                className="flex items-center justify-between gap-1 pb-1 border-b border-slate-800 text-[10px] cursor-grab active:cursor-grabbing"
+              >
+                <span className="flex items-center gap-1 font-bold text-amber-400">
+                  <span className="text-slate-400 text-[10px]">⠿</span>
+                  <span>⚖️ ডিফারেন্স</span>
+                </span>
+                <span
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsCollapsed(true);
+                  }}
+                  className="text-[10px] text-slate-400 hover:text-white cursor-pointer font-bold px-1 rounded hover:bg-slate-800"
+                  title="কোলাপ্স করুন"
+                >
+                  ✕
+                </span>
+              </div>
+
+              {/* শুধু ডিফারেন্স সংখ্যা */}
+              <div
+                onClick={handleTrackerClick}
+                className="text-center py-1 cursor-grab active:cursor-grabbing"
+              >
+                <div
+                  className={`font-mono font-black text-sm sm:text-base leading-tight tracking-tight ${
+                    diffDenomVsCash === 0 ? "text-emerald-400" : "text-rose-400"
+                  }`}
+                >
+                  {diffDenomVsCash === 0
+                    ? "0"
+                    : diffDenomVsCash > 0
+                    ? `+${fmt(diffDenomVsCash)}`
+                    : `-${fmt(Math.abs(diffDenomVsCash))}`}
+                </div>
               </div>
             </div>
-          </div>
-        )}
-      </div>
+          )}
+        </div>,
+        document.body
+      )}
 
       {/* Day Close Confirmation Modal */}
       {dayCloseModalOpen && (
