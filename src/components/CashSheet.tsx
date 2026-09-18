@@ -147,7 +147,7 @@ export default function CashSheet({
   const documentRef = useRef<HTMLDivElement>(null);
   const trackerRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
-  const dragStart = useRef({ x: 0, y: 0, elemX: 0, elemY: 0, hasMoved: false });
+  const dragStart = useRef({ x: 0, y: 0, elemX: 0, elemY: 0, w: 50, h: 50, hasMoved: false });
 
   const handlePointerDown = (e: React.PointerEvent) => {
     if (e.button !== 0 && e.pointerType === "mouse") return;
@@ -159,6 +159,8 @@ export default function CashSheet({
       y: e.clientY,
       elemX: rect.left,
       elemY: rect.top,
+      w: rect.width,
+      h: rect.height,
       hasMoved: false,
     };
     isDragging.current = true;
@@ -172,23 +174,16 @@ export default function CashSheet({
     const dx = e.clientX - dragStart.current.x;
     const dy = e.clientY - dragStart.current.y;
 
-    if (Math.abs(dx) > 4 || Math.abs(dy) > 4) {
+    if (!dragStart.current.hasMoved && (Math.abs(dx) > 3 || Math.abs(dy) > 3)) {
       dragStart.current.hasMoved = true;
     }
 
     if (dragStart.current.hasMoved) {
-      const rect = trackerRef.current?.getBoundingClientRect();
-      const w = rect?.width || 50;
-      const h = rect?.height || 50;
-      const maxX = Math.max(10, window.innerWidth - w - 8);
-      const maxY = Math.max(10, window.innerHeight - h - 8);
-      const newX = Math.max(8, Math.min(maxX, dragStart.current.elemX + dx));
-      const newY = Math.max(8, Math.min(maxY, dragStart.current.elemY + dy));
-      const nextPos = { x: newX, y: newY };
-      setPosition(nextPos);
-      try {
-        localStorage.setItem("gobra_floating_pos_cashbook", JSON.stringify(nextPos));
-      } catch {}
+      const maxX = Math.max(10, window.innerWidth - dragStart.current.w - 6);
+      const maxY = Math.max(10, window.innerHeight - dragStart.current.h - 6);
+      const newX = Math.max(6, Math.min(maxX, dragStart.current.elemX + dx));
+      const newY = Math.max(6, Math.min(maxY, dragStart.current.elemY + dy));
+      setPosition({ x: newX, y: newY });
     }
   };
 
@@ -198,6 +193,16 @@ export default function CashSheet({
     try {
       (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
     } catch {}
+
+    if (dragStart.current.hasMoved) {
+      const rect = trackerRef.current?.getBoundingClientRect();
+      if (rect) {
+        const finalPos = { x: Math.round(rect.left), y: Math.round(rect.top) };
+        try {
+          localStorage.setItem("gobra_floating_pos_cashbook", JSON.stringify(finalPos));
+        } catch {}
+      }
+    }
   };
 
   const handleTrackerClick = (e: React.MouseEvent) => {
@@ -981,23 +986,26 @@ export default function CashSheet({
           style={
             position
               ? {
-                  left: `${position.x}px`,
-                  top: `${position.y}px`,
+                  transform: `translate3d(${position.x}px, ${position.y}px, 0)`,
+                  left: 0,
+                  top: 0,
                   right: "auto",
                   bottom: "auto",
+                  touchAction: "none",
                 }
               : {
                   right: "16px",
                   bottom: "75px",
+                  touchAction: "none",
                 }
           }
-          className="fixed z-40 print:hidden select-none drop-shadow-2xl cursor-grab active:cursor-grabbing"
+          className="fixed z-40 print:hidden select-none drop-shadow-2xl cursor-grab active:cursor-grabbing touch-none"
         >
           {isCollapsed ? (
             /* কলাপ্স অবস্থা: ছোট গোল ফ্লোটিং বাটন - Moveable & Clickable */
             <div
               onClick={handleTrackerClick}
-              className={`relative flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-full shadow-2xl border backdrop-blur-md transition-all hover:scale-105 active:scale-95 cursor-grab active:cursor-grabbing ${
+              className={`relative flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-full shadow-2xl border backdrop-blur-md cursor-grab active:cursor-grabbing touch-none select-none ${
                 diffDenomVsCash === 0
                   ? "bg-slate-900/95 border-emerald-500/80 text-emerald-300 ring-2 ring-emerald-500/30"
                   : "bg-slate-900/95 border-rose-500/80 text-rose-300 ring-2 ring-rose-500/30"
@@ -1022,7 +1030,7 @@ export default function CashSheet({
           ) : (
             /* এক্সপান্ড অবস্থা: ছোট উইন্ডো - Moveable & Clickable */
             <div
-              className={`rounded-xl px-2.5 py-1.5 shadow-2xl border backdrop-blur-md transition-all w-auto min-w-[105px] max-w-[145px] ${
+              className={`rounded-xl px-2.5 py-1.5 shadow-2xl border backdrop-blur-md w-auto min-w-[105px] max-w-[145px] touch-none select-none ${
                 diffDenomVsCash === 0
                   ? "bg-slate-900/95 border-emerald-500/80 text-white ring-2 ring-emerald-500/30"
                   : "bg-slate-900/95 border-rose-500/80 text-white ring-2 ring-rose-500/30"

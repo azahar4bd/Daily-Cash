@@ -54,7 +54,7 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
   });
   const floatingRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
-  const dragStart = useRef({ x: 0, y: 0, elemX: 0, elemY: 0, hasMoved: false });
+  const dragStart = useRef({ x: 0, y: 0, elemX: 0, elemY: 0, w: 50, h: 50, hasMoved: false });
 
   const handleFloatingPointerDown = (e: React.PointerEvent) => {
     if (e.button !== 0 && e.pointerType === "mouse") return;
@@ -66,6 +66,8 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
       y: e.clientY,
       elemX: rect.left,
       elemY: rect.top,
+      w: rect.width,
+      h: rect.height,
       hasMoved: false,
     };
     isDragging.current = true;
@@ -79,23 +81,16 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
     const dx = e.clientX - dragStart.current.x;
     const dy = e.clientY - dragStart.current.y;
 
-    if (Math.abs(dx) > 4 || Math.abs(dy) > 4) {
+    if (!dragStart.current.hasMoved && (Math.abs(dx) > 3 || Math.abs(dy) > 3)) {
       dragStart.current.hasMoved = true;
     }
 
     if (dragStart.current.hasMoved) {
-      const rect = floatingRef.current?.getBoundingClientRect();
-      const w = rect?.width || 50;
-      const h = rect?.height || 50;
-      const maxX = Math.max(10, window.innerWidth - w - 8);
-      const maxY = Math.max(10, window.innerHeight - h - 8);
-      const newX = Math.max(8, Math.min(maxX, dragStart.current.elemX + dx));
-      const newY = Math.max(8, Math.min(maxY, dragStart.current.elemY + dy));
-      const nextPos = { x: newX, y: newY };
-      setFloatingPos(nextPos);
-      try {
-        localStorage.setItem("gobra_floating_pos_report", JSON.stringify(nextPos));
-      } catch {}
+      const maxX = Math.max(10, window.innerWidth - dragStart.current.w - 6);
+      const maxY = Math.max(10, window.innerHeight - dragStart.current.h - 6);
+      const newX = Math.max(6, Math.min(maxX, dragStart.current.elemX + dx));
+      const newY = Math.max(6, Math.min(maxY, dragStart.current.elemY + dy));
+      setFloatingPos({ x: newX, y: newY });
     }
   };
 
@@ -105,6 +100,16 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
     try {
       (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
     } catch {}
+
+    if (dragStart.current.hasMoved) {
+      const rect = floatingRef.current?.getBoundingClientRect();
+      if (rect) {
+        const finalPos = { x: Math.round(rect.left), y: Math.round(rect.top) };
+        try {
+          localStorage.setItem("gobra_floating_pos_report", JSON.stringify(finalPos));
+        } catch {}
+      }
+    }
   };
 
   const handleFloatingClick = (e: React.MouseEvent) => {
@@ -434,22 +439,25 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
           style={
             floatingPos
               ? {
-                  left: `${floatingPos.x}px`,
-                  top: `${floatingPos.y}px`,
+                  transform: `translate3d(${floatingPos.x}px, ${floatingPos.y}px, 0)`,
+                  left: 0,
+                  top: 0,
                   right: "auto",
                   bottom: "auto",
+                  touchAction: "none",
                 }
               : {
                   right: "16px",
                   bottom: "75px",
+                  touchAction: "none",
                 }
           }
-          className={`fixed z-40 select-none print:hidden drop-shadow-2xl cursor-grab active:cursor-grabbing ${
+          className={`fixed z-40 select-none print:hidden drop-shadow-2xl cursor-grab active:cursor-grabbing touch-none ${
             keyboardOpen ? "hidden" : "block"
           }`}
         >
           {staffPopupOpen ? (
-            <div className="bg-white shadow-2xl rounded-2xl border-2 border-purple-900 overflow-hidden animate-in fade-in zoom-in-95 duration-150 min-w-[240px]">
+            <div className="bg-white shadow-2xl rounded-2xl border-2 border-purple-900 overflow-hidden min-w-[240px] touch-none">
               <div
                 className="bg-purple-900 text-white px-3.5 py-2 flex items-center justify-between gap-3 text-xs font-bold cursor-grab active:cursor-grabbing select-none"
                 onClick={handleFloatingClick}
@@ -468,7 +476,7 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
                       e.stopPropagation();
                       setStaffPopupOpen(false);
                     }}
-                    className="hover:bg-purple-800 rounded px-1.5 py-0.5 text-xs transition cursor-pointer"
+                    className="hover:bg-purple-800 rounded px-1.5 py-0.5 text-xs cursor-pointer"
                     title="বক্স বন্ধ করুন"
                   >
                     ✕
@@ -504,7 +512,7 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
             /* Persistent Floating Action Button - Moveable & Clickable */
             <div
               onClick={handleFloatingClick}
-              className="relative flex h-11 w-11 sm:h-12 sm:w-12 items-center justify-center rounded-full bg-purple-900 hover:bg-purple-800 active:bg-purple-950 text-white shadow-2xl ring-2 ring-purple-400/50 hover:ring-purple-300 transition-all cursor-grab active:cursor-grabbing hover:scale-105 active:scale-95"
+              className="relative flex h-11 w-11 sm:h-12 sm:w-12 items-center justify-center rounded-full bg-purple-900 active:bg-purple-950 text-white shadow-2xl ring-2 ring-purple-400/50 cursor-grab active:cursor-grabbing touch-none select-none"
               title="Staff Dena / Poana (টেনে যেকোনো দিকে সরানো যাবে / ক্লিক করলে খুলবে)"
             >
               <span className="text-xl sm:text-2xl leading-none select-none pointer-events-none">👥</span>
