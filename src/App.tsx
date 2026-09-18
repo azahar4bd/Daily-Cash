@@ -6,6 +6,7 @@ import RebatePage from "./components/RebatePage";
 import StaffReportManager from "./components/StaffReportManager";
 import CashSheet from "./components/CashSheet";
 import BottomMenu from "./components/BottomMenu";
+import NetworkStatusBanner from "./components/NetworkStatusBanner";
 import { todayISO } from "./components/DatePicker";
 import { initNeonSync } from "./lib/neonSync";
 
@@ -43,6 +44,9 @@ export default function App() {
     <div className="min-h-screen bg-slate-100 text-slate-900 font-sans antialiased pb-20 print:p-0 print:m-0 print:bg-white">
       {/* Main Container */}
       <main className="mx-auto max-w-6xl px-3 sm:px-4 pt-3 sm:pt-5 print:p-0 print:max-w-none">
+        {/* Real-time Network & Offline/Online Sync Status Banner */}
+        <NetworkStatusBanner />
+
         {/* Conditional Top Dashboard: visible only on Receive and Payment pages */}
         {(currentTab === "receive" || currentTab === "payment") && (
           <div className="print:hidden">

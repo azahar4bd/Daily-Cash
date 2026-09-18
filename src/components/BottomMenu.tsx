@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import DatePicker, { todayISO } from "./DatePicker";
 import GoogleSheetSyncModal from "./GoogleSheetSyncModal";
 import NeonSyncModal from "./NeonSyncModal";
+import ApkInstallModal from "./ApkInstallModal";
 import { getStoredSyncState, type NeonSyncState } from "@/lib/neon";
 
 const pages = [
@@ -26,8 +27,19 @@ export default function BottomMenu({
   const [sheetModalOpen, setSheetModalOpen] = useState(false);
   const [neonModalOpen, setNeonModalOpen] = useState(false);
   const [threeLineMenuOpen, setThreeLineMenuOpen] = useState(false);
+  const [apkModalOpen, setApkModalOpen] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [syncState, setSyncState] = useState<NeonSyncState>(getStoredSyncState());
   const today = todayISO();
+
+  useEffect(() => {
+    const handleBeforeInstall = (e: any) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+    window.addEventListener("beforeinstallprompt", handleBeforeInstall);
+    return () => window.removeEventListener("beforeinstallprompt", handleBeforeInstall);
+  }, []);
 
   useEffect(() => {
     const handler = (e: any) => {
@@ -84,6 +96,17 @@ export default function BottomMenu({
             >
               <span>📊</span>
               <span>Google Sheet</span>
+            </button>
+
+            {/* Install App / APK Button */}
+            <button
+              type="button"
+              onClick={() => setApkModalOpen(true)}
+              className="hidden md:flex items-center gap-1 rounded-lg bg-indigo-800/80 hover:bg-indigo-700 px-2.5 py-1 text-[11px] font-bold text-indigo-100 transition shadow-xs whitespace-nowrap cursor-pointer"
+              title="Install App on Phone / APK"
+            >
+              <span>📱</span>
+              <span>App / APK</span>
             </button>
           </div>
 
@@ -255,6 +278,18 @@ export default function BottomMenu({
                   <span className="text-base">📊</span>
                   <span>Google Sheet</span>
                 </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setThreeLineMenuOpen(false);
+                    setApkModalOpen(true);
+                  }}
+                  className="col-span-2 flex items-center justify-center gap-2 rounded-xl bg-indigo-900/60 hover:bg-indigo-800/80 border border-indigo-700/50 p-2.5 text-xs font-bold text-indigo-200 transition cursor-pointer"
+                >
+                  <span className="text-base">📱</span>
+                  <span>অ্যাপ ইনস্টল ও APK ডাউনলোড</span>
+                </button>
               </div>
             </div>
           </div>
@@ -270,6 +305,12 @@ export default function BottomMenu({
       <GoogleSheetSyncModal
         open={sheetModalOpen}
         onClose={() => setSheetModalOpen(false)}
+      />
+
+      <ApkInstallModal
+        open={apkModalOpen}
+        onClose={() => setApkModalOpen(false)}
+        deferredPrompt={deferredPrompt}
       />
     </>
   );

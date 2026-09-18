@@ -77,6 +77,9 @@ export function enqueueNeonAction(action: SyncQueueItem): void {
 }
 
 export async function flushNeonQueue(): Promise<void> {
+  if (typeof navigator !== "undefined" && !navigator.onLine) {
+    return;
+  }
   const q = getQueue();
   if (q.length === 0) return;
 
@@ -128,6 +131,18 @@ export async function flushNeonQueue(): Promise<void> {
  * 4. Updates local cache and notifies UI.
  */
 export async function syncAllWithNeon(): Promise<{ success: boolean; message: string }> {
+  if (typeof navigator !== "undefined" && !navigator.onLine) {
+    updateSyncState({
+      connected: false,
+      isSyncing: false,
+      pendingCount: getQueue().length,
+    });
+    return {
+      success: false,
+      message: "বর্তমানে ডিভাইসটি অফলাইনে রয়েছে। ডাটা লোকাল মেমরিতে জমা থাকছে।",
+    };
+  }
+
   updateSyncState({ isSyncing: true, lastError: null });
 
   try {

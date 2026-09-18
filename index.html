@@ -2,9 +2,21 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>Cash Gobra - Bandhu Kallyan Foundation</title>
     <meta name="description" content="Cash Gobra Microfinance and Cash Management App for Bandhu Kallyan Foundation, Netlify deploy-ready" />
+    
+    <!-- PWA & Mobile Web App Meta Tags -->
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#0f172a" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Cash Gobra" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
+    <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png" />
+
     <meta property="og:title" content="Cash Gobra - Bandhu Kallyan Foundation" />
     <meta property="og:description" content="Cash Gobra Microfinance and Cash Management App for Bandhu Kallyan Foundation, Netlify deploy-ready" />
     <meta property="og:type" content="website" />
@@ -13,6 +25,29 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+
+    <!-- Service Worker Registration for Offline First PWA -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js')
+            .then((reg) => {
+              console.log('Service Worker active:', reg.scope);
+              // Check for SW updates
+              reg.onupdatefound = () => {
+                const installingWorker = reg.installing;
+                if (installingWorker) {
+                  installingWorker.onstatechange = () => {
+                    if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                      console.log('New content available; will update on next refresh.');
+                    }
+                  };
+                }
+              };
+            })
+            .catch((err) => console.warn('Service Worker registration skipped:', err));
+        });
+      }
+    </script>
   </body>
 </html>
-
