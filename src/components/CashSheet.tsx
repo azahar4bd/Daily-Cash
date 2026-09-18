@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import DatePicker from "./DatePicker";
 import { fmt } from "./DenominationPopup";
 import { BKF_LOGO } from "@/assets/logoBase64";
+import { CASH_BANK_BANNER } from "@/assets/bannerBase64";
 import {
   getSummary,
   getLocalTxs,
@@ -402,25 +403,34 @@ export default function CashSheet({
     <div className="cash-sheet-print-container w-full bg-white p-4 sm:p-6 print:p-0 text-slate-950 font-serif flex flex-col justify-between print:h-[280mm] print:justify-between box-border">
       <div className="flex-1 flex flex-col justify-start">
         {/* Document Header (Logo + Title, centered) */}
-        <div className="flex items-center justify-center gap-3 mb-2 print:mb-2">
+        <div className="flex items-center justify-center gap-3 mb-1 print:mb-1">
           <img
             src={BKF_LOGO}
             alt="BKF Logo"
-            className="h-11 sm:h-12 w-auto object-contain print:h-12"
+            className="h-11 sm:h-12 w-auto object-contain print:h-11"
           />
           <div className="text-left">
-            <h1 className="text-xl sm:text-2xl print:text-2xl font-black font-serif text-slate-900 leading-tight tracking-tight">
+            <h1 className="text-xl sm:text-2xl print:text-xl font-black font-serif text-slate-900 leading-tight tracking-tight">
               Bandhu Kallyan Foundation
             </h1>
-            <p className="text-xs print:text-[11px] font-bold font-serif text-slate-800 tracking-wide mt-0.5">
+            <p className="text-xs print:text-[10.5px] font-bold font-serif text-slate-800 tracking-wide mt-0.5">
               GOBRA BRANCH-0014 Branch.
             </p>
           </div>
         </div>
 
+        {/* Stylized Scroll Banner: Cash & Bank Information (लाल চিহ্নিত অংশ) */}
+        <div className="flex justify-center my-1 print:my-0.5">
+          <img
+            src={CASH_BANK_BANNER}
+            alt="Cash & Bank Information"
+            className="h-9 sm:h-10 print:h-9 w-auto object-contain"
+          />
+        </div>
+
         {/* Date Box (Right Aligned Rectangle) */}
-        <div className="flex justify-end mb-2 print:mb-2">
-          <div className="border border-black px-4 py-1 print:py-1 text-xs sm:text-sm print:text-xs font-bold font-serif text-center w-48 sm:w-52">
+        <div className="flex justify-end mb-2 print:mb-1.5">
+          <div className="border border-black px-4 py-0.5 print:py-0.5 text-xs sm:text-sm print:text-xs font-bold font-serif text-center w-48 sm:w-52">
             {formatDisplayDate(selectedDate)}
           </div>
         </div>
