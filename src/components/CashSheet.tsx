@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import DatePicker from "./DatePicker";
 import { fmt } from "./DenominationPopup";
+import { BKF_LOGO } from "@/assets/logoBase64";
 import {
   getSummary,
   getLocalTxs,
@@ -97,6 +98,16 @@ const getDayName = (isoDate: string) => {
   const d = new Date(isoDate + "T00:00:00");
   const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
   return days[d.getDay()];
+};
+
+const formatDisplayDate = (isoDate: string): string => {
+  if (!isoDate) return "";
+  const d = new Date(isoDate + "T00:00:00");
+  const months = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+  ];
+  return `${d.getDate()}-${months[d.getMonth()]}-${d.getFullYear()}`;
 };
 
 export default function CashSheet({
@@ -388,51 +399,59 @@ export default function CashSheet({
   };
 
   const renderContent = (isInteractive: boolean = true) => (
-    <div className="w-full bg-white p-3 sm:p-5 print:p-0 text-slate-950 font-sans flex flex-col justify-between">
+    <div className="w-full bg-white p-4 sm:p-6 print:p-0 text-slate-950 font-serif flex flex-col justify-between">
       <div>
-        {/* Document Header */}
-        <div className="text-center mb-1.5 print:mb-1">
-          <h1 className="text-xl sm:text-2xl print:text-lg font-black font-serif text-slate-900 leading-tight">
-            Bandhu Kallyan Foundation
-          </h1>
-          <p className="text-[11px] sm:text-xs print:text-[10px] font-bold text-slate-800 mt-0.5">
-            GOBRA BRANCH-0014 Branch.
-          </p>
-          <div className="my-1 print:my-0.5 inline-block border-2 border-blue-900 bg-white px-5 print:px-3 py-0.5 rounded-sm">
-            <span className="font-serif italic font-extrabold text-sm sm:text-base print:text-xs text-blue-950">
-              Cash &amp; Bank Information
-            </span>
+        {/* Document Header (Logo + Title, centered) */}
+        <div className="flex items-center justify-center gap-3 mb-1 print:mb-0.5">
+          <img
+            src={BKF_LOGO}
+            alt="BKF Logo"
+            className="h-10 sm:h-12 w-auto object-contain print:h-9"
+          />
+          <div className="text-left">
+            <h1 className="text-xl sm:text-2xl print:text-lg font-black font-serif text-slate-900 leading-tight tracking-tight">
+              Bandhu Kallyan Foundation
+            </h1>
+            <p className="text-xs print:text-[10px] font-bold font-serif text-slate-800 tracking-wide">
+              GOBRA BRANCH-0014 Branch.
+            </p>
           </div>
-          <div className="flex justify-end mt-0.5">
-            <div className="border border-slate-800 px-2.5 py-0.5 text-xs print:text-[10px] font-bold font-mono">
-              Date: {selectedDate}
-            </div>
+        </div>
+
+        {/* Date Box (Right Aligned Rectangle) */}
+        <div className="flex justify-end mb-1 print:mb-0.5">
+          <div className="border border-black px-4 py-0.5 text-xs sm:text-sm print:text-[10px] font-bold font-serif text-center w-44 sm:w-48">
+            {formatDisplayDate(selectedDate)}
           </div>
         </div>
 
         {/* Section A: Cash & Bank Information */}
         <div className="mb-2 print:mb-1">
-          <div className="mb-0.5 flex items-center justify-between text-xs sm:text-sm print:text-xs font-bold text-slate-900">
+          <div className="mb-0.5 flex items-center justify-between text-xs sm:text-sm print:text-[10.5px] font-bold text-slate-900">
             <span>A. Cash &amp; Bank Information:</span>
             <span>Day: {getDayName(selectedDate)}</span>
           </div>
-          <table className="w-full border-collapse border-2 border-black text-xs sm:text-sm print:text-[11px]">
+          <table className="w-full border-collapse border border-black text-xs sm:text-sm print:text-[10.5px]">
             <tbody>
               <tr>
-                <td className="w-2/3 border border-black px-3 py-1 print:py-0.5 font-medium">
+                <td className="w-[55%] border border-black px-3 py-1 print:py-0.5 font-medium">
                   Closing Cash in Hand: TK (BDT)
                 </td>
-                <td className="w-1/3 border border-black px-3 py-1 print:py-0.5 text-right font-mono font-bold">
+                <td className="w-[25%] border border-black px-3 py-1 print:py-0.5 text-right font-mono font-bold">
                   {fmt(closingCash)}
+                </td>
+                <td className="w-[20%] border border-black px-3 py-1 print:py-0.5 text-right font-mono text-slate-900">
+                  ({closingCash.toFixed(2)})
                 </td>
               </tr>
               <tr>
-                <td className="w-2/3 border border-black px-3 py-1 print:py-0.5 font-medium">
+                <td className="w-[55%] border border-black px-3 py-1 print:py-0.5 font-medium">
                   Closing Cash at Bank: TK (BDT)
                 </td>
-                <td className="w-1/3 border border-black px-3 py-1 print:py-0.5 text-right font-mono font-bold">
+                <td className="w-[25%] border border-black px-3 py-1 print:py-0.5 text-right font-mono font-bold">
                   {fmt(closingBank)}
                 </td>
+                <td className="w-[20%] border border-black px-3 py-1 print:py-0.5"></td>
               </tr>
             </tbody>
           </table>
@@ -440,7 +459,7 @@ export default function CashSheet({
 
         {/* Section B: Denominations */}
         <div className="mb-2 print:mb-1">
-          <div className="mb-0.5 flex items-center justify-between text-xs sm:text-sm font-bold text-slate-900">
+          <div className="mb-0.5 flex items-center justify-between text-xs sm:text-sm print:text-[10.5px] font-bold text-slate-900">
             <span>B. Denominations of Cash / Notes :</span>
             {isInteractive && (
               <button
@@ -453,16 +472,26 @@ export default function CashSheet({
               </button>
             )}
           </div>
-          <table className="w-full border-collapse border-2 border-black text-xs sm:text-sm print:text-[11px]">
+          <table className="w-full border-collapse border border-black text-xs sm:text-sm print:text-[10px]">
             <thead>
-              <tr className="bg-slate-100">
-                <th colSpan={2} className="border border-black px-2 py-0.5 text-center font-bold">Particulars</th>
-                <th rowSpan={2} className="w-28 sm:w-32 print:w-28 border border-black px-2 py-0.5 text-center font-bold">TK (BDT)</th>
-                <th rowSpan={2} className="w-12 sm:w-16 print:w-12 border border-black px-2 py-0.5 text-center font-bold">Ps</th>
+              <tr className="bg-slate-50 print:bg-transparent">
+                <th colSpan={2} className="border border-black px-2 py-0.5 text-center font-bold">
+                  Particulars
+                </th>
+                <th rowSpan={2} className="w-28 sm:w-32 print:w-28 border border-black px-2 py-0.5 text-center font-bold">
+                  TK (BDT)
+                </th>
+                <th rowSpan={2} className="w-16 sm:w-20 print:w-16 border border-black px-2 py-0.5 text-center font-bold">
+                  Ps
+                </th>
               </tr>
-              <tr className="bg-slate-100">
-                <th className="border border-black px-2 py-0.5 text-center font-semibold">Notes</th>
-                <th className="w-20 sm:w-24 print:w-20 border border-black px-2 py-0.5 text-center font-semibold">Quantity</th>
+              <tr className="bg-slate-50 print:bg-transparent">
+                <th className="border border-black px-2 py-0.5 text-center font-semibold">
+                  Notes / Others
+                </th>
+                <th className="w-20 sm:w-24 print:w-20 border border-black px-2 py-0.5 text-center font-semibold">
+                  Quantity
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -471,7 +500,9 @@ export default function CashSheet({
                 const rowTk = qty * note;
                 return (
                   <tr key={note}>
-                    <td className="border border-black px-2.5 py-0.5 text-center font-mono font-bold">{note}</td>
+                    <td className="border border-black px-2.5 py-0.5 text-center font-mono font-bold">
+                      {note}
+                    </td>
                     <td className="border border-black px-1.5 py-0.5 text-center">
                       {isInteractive ? (
                         <>
@@ -486,9 +517,11 @@ export default function CashSheet({
                             onChange={(e) => handleQtyChange(String(note), e.target.value)}
                             onFocus={(e) => e.target.select()}
                             placeholder="0"
-                            className="print:hidden w-full text-center font-mono text-xs sm:text-sm font-bold py-1 bg-yellow-50 focus:bg-amber-100 rounded border border-amber-300 focus:border-indigo-600 focus:outline-none transition cursor-text select-text"
+                            className="print:hidden w-full text-center font-mono text-xs sm:text-sm font-bold py-0.5 bg-yellow-50 focus:bg-amber-100 rounded border border-amber-300 focus:border-indigo-600 focus:outline-none transition cursor-text select-text"
                           />
-                          <span className="hidden print:inline font-mono font-bold">{qty > 0 ? qty : "-"}</span>
+                          <span className="hidden print:inline font-mono font-bold">
+                            {qty > 0 ? qty : "-"}
+                          </span>
                         </>
                       ) : (
                         <span className="font-mono font-bold">{qty > 0 ? qty : "-"}</span>
@@ -502,7 +535,9 @@ export default function CashSheet({
                 );
               })}
               <tr>
-                <td className="border border-black px-2.5 py-0.5 text-center">Coins (1+2+5)</td>
+                <td className="border border-black px-2.5 py-0.5 text-center font-medium">
+                  Coins (1+2+5) Taka
+                </td>
                 <td className="border border-black px-1.5 py-0.5 text-center">
                   {isInteractive ? (
                     <>
@@ -517,9 +552,11 @@ export default function CashSheet({
                         onChange={(e) => handleQtyChange("coins", e.target.value)}
                         onFocus={(e) => e.target.select()}
                         placeholder="0"
-                        className="print:hidden w-full text-center font-mono text-xs sm:text-sm font-bold py-1 bg-yellow-50 focus:bg-amber-100 rounded border border-amber-300 focus:border-indigo-600 focus:outline-none transition cursor-text select-text"
+                        className="print:hidden w-full text-center font-mono text-xs sm:text-sm font-bold py-0.5 bg-yellow-50 focus:bg-amber-100 rounded border border-amber-300 focus:border-indigo-600 focus:outline-none transition cursor-text select-text"
                       />
-                      <span className="hidden print:inline font-mono font-bold">{quantities.coins || "-"}</span>
+                      <span className="hidden print:inline font-mono font-bold">
+                        {quantities.coins || "-"}
+                      </span>
                     </>
                   ) : (
                     <span>{quantities.coins || "-"}</span>
@@ -530,95 +567,183 @@ export default function CashSheet({
                 </td>
                 <td className="border border-black px-1.5 py-0.5 text-center font-mono text-slate-400">-</td>
               </tr>
-              <tr className="font-bold bg-slate-100">
-                <td colSpan={2} className="border border-black px-2.5 py-0.5 text-right font-bold">Total :</td>
+              <tr>
+                <td className="border border-black px-2.5 py-0.5 text-center font-medium">
+                  Revenue Stamp
+                </td>
+                <td className="border border-black px-1.5 py-0.5 text-center">
+                  {isInteractive ? (
+                    <>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        autoComplete="off"
+                        value={quantities.revenueStamp || ""}
+                        onChange={(e) => handleQtyChange("revenueStamp", e.target.value)}
+                        onFocus={(e) => e.target.select()}
+                        placeholder="0"
+                        className="print:hidden w-full text-center font-mono text-xs sm:text-sm font-bold py-0.5 bg-yellow-50 focus:bg-amber-100 rounded border border-amber-300 focus:border-indigo-600 focus:outline-none transition cursor-text select-text"
+                      />
+                      <span className="hidden print:inline font-mono font-bold">
+                        {quantities.revenueStamp ? quantities.revenueStamp : "-"}
+                      </span>
+                    </>
+                  ) : (
+                    <span>{quantities.revenueStamp || "-"}</span>
+                  )}
+                </td>
+                <td className="border border-black px-2.5 py-0.5 text-right font-mono font-semibold">
+                  {revenueStampAmt > 0 ? fmt(revenueStampAmt) : "-"}
+                </td>
+                <td className="border border-black px-1.5 py-0.5 text-center font-mono text-slate-400">-</td>
+              </tr>
+              <tr>
+                <td className="border border-black px-2.5 py-0.5 text-center font-medium">
+                  Pending Slip
+                </td>
+                <td className="border border-black px-1.5 py-0.5 text-center">
+                  {isInteractive ? (
+                    <>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        autoComplete="off"
+                        value={quantities.pendingSlip || ""}
+                        onChange={(e) => handleQtyChange("pendingSlip", e.target.value)}
+                        onFocus={(e) => e.target.select()}
+                        placeholder="0"
+                        className="print:hidden w-full text-center font-mono text-xs sm:text-sm font-bold py-0.5 bg-yellow-50 focus:bg-amber-100 rounded border border-amber-300 focus:border-indigo-600 focus:outline-none transition cursor-text select-text"
+                      />
+                      <span className="hidden print:inline font-mono font-bold">
+                        {quantities.pendingSlip ? quantities.pendingSlip : "-"}
+                      </span>
+                    </>
+                  ) : (
+                    <span>{quantities.pendingSlip || "-"}</span>
+                  )}
+                </td>
+                <td className="border border-black px-2.5 py-0.5 text-right font-mono font-semibold">
+                  {pendingSlipAmt > 0 ? fmt(pendingSlipAmt) : "-"}
+                </td>
+                <td className="border border-black px-1.5 py-0.5 text-center font-mono text-slate-400">-</td>
+              </tr>
+              <tr className="font-bold bg-slate-50 print:bg-transparent">
+                <td colSpan={2} className="border border-black px-2.5 py-0.5 text-right font-bold">
+                  Total :
+                </td>
                 <td className="border border-black px-2.5 py-0.5 text-right font-mono font-bold">
                   {totalDenomination > 0 ? fmt(totalDenomination) : "-"}
                 </td>
-                <td className="border border-black px-1.5 py-0.5 text-center">-</td>
+                <td className="border border-black px-1.5 py-0.5 text-center font-mono text-slate-400">-</td>
               </tr>
             </tbody>
           </table>
-          <div className="mt-0.5 text-[11px] sm:text-xs print:text-[10px] font-semibold text-slate-800 truncate">
+          <div className="mt-0.5 text-[11px] sm:text-xs print:text-[10px] font-semibold text-slate-800">
             <span className="font-bold">In Word:</span> {numberToWords(totalDenomination)}
           </div>
         </div>
 
         {/* Section C: Credit Officer & Others Cash Received Information */}
         <div className="mb-2 print:mb-1">
-          <div className="mb-0.5 text-xs sm:text-sm font-bold text-slate-900">
+          <div className="mb-0.5 text-xs sm:text-sm print:text-[10.5px] font-bold text-slate-900">
             C. Credit Officer &amp; Others Cash Received Information.
           </div>
-          <table className="w-full border-collapse border-2 border-black text-xs sm:text-sm">
+          <table className="w-full border-collapse border border-black text-xs sm:text-sm print:text-[10px]">
             <thead>
-              <tr className="bg-slate-100">
-                <th className="w-10 sm:w-12 border border-black px-2 py-0.5 text-center">S.L</th>
-                <th className="border border-black px-2.5 py-0.5 text-left">Employee Name</th>
-                <th className="w-16 sm:w-20 border border-black px-2 py-0.5 text-center">PIN</th>
-                <th className="w-28 sm:w-32 border border-black px-2.5 py-0.5 text-right">TK (BDT)</th>
-                <th className="w-24 sm:w-32 border border-black px-2 py-0.5 text-center">Signature</th>
+              <tr className="bg-slate-50 print:bg-transparent">
+                <th className="w-10 sm:w-12 print:w-10 border border-black px-2 py-0.5 text-center font-bold">
+                  S.L
+                </th>
+                <th className="border border-black px-2.5 py-0.5 text-left font-bold">
+                  Employee Name
+                </th>
+                <th className="w-16 sm:w-20 print:w-16 border border-black px-2 py-0.5 text-center font-bold">
+                  PIN
+                </th>
+                <th className="w-28 sm:w-32 print:w-28 border border-black px-2 py-0.5 text-right font-bold">
+                  TK (BDT)
+                </th>
+                <th className="w-24 sm:w-32 print:w-28 border border-black px-2 py-0.5 text-center font-bold">
+                  Employee Signature
+                </th>
               </tr>
             </thead>
             <tbody>
               <tr>
-                <td className="border border-black px-2 py-0.5 text-center">1</td>
+                <td className="border border-black px-2 py-0.5 text-center font-mono">1</td>
                 <td className="border border-black px-2.5 py-0.5 font-medium">Md Monirul Islam</td>
                 <td className="border border-black px-2 py-0.5 text-center font-mono">621</td>
-                <td className="border border-black px-2.5 py-0.5 text-right font-mono font-bold">{fmt(officerAmounts.monir)}</td>
+                <td className="border border-black px-2.5 py-0.5 text-right font-mono font-bold">
+                  {fmt(officerAmounts.monir)}
+                </td>
                 <td className="border border-black px-2 py-0.5"></td>
               </tr>
               <tr>
-                <td className="border border-black px-2 py-0.5 text-center">2</td>
+                <td className="border border-black px-2 py-0.5 text-center font-mono">2</td>
                 <td className="border border-black px-2.5 py-0.5 font-medium">Ezaz Sakib</td>
-                <td className="border border-black px-2 py-0.5 text-center font-mono">1056</td>
-                <td className="border border-black px-2.5 py-0.5 text-right font-mono font-bold">{fmt(officerAmounts.sakib)}</td>
+                <td className="border border-black px-2 py-0.5 text-center font-mono">1086</td>
+                <td className="border border-black px-2.5 py-0.5 text-right font-mono font-bold">
+                  {fmt(officerAmounts.sakib)}
+                </td>
                 <td className="border border-black px-2 py-0.5"></td>
               </tr>
               <tr>
-                <td className="border border-black px-2 py-0.5 text-center">3</td>
-                <td className="border border-black px-2.5 py-0.5 font-medium">Md Mintu Moholder</td>
+                <td className="border border-black px-2 py-0.5 text-center font-mono">3</td>
+                <td className="border border-black px-2.5 py-0.5 font-medium">Md:Mintu Moholdar</td>
                 <td className="border border-black px-2 py-0.5 text-center font-mono">1189</td>
-                <td className="border border-black px-2.5 py-0.5 text-right font-mono font-bold">{fmt(officerAmounts.mintu)}</td>
+                <td className="border border-black px-2.5 py-0.5 text-right font-mono font-bold">
+                  {fmt(officerAmounts.mintu)}
+                </td>
                 <td className="border border-black px-2 py-0.5"></td>
               </tr>
               <tr>
-                <td className="border border-black px-2 py-0.5 text-center">4</td>
+                <td className="border border-black px-2 py-0.5 text-center font-mono">4</td>
                 <td className="border border-black px-2.5 py-0.5 font-medium">Md Alamgir Hossain</td>
                 <td className="border border-black px-2 py-0.5 text-center font-mono">1224</td>
-                <td className="border border-black px-2.5 py-0.5 text-right font-mono font-bold">{fmt(officerAmounts.alamgir)}</td>
+                <td className="border border-black px-2.5 py-0.5 text-right font-mono font-bold">
+                  {fmt(officerAmounts.alamgir)}
+                </td>
                 <td className="border border-black px-2 py-0.5"></td>
               </tr>
               <tr>
-                <td className="border border-black px-2 py-0.5 text-center">5</td>
+                <td className="border border-black px-2 py-0.5 text-center font-mono">5</td>
                 <td className="border border-black px-2.5 py-0.5 font-medium">Sales of Loan Forms</td>
                 <td className="border border-black px-2 py-0.5 text-center font-mono">-</td>
-                <td className="border border-black px-2.5 py-0.5 text-right font-mono font-bold">{fmt(officerAmounts.loanForms)}</td>
+                <td className="border border-black px-2.5 py-0.5 text-right font-mono font-bold">
+                  {fmt(officerAmounts.loanForms)}
+                </td>
                 <td className="border border-black px-2 py-0.5"></td>
               </tr>
               <tr>
-                <td className="border border-black px-2 py-0.5 text-center">6</td>
+                <td className="border border-black px-2 py-0.5 text-center font-mono">6</td>
                 <td className="border border-black px-2.5 py-0.5 font-medium">Member Welfare Fund</td>
-                <td className="border border-black px-2 py-0.5 text-center font-mono">-</td>
-                <td className="border border-black px-2.5 py-0.5 text-right font-mono font-bold">{fmt(officerAmounts.memberWelfare)}</td>
+                <td className="border border-black px-2.5 py-0.5 text-center font-mono">-</td>
+                <td className="border border-black px-2.5 py-0.5 text-right font-mono font-bold">
+                  {fmt(officerAmounts.memberWelfare)}
+                </td>
                 <td className="border border-black px-2 py-0.5"></td>
               </tr>
-              <tr className="font-bold bg-slate-100">
-                <td colSpan={3} className="border border-black px-2.5 py-1 text-right font-bold">Total :</td>
-                <td className="border border-black px-2.5 py-1 text-right font-mono font-black">{fmt(totalOfficersReceived)}</td>
-                <td className="border border-black px-2 py-0.5"></td>
+              <tr className="font-bold bg-slate-50 print:bg-transparent">
+                <td colSpan={3} className="border border-black px-2.5 py-0.5 text-right font-bold">
+                  Total :
+                </td>
+                <td className="border border-black px-2.5 py-0.5 text-right font-mono font-bold">
+                  {fmt(totalOfficersReceived)}
+                </td>
+                <td className="border border-black px-2.5 py-0.5"></td>
               </tr>
             </tbody>
           </table>
-          <div className="mt-0.5 text-[11px] sm:text-xs font-semibold text-slate-800 truncate">
+          <div className="mt-0.5 text-[11px] sm:text-xs print:text-[10px] font-semibold text-slate-800">
             <span className="font-bold">In Word:</span> {numberToWords(totalOfficersReceived)}
           </div>
         </div>
       </div>
 
       {/* Signatures */}
-      <div className="mt-3 print:mt-2 flex items-center justify-between px-10 print:px-6 text-xs sm:text-sm print:text-xs font-bold">
-        <div className="w-32 border-t-2 border-slate-900 pt-1 text-center">Accountant</div>
-        <div className="w-32 border-t-2 border-slate-900 pt-1 text-center">Manager</div>
+      <div className="mt-8 print:mt-6 flex items-center justify-between px-16 print:px-12 text-xs sm:text-sm print:text-xs font-bold font-serif">
+        <div>Accountant</div>
+        <div>Manager</div>
       </div>
     </div>
   );
