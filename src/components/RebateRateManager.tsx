@@ -8,7 +8,6 @@ import {
   renameRebateProduct,
   renameRebateDuration,
   deleteRebateRate,
-  resetRebateRatesToDefault,
 } from "@/lib/storage";
 
 const STANDARD_DURATIONS = ["Week", "Month", "1.5 Year", "2 Year"];
@@ -62,7 +61,6 @@ export default function RebateRateManager({
 
   // In-App Confirmation state
   const [pendingDelete, setPendingDelete] = useState<RebateRateItem | null>(null);
-  const [showResetConfirm, setShowResetConfirm] = useState(false);
 
   const [msg, setMsg] = useState("");
 
@@ -271,15 +269,6 @@ export default function RebateRateManager({
     onUpdated?.();
   };
 
-  // Handler: Reset Defaults Execution
-  const executeResetDefaults = () => {
-    resetRebateRatesToDefault();
-    load();
-    setShowResetConfirm(false);
-    setMsg("✓ ডাটাবেজ সফলভাবে প্রাথমিক আদি অবস্থায় রিসেট করা হয়েছে!");
-    onUpdated?.();
-  };
-
   // Main UI Content
   const managerContent = (
     <div
@@ -332,17 +321,6 @@ export default function RebateRateManager({
           >
             <span>{showEditPanel ? "✕" : "⚙️"}</span>
             <span>{showEditPanel ? "প্যানেল বন্ধ করুন" : "ডাটাবেজ এডিট ও ফর্ম"}</span>
-          </button>
-
-          {/* Reset Defaults button */}
-          <button
-            type="button"
-            onClick={() => setShowResetConfirm(true)}
-            className="rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-3 py-2 text-xs font-bold transition cursor-pointer flex items-center gap-1"
-            title="প্রাথমিক ডিফল্ট রেটে রিসেট করুন"
-          >
-            <span>🔄</span>
-            <span className="hidden sm:inline">ডিফল্ট রিসেট</span>
           </button>
 
           {!isEmbedded && onClose && (
@@ -1161,42 +1139,6 @@ export default function RebateRateManager({
                 className="flex-1 rounded-xl bg-rose-600 hover:bg-rose-700 py-2.5 text-xs sm:text-sm font-bold text-white shadow transition cursor-pointer flex items-center justify-center gap-1"
               >
                 ✓ হ্যাঁ, ডিলিট করুন
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Reset Defaults Confirmation Modal */}
-      {showResetConfirm && (
-        <div className="fixed inset-0 z-70 flex items-center justify-center bg-slate-950/75 p-4 animate-in fade-in">
-          <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl border border-slate-200">
-            <div className="flex items-center gap-3 mb-3 text-amber-600">
-              <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center text-xl shrink-0">
-                🔄
-              </div>
-              <div>
-                <h4 className="text-base font-bold text-slate-900">ডিফল্ট রিসেট নিশ্চিতকরণ</h4>
-                <p className="text-xs text-slate-500">সকল রেট আদি অবস্থায় ফিরে যাবে</p>
-              </div>
-            </div>
-            <p className="text-xs text-slate-600 mb-4">
-              আপনি কি নিশ্চিত যে ডাটাবেজের সমস্ত কাস্টম পরিবর্তন মুছে মূল ডিফল্ট রেটে ফিরে যেতে চান?
-            </p>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setShowResetConfirm(false)}
-                className="flex-1 rounded-xl bg-slate-200 hover:bg-slate-300 py-2.5 text-xs sm:text-sm font-bold text-slate-700 transition cursor-pointer"
-              >
-                ✕ বাতিল
-              </button>
-              <button
-                type="button"
-                onClick={executeResetDefaults}
-                className="flex-1 rounded-xl bg-amber-600 hover:bg-amber-700 py-2.5 text-xs sm:text-sm font-bold text-white shadow transition cursor-pointer flex items-center justify-center gap-1"
-              >
-                ✓ হ্যাঁ, রিসেট করুন
               </button>
             </div>
           </div>
