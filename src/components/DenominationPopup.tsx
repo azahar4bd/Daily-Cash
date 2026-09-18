@@ -106,6 +106,7 @@ export default function DenominationPopup({
     label: string;
     onClick: () => void;
     className?: string;
+    key?: string | number;
   }) => (
     <button
       type="button"
@@ -171,34 +172,34 @@ export default function DenominationPopup({
           <div className="flex flex-col gap-1">
             
             {/* ROW 0: Manual Entry Box (সবার উপরে) */}
+            {/* ROW 0: Manual Entry (সবার উপরে, বড় ও অন্য ঘরের মতো সুবিন্যস্ত) */}
             {(() => {
               const on = active === 0;
               return (
                 <div
                   key="manual-entry-top"
                   onClick={() => focusIdx(0)}
-                  className={`flex items-center gap-1.5 rounded-xl border-2 px-2.5 py-1 sm:py-1.5 cursor-pointer transition shadow-2xs mb-1 ${
+                  className={`flex items-center gap-2 rounded-lg border-2 px-3 py-1.5 sm:py-2 cursor-pointer transition shadow-xs mb-1.5 ${
                     on
-                      ? "border-amber-500 bg-amber-50 ring-2 ring-amber-400/40"
-                      : "border-amber-300 bg-amber-50/60 hover:bg-amber-100/60"
+                      ? "border-blue-600 bg-blue-50/90 ring-2 ring-blue-400/40"
+                      : "border-slate-300 bg-slate-50 hover:bg-slate-100/80"
                   }`}
                 >
-                  <div className="flex items-center gap-1 shrink-0 w-24 sm:w-28">
-                    <span className="text-xs">✍️</span>
-                    <span className="text-xs font-black text-amber-900 truncate">
-                      Manual Entry
-                    </span>
-                  </div>
-                  <span className="text-amber-600 text-xs font-bold shrink-0">৳</span>
+                  <span className="w-16 sm:w-20 shrink-0 text-left sm:text-right font-bold text-xs sm:text-sm text-slate-800">
+                    Manual
+                  </span>
+                  <span className="text-slate-400 text-xs font-bold">৳</span>
                   <input
                     ref={(el) => {
                       inputRefs.current[0] = el;
                     }}
                     type="text"
-                    inputMode={showKeypad ? "none" : "decimal"}
-                    readOnly={showKeypad}
+                    inputMode="decimal"
                     value={vals[0]}
-                    placeholder="সরাসরি টাকা লিখুন..."
+                    placeholder=""
+                    autoComplete="off"
+                    autoCorrect="off"
+                    spellCheck="false"
                     onFocus={() => setActive(0)}
                     onChange={(e) => {
                       const v = e.target.value;
@@ -210,13 +211,13 @@ export default function DenominationPopup({
                         focusIdx(1);
                       }
                     }}
-                    className={`min-w-0 flex-1 rounded-lg border border-amber-300 bg-white px-2 py-0.5 sm:py-1 text-right font-mono text-xs sm:text-sm font-black text-slate-900 focus:border-amber-500 focus:outline-none ${
-                      showKeypad ? "caret-transparent cursor-pointer" : ""
-                    } ${on && showKeypad ? "ring-1 ring-amber-400" : ""}`}
+                    className={`min-w-0 flex-1 rounded border border-slate-300 bg-white px-2.5 py-1 text-right font-mono text-sm sm:text-base font-bold text-slate-900 focus:border-blue-500 focus:outline-none select-text ${
+                      on && showKeypad ? "ring-2 ring-blue-400 bg-white" : ""
+                    }`}
                   />
                   <span className="text-slate-400 text-xs">=</span>
-                  <span className="w-16 shrink-0 text-right font-mono text-xs sm:text-sm font-black text-amber-900">
-                    {fmt(other)}
+                  <span className="w-16 sm:w-20 shrink-0 text-right font-mono text-xs sm:text-sm font-bold text-slate-900">
+                    {other > 0 ? fmt(other) : ""}
                   </span>
                 </div>
               );
@@ -243,10 +244,12 @@ export default function DenominationPopup({
                       inputRefs.current[i] = el;
                     }}
                     type="text"
-                    inputMode={showKeypad ? "none" : "numeric"}
-                    readOnly={showKeypad}
+                    inputMode="numeric"
                     value={vals[i]}
-                    placeholder="0"
+                    placeholder=""
+                    autoComplete="off"
+                    autoCorrect="off"
+                    spellCheck="false"
                     onFocus={() => setActive(i)}
                     onChange={(e) => {
                       const v = e.target.value;
@@ -262,9 +265,9 @@ export default function DenominationPopup({
                         focusIdx(i - 1);
                       }
                     }}
-                    className={`min-w-0 flex-1 rounded border border-slate-200 px-2 py-0.5 text-right font-mono text-xs sm:text-sm font-bold focus:border-blue-500 focus:outline-none ${
-                      showKeypad ? "caret-transparent cursor-pointer" : ""
-                    } ${on && showKeypad ? "bg-white text-blue-900 border-blue-400" : ""}`}
+                    className={`min-w-0 flex-1 rounded border border-slate-200 px-2 py-0.5 text-right font-mono text-xs sm:text-sm font-bold focus:border-blue-500 focus:outline-none select-text ${
+                      on && showKeypad ? "bg-white text-blue-900 border-blue-400" : ""
+                    }`}
                   />
                   <span className="text-slate-400 text-xs">=</span>
                   <span className="w-16 shrink-0 text-right font-mono text-xs font-bold text-slate-800">

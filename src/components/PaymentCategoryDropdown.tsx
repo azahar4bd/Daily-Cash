@@ -97,7 +97,7 @@ export default function PaymentCategoryDropdown({
             </span>
           ) : (
             <span className="text-slate-400 font-medium">
-              -- ক্যাটাগরি সিলেক্ট করুন --
+              -- Select Category --
             </span>
           )}
         </div>
@@ -110,7 +110,7 @@ export default function PaymentCategoryDropdown({
                 onChange("");
               }}
               className="p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-md cursor-pointer text-xs transition"
-              title="ক্যাটাগরি মুছুন"
+              title="Clear Category"
             >
               ✕
             </span>
@@ -125,7 +125,7 @@ export default function PaymentCategoryDropdown({
         </div>
       </button>
 
-      {/* Floating Scrollable Box (একক সারিবদ্ধ তালিকা + সার্চ) */}
+      {/* Floating Scrollable Box */}
       {isOpen && (
         <div className="absolute left-0 right-0 z-50 mt-1.5 rounded-2xl border border-slate-200 bg-white shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150 flex flex-col max-h-80">
           
@@ -135,7 +135,7 @@ export default function PaymentCategoryDropdown({
             <input
               ref={searchInputRef}
               type="text"
-              placeholder="ক্যাটাগরি খুঁজুন (Search)..."
+              placeholder="Search Category..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full bg-transparent text-xs sm:text-sm font-semibold text-slate-800 placeholder-slate-400 focus:outline-none"
@@ -155,7 +155,7 @@ export default function PaymentCategoryDropdown({
             )}
           </div>
 
-          {/* Unified Single List (সব একই সারিবদ্ধ) */}
+          {/* Unified Single List */}
           <div className="overflow-y-auto max-h-60 p-1.5 space-y-0.5">
             {filteredCategories.length > 0 ? (
               filteredCategories.map((c) => {
@@ -190,7 +190,7 @@ export default function PaymentCategoryDropdown({
             ) : (
               <div className="py-8 text-center text-xs text-slate-400 font-semibold flex flex-col items-center gap-1">
                 <span>🔍</span>
-                <span>কোনো ক্যাটাগরি খুঁজে পাওয়া যায়নি</span>
+                <span>No category found</span>
               </div>
             )}
           </div>
@@ -198,7 +198,7 @@ export default function PaymentCategoryDropdown({
           {/* Box Footer: Manage shortcut */}
           <div className="p-2 border-t border-slate-100 bg-slate-50 flex items-center justify-between shrink-0 text-xs">
             <span className="text-[11px] text-slate-500 font-medium">
-              মোট: {filteredCategories.length} টি ক্যাটাগরি
+              Total: {filteredCategories.length} categories
             </span>
             <button
               type="button"
@@ -209,7 +209,7 @@ export default function PaymentCategoryDropdown({
               className="text-xs font-black text-blue-600 hover:text-blue-800 hover:underline cursor-pointer flex items-center gap-1"
             >
               <span>⚙️</span>
-              <span>ম্যানেজ ক্যাটাগরি</span>
+              <span>Manage Categories</span>
             </button>
           </div>
         </div>

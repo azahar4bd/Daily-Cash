@@ -7,10 +7,11 @@ import type {
   SubCategoryRule,
   KallyanRule,
   RebateRateItem,
+  DayClosure,
 } from "@/types";
 
 export const NEON_DATABASE_URL =
-  (typeof import.meta !== "undefined" && import.meta.env?.VITE_NEON_DATABASE_URL) ||
+  (typeof import.meta !== "undefined" && (import.meta as any).env?.VITE_NEON_DATABASE_URL) ||
   "postgresql://neondb_owner:npg_ZWT8gcO4xuym@ep-aged-night-b3r0h0bv.c-4.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require";
 
 // Create Neon serverless HTTP sql client
@@ -320,3 +321,117 @@ export async function fetchRebateRatesFromNeon(): Promise<RebateRateItem[]> {
     rate: String(r.rate ?? "0"),
   }));
 }
+
+/**
+ * Ensure day_closures table exists in Neon
+ */
+export async function ensureDayClosuresTable(): Promise<void> {
+  try {
+    await sql`
+      CREATE TABLE IF NOT EXISTS day_closures (
+        id SERIAL PRIMARY KEY,
+        close_date VARCHAR(20) UNIQUE NOT NULL,
+        opening_cash NUMERIC DEFAULT 0,
+        opening_bank NUMERIC DEFAULT 0,
+        closing_cash NUMERIC DEFAULT 0,
+        closing_bank NUMERIC DEFAULT 0,
+        total_receive NUMERIC DEFAULT 0,
+        total_payment NUMERIC DEFAULT 0,
+        denomination JSONB,
+        status VARCHAR(20) DEFAULT 'closed',
+        closed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        closed_by VARCHAR(100),
+        notes TEXT
+      );
+    `;
+  } catch (e) {
+    console.warn("ensureDayClosuresTable warning:", e);
+  }
+}
+
+/**
+ * Fetch all day closures from Neon
+ */
+export async function fetchDayClosuresFromNeon(): Promise<DayClosure[]> {
+  try {
+    await ensureDayClosuresTable();
+    const rows = await sql`
+      SELECT id, close_date, opening_cash, opening_bank, closing_cash, closing_bank,
+             total_receive, total_payment, denomination, status, closed_at, closed_by, notes
+      FROM day_closures
+      ORDER BY close_date DESC
+    `;
+    return rows.map((r: any) => ({
+      id: Number(r.id),
+      closeDate: r.close_date,
+      openingCash: Number(r.opening_cash) || 0,
+      openingBank: Number(r.opening_bank) || 0,
+      closingCash: Number(r.closing_cash) || 0,
+      closingBank: Number(r.closing_bank) || 0,
+      totalReceive: Number(r.total_receive) || 0,
+      totalPayment: Number(r.total_payment) || 0,
+      denomination: r.denomination || null,
+      status: "closed",
+      closedAt: r.closed_at ? new Date(r.closed_at).toISOString() : new Date().toISOString(),
+      closedBy: r.closed_by || "Cashier",
+      notes: r.notes || "",
+    }));
+  } catch (e) {
+    console.warn("fetchDayClosuresFromNeon error:", e);
+    return [];
+  }
+}
+
+/**
+ * Upsert day closure in Neon
+ */
+export async function upsertDayClosureInNeon(c: DayClosure): Promise<void> {
+  try {
+    await ensureDayClosuresTable();
+    await sql`
+      INSERT INTO day_closures (close_date, opening_cash, opening_bank, closing_cash, closing_bank, total_receive, total_payment, denomination, status, closed_at, closed_by, notes)
+      VALUES (
+        ${c.closeDate},
+        ${c.openingCash},
+        ${c.openingBank},
+        ${c.closingCash},
+        ${c.closingBank},
+        ${c.totalReceive},
+        ${c.totalPayment},
+        ${c.denomination ? JSON.stringify(c.denomination) : null}::jsonb,
+        'closed',
+        ${c.closedAt},
+        ${c.closedBy || "Cashier"},
+        ${c.notes || ""}
+      )
+      ON CONFLICT (close_date)
+      DO UPDATE SET
+        opening_cash = EXCLUDED.opening_cash,
+        opening_bank = EXCLUDED.opening_bank,
+        closing_cash = EXCLUDED.closing_cash,
+        closing_bank = EXCLUDED.closing_bank,
+        total_receive = EXCLUDED.total_receive,
+        total_payment = EXCLUDED.total_payment,
+        denomination = EXCLUDED.denomination,
+        status = 'closed',
+        closed_at = EXCLUDED.closed_at,
+        closed_by = EXCLUDED.closed_by,
+        notes = EXCLUDED.notes
+    `;
+  } catch (e) {
+    console.warn("upsertDayClosureInNeon error:", e);
+  }
+}
+
+/**
+ * Delete / Reopen day closure in Neon
+ */
+export async function deleteDayClosureInNeon(closeDate: string): Promise<void> {
+  try {
+    await ensureDayClosuresTable();
+    await sql`DELETE FROM day_closures WHERE close_date = ${closeDate}`;
+  } catch (e) {
+    console.warn("deleteDayClosureInNeon error:", e);
+  }
+}
+

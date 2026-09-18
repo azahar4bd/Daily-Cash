@@ -51,10 +51,10 @@ export default function ReportDenominationModal({
   if (!open) return null;
 
   const noteOnlyTotal = NOTES.reduce((acc, note, i) => {
-    const qty = parseInt(qtyVals[i] || "0", 10) || 0;
+    const qty = parseInt(qtyVals[i + 1] || "0", 10) || 0;
     return acc + qty * note;
   }, 0);
-  const otherAmt = Number(qtyVals[FIELD_COUNT - 1]) || 0;
+  const otherAmt = Number(qtyVals[0]) || 0;
   const totalNotesAmount = noteOnlyTotal + otherAmt;
 
   const totalCredit = creditVals.reduce((acc, v) => acc + (Number(v) || 0), 0);
@@ -138,7 +138,7 @@ export default function ReportDenominationModal({
     else if (col === "credit") cur = creditVals[row] || "";
     else if (col === "debit") cur = debitVals[row] || "";
 
-    const isDecimalAllowed = col === "credit" || col === "debit" || row === FIELD_COUNT - 1;
+    const isDecimalAllowed = col === "credit" || col === "debit" || row === 0;
     let next = cur;
     if (k === "⌫") {
       next = cur.slice(0, -1);
@@ -178,11 +178,11 @@ export default function ReportDenominationModal({
     </button>
   );
 
-  const labelOf = (i: number) => (i === FIELD_COUNT - 1 ? "Other" : String(NOTES[i]));
+  const labelOf = (i: number) => (i === 0 ? "Manual" : String(NOTES[i - 1]));
   const rowAmountOf = (i: number) => {
-    if (i === FIELD_COUNT - 1) return otherAmt;
+    if (i === 0) return otherAmt;
     const qty = parseInt(qtyVals[i] || "0", 10) || 0;
-    return qty * NOTES[i];
+    return qty * NOTES[i - 1];
   };
 
   return (
@@ -272,13 +272,13 @@ export default function ReportDenominationModal({
             </thead>
             <tbody>
               {Array.from({ length: FIELD_COUNT }, (_, i) => {
-                const isOther = i === FIELD_COUNT - 1;
+                const isOther = i === 0;
                 const rowAmt = rowAmountOf(i);
                 const isQtyActive = activeCell.row === i && activeCell.col === "qty";
                 const isCreditActive = activeCell.row === i && activeCell.col === "credit";
                 const isDebitActive = activeCell.row === i && activeCell.col === "debit";
                 return (
-                  <tr key={i} className={`border-b hover:bg-slate-50 transition ${isOther ? "bg-slate-50 font-bold border-t-2 border-slate-300" : ""}`}>
+                  <tr key={i} className={`border-b hover:bg-slate-50 transition ${isOther ? "bg-amber-50/70 font-bold border-b-2 border-amber-300" : ""}`}>
                     <td className="border border-slate-300 px-2 py-1 text-center font-mono font-bold text-slate-900 sm:text-base">
                       {labelOf(i)}
                     </td>
@@ -288,16 +288,15 @@ export default function ReportDenominationModal({
                           inputRefs.current[`${i}-qty`] = el;
                         }}
                         type="text"
-                        inputMode={showKeypad ? "none" : isOther ? "decimal" : "numeric"}
-                        readOnly={showKeypad}
+                        inputMode={isOther ? "decimal" : "numeric"}
                         value={qtyVals[i]}
                         placeholder={isOther ? "Any" : "0"}
                         onFocus={() => focusCell(i, "qty")}
                         onClick={() => focusCell(i, "qty")}
                         onChange={(e) => handleQtyChange(i, e.target.value)}
-                        className={`w-full rounded border px-1.5 py-1 text-center font-mono text-xs sm:text-sm font-bold focus:outline-none transition ${
-                          isQtyActive && showKeypad
-                            ? "border-blue-600 bg-blue-100/60 ring-2 ring-blue-400 text-blue-950 font-black caret-transparent"
+                        className={`w-full rounded border px-1.5 py-1 text-center font-mono text-xs sm:text-sm font-bold focus:outline-none transition select-text ${
+                          isQtyActive
+                            ? "border-blue-600 bg-blue-100/60 ring-2 ring-blue-400 text-blue-950 font-black"
                             : "border-slate-300 bg-yellow-50"
                         }`}
                       />
@@ -311,16 +310,15 @@ export default function ReportDenominationModal({
                           inputRefs.current[`${i}-credit`] = el;
                         }}
                         type="text"
-                        inputMode={showKeypad ? "none" : "decimal"}
-                        readOnly={showKeypad}
+                        inputMode="decimal"
                         value={creditVals[i]}
                         placeholder="0"
                         onFocus={() => focusCell(i, "credit")}
                         onClick={() => focusCell(i, "credit")}
                         onChange={(e) => handleCreditChange(i, e.target.value)}
-                        className={`w-full rounded border px-1.5 py-1 text-right font-mono text-xs sm:text-sm font-bold focus:outline-none transition ${
-                          isCreditActive && showKeypad
-                            ? "border-emerald-600 bg-emerald-100/60 ring-2 ring-emerald-400 text-emerald-950 font-black caret-transparent"
+                        className={`w-full rounded border px-1.5 py-1 text-right font-mono text-xs sm:text-sm font-bold focus:outline-none transition select-text ${
+                          isCreditActive
+                            ? "border-emerald-600 bg-emerald-100/60 ring-2 ring-emerald-400 text-emerald-950 font-black"
                             : "border-emerald-300 bg-white text-emerald-900"
                         }`}
                       />
@@ -331,16 +329,15 @@ export default function ReportDenominationModal({
                           inputRefs.current[`${i}-debit`] = el;
                         }}
                         type="text"
-                        inputMode={showKeypad ? "none" : "decimal"}
-                        readOnly={showKeypad}
+                        inputMode="decimal"
                         value={debitVals[i]}
                         placeholder="0"
                         onFocus={() => focusCell(i, "debit")}
                         onClick={() => focusCell(i, "debit")}
                         onChange={(e) => handleDebitChange(i, e.target.value)}
-                        className={`w-full rounded border px-1.5 py-1 text-right font-mono text-xs sm:text-sm font-bold focus:outline-none transition ${
-                          isDebitActive && showKeypad
-                            ? "border-rose-600 bg-rose-100/60 ring-2 ring-rose-400 text-rose-950 font-black caret-transparent"
+                        className={`w-full rounded border px-1.5 py-1 text-right font-mono text-xs sm:text-sm font-bold focus:outline-none transition select-text ${
+                          isDebitActive
+                            ? "border-rose-600 bg-rose-100/60 ring-2 ring-rose-400 text-rose-950 font-black"
                             : "border-rose-300 bg-white text-rose-900"
                         }`}
                       />

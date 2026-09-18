@@ -64,6 +64,22 @@ export type KallyanRule = {
   categoryOverrides?: Record<string, { percent: number; fixed: number }>;
 };
 
+export type DayClosure = {
+  id?: number;
+  closeDate: string; // 'YYYY-MM-DD'
+  openingCash: number;
+  openingBank: number;
+  closingCash: number;
+  closingBank: number;
+  totalReceive: number;
+  totalPayment: number;
+  denomination?: Record<string, number> | null;
+  status: "closed";
+  closedAt: string;
+  closedBy?: string;
+  notes?: string;
+};
+
 export type Summary = {
   date: string;
   cash: number;

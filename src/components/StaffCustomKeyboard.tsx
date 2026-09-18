@@ -1,5 +1,6 @@
 import React from "react";
 import { fmt } from "./DenominationPopup";
+import { evaluateMathExpression } from "@/lib/storage";
 
 export type StaffFieldKey =
   | "staffName"
@@ -62,11 +63,17 @@ export default function StaffCustomKeyboard({
   const currentValue = values[activeField] || "";
 
   const handlePrev = () => {
+    if (activeField !== "staffName" && /[+\-*/]/.test(currentValue)) {
+      onValueChange(activeField, evaluateMathExpression(currentValue));
+    }
     const prevIndex = (currentIndex - 1 + STAFF_FIELDS.length) % STAFF_FIELDS.length;
     onFieldSelect(STAFF_FIELDS[prevIndex].key);
   };
 
   const handleNext = () => {
+    if (activeField !== "staffName" && /[+\-*/]/.test(currentValue)) {
+      onValueChange(activeField, evaluateMathExpression(currentValue));
+    }
     const nextIndex = (currentIndex + 1) % STAFF_FIELDS.length;
     onFieldSelect(STAFF_FIELDS[nextIndex].key);
   };
@@ -80,10 +87,32 @@ export default function StaffCustomKeyboard({
     }
   };
 
+  const handleOperator = (op: string) => {
+    if (activeField === "staffName") return;
+    if (!currentValue || currentValue === "0") {
+      if (op === "-") onValueChange(activeField, "-");
+      return;
+    }
+    // If it already ends with an operator, replace it
+    if (/[+\-*/]$/.test(currentValue)) {
+      onValueChange(activeField, currentValue.slice(0, -1) + op);
+      return;
+    }
+    onValueChange(activeField, currentValue + op);
+  };
+
+  const handleEquals = () => {
+    if (activeField === "staffName") return;
+    const evaluated = evaluateMathExpression(currentValue);
+    onValueChange(activeField, evaluated);
+  };
+
   const handleDoubleZero = () => {
     if (activeField === "staffName") return;
     if (!currentValue || currentValue === "0") {
       onValueChange(activeField, "0");
+    } else if (/[+\-*/]$/.test(currentValue)) {
+      onValueChange(activeField, currentValue + "0");
     } else {
       onValueChange(activeField, currentValue + "00");
     }
@@ -93,6 +122,8 @@ export default function StaffCustomKeyboard({
     if (activeField === "staffName") return;
     if (!currentValue || currentValue === "0") {
       onValueChange(activeField, "0");
+    } else if (/[+\-*/]$/.test(currentValue)) {
+      onValueChange(activeField, currentValue + "0");
     } else {
       onValueChange(activeField, currentValue + "000");
     }
@@ -116,20 +147,30 @@ export default function StaffCustomKeyboard({
 
   const handleStaffSelect = (staff: string) => {
     onValueChange("staffName", staff);
-    // Auto jump to loan
     onFieldSelect("loan");
   };
 
-  // Support physical keyboard keys on desktop while preventing mobile keyboard
+  // Support physical keyboard keys on desktop
   React.useEffect(() => {
     if (!open) return;
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Ignore if user is inside a select or outside form
-      if (e.target instanceof HTMLSelectElement) return;
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement ||
+        e.target instanceof HTMLSelectElement
+      ) {
+        return;
+      }
 
       if (e.key >= "0" && e.key <= "9") {
         e.preventDefault();
         handleDigit(e.key);
+      } else if (e.key === "+" || e.key === "-" || e.key === "*" || e.key === "/") {
+        e.preventDefault();
+        handleOperator(e.key);
+      } else if (e.key === "=") {
+        e.preventDefault();
+        handleEquals();
       } else if (e.key === "Backspace") {
         e.preventDefault();
         handleBackspace();
@@ -145,7 +186,9 @@ export default function StaffCustomKeyboard({
         handlePrev();
       } else if (e.key === "Enter") {
         e.preventDefault();
-        if (activeField === "nogodReturn") {
+        if (/[+\-*/]/.test(currentValue)) {
+          handleEquals();
+        } else if (activeField === "nogodReturn") {
           onSave();
         } else {
           handleNext();
@@ -163,18 +206,32 @@ export default function StaffCustomKeyboard({
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 bg-slate-950/95 text-white shadow-2xl border-t-4 border-indigo-600 backdrop-blur-md animate-in slide-in-from-bottom duration-200">
       <div className="mx-auto max-w-xl px-2 sm:px-3 pt-2 pb-3">
-        {/* Top Control Bar: Active Field Info + Quick Navigation & Close */}
+        {/* Top Control Bar: Active Field Info + Live Calculation Preview */}
         <div className="flex items-center justify-between pb-1.5 border-b border-slate-800 gap-2">
           <div className="flex items-center gap-2 overflow-hidden">
             <span className="text-xs sm:text-sm font-black text-amber-400 bg-amber-400/20 px-2 py-0.5 rounded border border-amber-400/30 whitespace-nowrap">
               ⌨️ {currentDef.label} ({currentDef.bn})
             </span>
             <div className="text-sm sm:text-base font-mono font-black text-emerald-400 truncate">
-              {currentDef.isNumeric
-                ? currentValue
-                  ? fmt(Number(currentValue))
-                  : "0"
-                : currentValue || "(None)"}
+              {currentDef.isNumeric ? (
+                currentValue ? (
+                  /[+\-*/]/.test(currentValue) ? (
+                    <span className="flex items-center gap-1.5">
+                      <span className="text-amber-300 font-bold">{currentValue}</span>
+                      <span className="text-white">=</span>
+                      <span className="text-emerald-300 underline font-black">
+                        {fmt(Number(evaluateMathExpression(currentValue)) || 0)}
+                      </span>
+                    </span>
+                  ) : (
+                    fmt(Number(currentValue) || 0)
+                  )
+                ) : (
+                  "0"
+                )
+              ) : (
+                currentValue || "(None)"
+              )}
             </div>
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
@@ -197,24 +254,30 @@ export default function StaffCustomKeyboard({
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg bg-rose-600 hover:bg-rose-500 active:scale-95 px-2 py-1 text-xs font-bold text-white shadow flex items-center gap-1 cursor-pointer transition"
-              title="কিবোর্ড বন্ধ করুন"
+              className="rounded-lg bg-rose-600 hover:bg-rose-500 active:scale-95 px-2.5 py-1 text-xs font-black text-white shadow flex items-center gap-1 cursor-pointer transition"
+              title="কিবোর্ড বন্ধ বা কোলাপ্স করুন"
             >
-              ✖
+              ▼ কলাপ্স
             </button>
           </div>
         </div>
 
-        {/* Field Switcher Bar (এক ঘর থেকে অন্য ঘরে সহজে সুইজ করার জন্য স্ক্রলেবল ট্যাব) */}
+        {/* Field Switcher Bar */}
         <div className="py-1.5 overflow-x-auto no-scrollbar flex items-center gap-1">
-          {STAFF_FIELDS.map((f, idx) => {
+          {STAFF_FIELDS.map((f) => {
             const isActive = f.key === activeField;
             const val = values[f.key];
+            const displayVal = val && f.isNumeric ? evaluateMathExpression(val) : val;
             return (
               <button
                 key={f.key}
                 type="button"
-                onClick={() => onFieldSelect(f.key)}
+                onClick={() => {
+                  if (activeField !== "staffName" && /[+\-*/]/.test(currentValue)) {
+                    onValueChange(activeField, evaluateMathExpression(currentValue));
+                  }
+                  onFieldSelect(f.key);
+                }}
                 className={`rounded-lg px-2.5 py-1 text-[11px] font-bold whitespace-nowrap shrink-0 transition cursor-pointer border ${
                   isActive
                     ? "bg-amber-400 text-slate-950 border-amber-300 shadow-md ring-2 ring-amber-300/40"
@@ -222,13 +285,13 @@ export default function StaffCustomKeyboard({
                 }`}
               >
                 <span>{f.label}</span>
-                {val && f.isNumeric && Number(val) > 0 && (
+                {displayVal && f.isNumeric && Number(displayVal) > 0 && (
                   <span className="ml-1 opacity-90 font-mono text-[10px]">
-                    ({fmt(Number(val))})
+                    ({fmt(Number(displayVal))})
                   </span>
                 )}
-                {val && !f.isNumeric && (
-                  <span className="ml-1 opacity-90 text-[10px]">({val})</span>
+                {displayVal && !f.isNumeric && (
+                  <span className="ml-1 opacity-90 text-[10px]">({displayVal})</span>
                 )}
               </button>
             );
@@ -237,7 +300,7 @@ export default function StaffCustomKeyboard({
 
         {/* Keyboard Input Body */}
         {activeField === "staffName" ? (
-          /* Staff Selection Panel when Staff Name is active */
+          /* Staff Selection Panel */
           <div className="my-2 rounded-xl bg-slate-900 p-2.5 border border-slate-800">
             <div className="mb-2 text-xs font-bold text-slate-400">
               Select Staff Member (স্টাফ নির্বাচন করুন):
@@ -260,157 +323,224 @@ export default function StaffCustomKeyboard({
             </div>
           </div>
         ) : (
-          /* Numeric Keypad for Loan, Rebate, Savings, DPS, etc. */
-          <div className="grid grid-cols-4 gap-1.5 my-1.5">
-            {/* Row 1 */}
-            <button
-              type="button"
-              onClick={() => handleDigit("7")}
-              className="rounded-xl bg-slate-800 hover:bg-slate-700 active:bg-slate-600 active:scale-95 py-2.5 sm:py-3 text-lg sm:text-xl font-bold font-mono text-white shadow border border-slate-700 transition cursor-pointer"
-            >
-              7
-            </button>
-            <button
-              type="button"
-              onClick={() => handleDigit("8")}
-              className="rounded-xl bg-slate-800 hover:bg-slate-700 active:bg-slate-600 active:scale-95 py-2.5 sm:py-3 text-lg sm:text-xl font-bold font-mono text-white shadow border border-slate-700 transition cursor-pointer"
-            >
-              8
-            </button>
-            <button
-              type="button"
-              onClick={() => handleDigit("9")}
-              className="rounded-xl bg-slate-800 hover:bg-slate-700 active:bg-slate-600 active:scale-95 py-2.5 sm:py-3 text-lg sm:text-xl font-bold font-mono text-white shadow border border-slate-700 transition cursor-pointer"
-            >
-              9
-            </button>
-            <button
-              type="button"
-              onClick={handleBackspace}
-              className="rounded-xl bg-rose-900/80 hover:bg-rose-800 active:bg-rose-700 active:scale-95 py-2.5 sm:py-3 text-base sm:text-lg font-bold text-rose-200 shadow border border-rose-700 transition cursor-pointer flex items-center justify-center gap-1"
-              title="মুছুন"
-            >
-              ⌫
-            </button>
+          /* Numeric & Operator Keypad */
+          <div className="flex gap-2 my-1.5">
+            {/* Left 3 Columns: Numbers & Clear */}
+            <div className="flex-1 grid grid-cols-3 gap-1.5">
+              {/* Row 1 */}
+              <button
+                type="button"
+                onClick={() => handleDigit("7")}
+                className="rounded-xl bg-slate-800 hover:bg-slate-700 active:bg-slate-600 active:scale-95 py-2.5 text-lg sm:text-xl font-bold font-mono text-white shadow border border-slate-700 transition cursor-pointer"
+              >
+                7
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDigit("8")}
+                className="rounded-xl bg-slate-800 hover:bg-slate-700 active:bg-slate-600 active:scale-95 py-2.5 text-lg sm:text-xl font-bold font-mono text-white shadow border border-slate-700 transition cursor-pointer"
+              >
+                8
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDigit("9")}
+                className="rounded-xl bg-slate-800 hover:bg-slate-700 active:bg-slate-600 active:scale-95 py-2.5 text-lg sm:text-xl font-bold font-mono text-white shadow border border-slate-700 transition cursor-pointer"
+              >
+                9
+              </button>
 
-            {/* Row 2 */}
-            <button
-              type="button"
-              onClick={() => handleDigit("4")}
-              className="rounded-xl bg-slate-800 hover:bg-slate-700 active:bg-slate-600 active:scale-95 py-2.5 sm:py-3 text-lg sm:text-xl font-bold font-mono text-white shadow border border-slate-700 transition cursor-pointer"
-            >
-              4
-            </button>
-            <button
-              type="button"
-              onClick={() => handleDigit("5")}
-              className="rounded-xl bg-slate-800 hover:bg-slate-700 active:bg-slate-600 active:scale-95 py-2.5 sm:py-3 text-lg sm:text-xl font-bold font-mono text-white shadow border border-slate-700 transition cursor-pointer"
-            >
-              5
-            </button>
-            <button
-              type="button"
-              onClick={() => handleDigit("6")}
-              className="rounded-xl bg-slate-800 hover:bg-slate-700 active:bg-slate-600 active:scale-95 py-2.5 sm:py-3 text-lg sm:text-xl font-bold font-mono text-white shadow border border-slate-700 transition cursor-pointer"
-            >
-              6
-            </button>
-            <button
-              type="button"
-              onClick={handleClear}
-              className="rounded-xl bg-slate-800 hover:bg-slate-700 active:bg-slate-600 active:scale-95 py-2.5 sm:py-3 text-sm sm:text-base font-bold text-amber-300 shadow border border-slate-700 transition cursor-pointer"
-              title="সম্পূর্ণ ক্লিয়ার"
-            >
-              C
-            </button>
+              {/* Row 2 */}
+              <button
+                type="button"
+                onClick={() => handleDigit("4")}
+                className="rounded-xl bg-slate-800 hover:bg-slate-700 active:bg-slate-600 active:scale-95 py-2.5 text-lg sm:text-xl font-bold font-mono text-white shadow border border-slate-700 transition cursor-pointer"
+              >
+                4
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDigit("5")}
+                className="rounded-xl bg-slate-800 hover:bg-slate-700 active:bg-slate-600 active:scale-95 py-2.5 text-lg sm:text-xl font-bold font-mono text-white shadow border border-slate-700 transition cursor-pointer"
+              >
+                5
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDigit("6")}
+                className="rounded-xl bg-slate-800 hover:bg-slate-700 active:bg-slate-600 active:scale-95 py-2.5 text-lg sm:text-xl font-bold font-mono text-white shadow border border-slate-700 transition cursor-pointer"
+              >
+                6
+              </button>
 
-            {/* Row 3 */}
-            <button
-              type="button"
-              onClick={() => handleDigit("1")}
-              className="rounded-xl bg-slate-800 hover:bg-slate-700 active:bg-slate-600 active:scale-95 py-2.5 sm:py-3 text-lg sm:text-xl font-bold font-mono text-white shadow border border-slate-700 transition cursor-pointer"
-            >
-              1
-            </button>
-            <button
-              type="button"
-              onClick={() => handleDigit("2")}
-              className="rounded-xl bg-slate-800 hover:bg-slate-700 active:bg-slate-600 active:scale-95 py-2.5 sm:py-3 text-lg sm:text-xl font-bold font-mono text-white shadow border border-slate-700 transition cursor-pointer"
-            >
-              2
-            </button>
-            <button
-              type="button"
-              onClick={() => handleDigit("3")}
-              className="rounded-xl bg-slate-800 hover:bg-slate-700 active:bg-slate-600 active:scale-95 py-2.5 sm:py-3 text-lg sm:text-xl font-bold font-mono text-white shadow border border-slate-700 transition cursor-pointer"
-            >
-              3
-            </button>
-            <button
-              type="button"
-              onClick={handleDoubleZero}
-              className="rounded-xl bg-slate-800 hover:bg-slate-700 active:bg-slate-600 active:scale-95 py-2.5 sm:py-3 text-sm sm:text-base font-bold font-mono text-slate-200 shadow border border-slate-700 transition cursor-pointer"
-            >
-              00
-            </button>
+              {/* Row 3 */}
+              <button
+                type="button"
+                onClick={() => handleDigit("1")}
+                className="rounded-xl bg-slate-800 hover:bg-slate-700 active:bg-slate-600 active:scale-95 py-2.5 text-lg sm:text-xl font-bold font-mono text-white shadow border border-slate-700 transition cursor-pointer"
+              >
+                1
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDigit("2")}
+                className="rounded-xl bg-slate-800 hover:bg-slate-700 active:bg-slate-600 active:scale-95 py-2.5 text-lg sm:text-xl font-bold font-mono text-white shadow border border-slate-700 transition cursor-pointer"
+              >
+                2
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDigit("3")}
+                className="rounded-xl bg-slate-800 hover:bg-slate-700 active:bg-slate-600 active:scale-95 py-2.5 text-lg sm:text-xl font-bold font-mono text-white shadow border border-slate-700 transition cursor-pointer"
+              >
+                3
+              </button>
 
-            {/* Row 4 */}
-            <button
-              type="button"
-              onClick={() => handleDigit("0")}
-              className="rounded-xl bg-slate-800 hover:bg-slate-700 active:bg-slate-600 active:scale-95 py-2.5 sm:py-3 text-lg sm:text-xl font-bold font-mono text-white shadow border border-slate-700 transition cursor-pointer"
-            >
-              0
-            </button>
-            <button
-              type="button"
-              onClick={handleTripleZero}
-              className="rounded-xl bg-slate-800 hover:bg-slate-700 active:bg-slate-600 active:scale-95 py-2.5 sm:py-3 text-xs sm:text-sm font-bold font-mono text-slate-200 shadow border border-slate-700 transition cursor-pointer"
-            >
-              000
-            </button>
-            <button
-              type="button"
-              onClick={handlePrev}
-              className="rounded-xl bg-slate-800 hover:bg-slate-700 active:bg-slate-600 active:scale-95 py-2.5 sm:py-3 text-xs sm:text-sm font-bold text-slate-300 shadow border border-slate-700 transition cursor-pointer flex items-center justify-center gap-1"
-            >
-              ◀ Prev
-            </button>
-            <button
-              type="button"
-              onClick={handleNext}
-              className="rounded-xl bg-indigo-700 hover:bg-indigo-600 active:bg-indigo-500 active:scale-95 py-2.5 sm:py-3 text-xs sm:text-sm font-bold text-white shadow border border-indigo-500 transition cursor-pointer flex items-center justify-center gap-1"
-            >
-              Next ▶
-            </button>
+              {/* Row 4 */}
+              <button
+                type="button"
+                onClick={() => handleDigit("0")}
+                className="rounded-xl bg-slate-800 hover:bg-slate-700 active:bg-slate-600 active:scale-95 py-2 text-lg sm:text-xl font-bold font-mono text-white shadow border border-slate-700 transition cursor-pointer"
+              >
+                0
+              </button>
+              <button
+                type="button"
+                onClick={handleDoubleZero}
+                className="rounded-xl bg-slate-800 hover:bg-slate-700 active:bg-slate-600 active:scale-95 py-2 text-sm sm:text-base font-bold font-mono text-slate-200 shadow border border-slate-700 transition cursor-pointer"
+              >
+                00
+              </button>
+              <button
+                type="button"
+                onClick={handleTripleZero}
+                className="rounded-xl bg-slate-800 hover:bg-slate-700 active:bg-slate-600 active:scale-95 py-2 text-xs sm:text-sm font-bold font-mono text-slate-200 shadow border border-slate-700 transition cursor-pointer"
+              >
+                000
+              </button>
+
+              {/* Row 5: Clear button */}
+              <button
+                type="button"
+                onClick={handleClear}
+                className="col-span-3 rounded-xl bg-slate-800/90 hover:bg-slate-700 active:bg-slate-600 active:scale-95 py-1.5 text-xs sm:text-sm font-bold text-amber-300 shadow border border-slate-700 transition cursor-pointer"
+                title="সম্পূর্ণ ফিল্ড ক্লিয়ার করুন"
+              >
+                C (সম্পূর্ণ ক্লিয়ার)
+              </button>
+            </div>
+
+            {/* Right Column: 6 Operators from Bottom to Top (=, +, -, *, /, ⌫) */}
+            <div className="w-16 sm:w-20 flex flex-col gap-1.5">
+              {/* Top: Backspace */}
+              <button
+                type="button"
+                onClick={handleBackspace}
+                className="flex-1 rounded-xl bg-rose-900/80 hover:bg-rose-800 active:bg-rose-700 active:scale-95 text-base sm:text-lg font-bold text-rose-200 shadow border border-rose-700 transition cursor-pointer flex items-center justify-center"
+                title="একটি অক্ষর মুছুন"
+              >
+                ⌫
+              </button>
+
+              {/* / (ভাগ) */}
+              <button
+                type="button"
+                onClick={() => handleOperator("/")}
+                className="flex-1 rounded-xl bg-slate-800 hover:bg-slate-700 active:bg-slate-600 active:scale-95 text-base sm:text-lg font-black text-amber-300 shadow border border-slate-700 transition cursor-pointer flex items-center justify-center"
+                title="ভাগ (/)"
+              >
+                ÷
+              </button>
+
+              {/* * (গুণ) */}
+              <button
+                type="button"
+                onClick={() => handleOperator("*")}
+                className="flex-1 rounded-xl bg-slate-800 hover:bg-slate-700 active:bg-slate-600 active:scale-95 text-base sm:text-lg font-black text-amber-300 shadow border border-slate-700 transition cursor-pointer flex items-center justify-center"
+                title="গুণ (*)"
+              >
+                ×
+              </button>
+
+              {/* - (বিয়োগ) */}
+              <button
+                type="button"
+                onClick={() => handleOperator("-")}
+                className="flex-1 rounded-xl bg-slate-800 hover:bg-slate-700 active:bg-slate-600 active:scale-95 text-base sm:text-lg font-black text-amber-300 shadow border border-slate-700 transition cursor-pointer flex items-center justify-center"
+                title="বিয়োগ (-)"
+              >
+                −
+              </button>
+
+              {/* + (যোগ) */}
+              <button
+                type="button"
+                onClick={() => handleOperator("+")}
+                className="flex-1 rounded-xl bg-amber-600 hover:bg-amber-500 active:bg-amber-700 active:scale-95 text-lg sm:text-xl font-black text-white shadow border border-amber-500 transition cursor-pointer flex items-center justify-center"
+                title="যোগ (+)"
+              >
+                +
+              </button>
+
+              {/* Bottom: = (সমান / হিসাব) */}
+              <button
+                type="button"
+                onClick={handleEquals}
+                className="flex-1 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 active:scale-95 text-lg sm:text-xl font-black text-white shadow border border-emerald-500 transition cursor-pointer flex items-center justify-center ring-2 ring-emerald-400/30"
+                title="যোগফল হিসাব করতে সমান (=)"
+              >
+                =
+              </button>
+            </div>
           </div>
         )}
 
-        {/* Bottom Action Row: Save (সেভ), Reset (রিসেট), Close (ক্লোজ) */}
-        <div className="grid grid-cols-3 gap-2 pt-1 border-t border-slate-800">
-          <button
-            type="button"
-            onClick={onSave}
-            className="rounded-xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 active:scale-95 py-2.5 text-xs sm:text-sm font-black text-white shadow-lg flex items-center justify-center gap-1.5 cursor-pointer transition ring-2 ring-emerald-500/40"
-          >
-            <span>💾</span>
-            <span>সেভ (Save)</span>
-          </button>
+        {/* Bottom Action Row: ডান থেকে বামে সবার নিচে ইউনিভার্সাল অ্যারো কী এক ঘর হতে অন্য ঘর, ক্লোজ, save, reset */}
+        <div className="grid grid-cols-5 gap-1.5 pt-1.5 border-t border-slate-800">
           <button
             type="button"
             onClick={onReset}
-            className="rounded-xl bg-amber-600 hover:bg-amber-500 active:bg-amber-700 active:scale-95 py-2.5 text-xs sm:text-sm font-black text-white shadow-lg flex items-center justify-center gap-1.5 cursor-pointer transition ring-2 ring-amber-500/40"
+            className="rounded-xl bg-amber-600 hover:bg-amber-500 active:bg-amber-700 active:scale-95 py-2 text-[11px] sm:text-xs font-black text-white shadow flex items-center justify-center gap-1 cursor-pointer transition ring-1 ring-amber-400/40"
+            title="সব রিসেট করুন"
           >
             <span>🔄</span>
-            <span>রিসেট (Reset)</span>
+            <span>রিসেট</span>
+          </button>
+          <button
+            type="button"
+            onClick={onSave}
+            className="rounded-xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 active:scale-95 py-2 text-[11px] sm:text-xs font-black text-white shadow flex items-center justify-center gap-1 cursor-pointer transition ring-1 ring-emerald-400/40"
+            title="রিপোর্ট সেভ করুন"
+          >
+            <span>💾</span>
+            <span>সেভ</span>
           </button>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-xl bg-slate-700 hover:bg-slate-600 active:bg-slate-800 active:scale-95 py-2.5 text-xs sm:text-sm font-black text-slate-200 shadow flex items-center justify-center gap-1.5 cursor-pointer transition border border-slate-600"
+            className="rounded-xl bg-slate-700 hover:bg-slate-600 active:bg-slate-800 active:scale-95 py-2 text-[11px] sm:text-xs font-black text-slate-200 shadow flex items-center justify-center gap-1 cursor-pointer transition border border-slate-600"
+            title="কিবোর্ড ক্লোজ করুন"
           >
             <span>✖</span>
-            <span>ক্লোজ (Close)</span>
+            <span>ক্লোজ</span>
+          </button>
+          <button
+            type="button"
+            onClick={handlePrev}
+            className="rounded-xl bg-slate-800 hover:bg-slate-700 active:bg-slate-600 active:scale-95 py-2 text-[11px] sm:text-xs font-bold text-slate-200 border border-slate-700 flex items-center justify-center gap-1 cursor-pointer transition"
+            title="এক ঘর পূর্বের (Prev)"
+          >
+            <span>◀</span>
+            <span>পূর্বের</span>
+          </button>
+          <button
+            type="button"
+            onClick={handleNext}
+            className="rounded-xl bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 active:scale-95 py-2 text-[11px] sm:text-xs font-bold text-white shadow flex items-center justify-center gap-1 cursor-pointer transition"
+            title="এক ঘর পরের (Next)"
+          >
+            <span>পরের</span>
+            <span>▶</span>
           </button>
         </div>
       </div>

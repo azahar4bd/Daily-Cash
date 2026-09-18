@@ -1,10 +1,55 @@
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import DatePicker from "./DatePicker";
 import { fmt } from "./DenominationPopup";
-import { getSummary, getLocalTxs, getCategories } from "@/lib/storage";
-import type { Tx } from "@/types";
+import {
+  getSummary,
+  getLocalTxs,
+  getCategories,
+  getReportPageFigures,
+  isDayClosed,
+  getDayClosure,
+  saveDayClosure,
+  reopenDay,
+} from "@/lib/storage";
+import type { Tx, DayClosure } from "@/types";
 
 const NOTES_LIST = [1000, 500, 200, 100, 50, 20, 10, 5, 2, 1] as const;
+const CASH_SHEET_DENOM_PREFIX = "cash_sheet_denom_";
+
+export function normalizeDigits(input: string): string {
+  const bnToEnMap: Record<string, string> = {
+    "০": "0", "১": "1", "২": "2", "৩": "3", "৪": "4",
+    "৫": "5", "৬": "6", "৭": "7", "৮": "8", "৯": "9",
+  };
+  return String(input || "")
+    .replace(/[০-৯]/g, (d) => bnToEnMap[d] || d)
+    .replace(/[^0-9]/g, "");
+}
+
+const getSavedQuantities = (date: string): Record<string, string> => {
+  try {
+    const raw = localStorage.getItem(`${CASH_SHEET_DENOM_PREFIX}${date}`);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === "object") return parsed;
+    }
+  } catch {}
+  return {
+    "1000": "",
+    "500": "",
+    "200": "",
+    "100": "",
+    "50": "",
+    "20": "",
+    "10": "",
+    "5": "",
+    "2": "",
+    "1": "",
+    coins: "",
+    revenueStamp: "",
+    pendingSlip: "",
+  };
+};
 
 export function numberToWords(num: number): string {
   num = Math.round(Math.abs(num));
@@ -63,21 +108,9 @@ export default function CashSheet({
 }) {
   const [closingCash, setClosingCash] = useState(0);
   const [closingBank, setClosingBank] = useState(0);
-  const [quantities, setQuantities] = useState<Record<string, string>>({
-    "1000": "",
-    "500": "",
-    "200": "",
-    "100": "",
-    "50": "",
-    "20": "",
-    "10": "",
-    "5": "",
-    "2": "",
-    "1": "",
-    coins: "",
-    revenueStamp: "",
-    pendingSlip: "",
-  });
+  const [quantities, setQuantities] = useState<Record<string, string>>(() =>
+    getSavedQuantities(selectedDate)
+  );
   const [officerAmounts, setOfficerAmounts] = useState({
     monir: 0,
     sakib: 0,
@@ -88,12 +121,80 @@ export default function CashSheet({
   });
   const [pdfGenerating, setPdfGenerating] = useState(false);
   const [pdfModalOpen, setPdfModalOpen] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(true);
+  const [dayClosed, setDayClosed] = useState(false);
+  const [dayCloseModalOpen, setDayCloseModalOpen] = useState(false);
+  const [position, setPosition] = useState<{ x: number; y: number } | null>(null);
   const documentRef = useRef<HTMLDivElement>(null);
+  const trackerRef = useRef<HTMLDivElement>(null);
+  const dragInfo = useRef({
+    isDragging: false,
+    startX: 0,
+    startY: 0,
+    elemStartX: 0,
+    elemStartY: 0,
+    hasMoved: false,
+  });
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0 && e.pointerType === "mouse") return;
+    const rect = trackerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+
+    dragInfo.current = {
+      isDragging: true,
+      startX: e.clientX,
+      startY: e.clientY,
+      elemStartX: rect.left,
+      elemStartY: rect.top,
+      hasMoved: false,
+    };
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {}
+  };
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragInfo.current.isDragging) return;
+    const dx = e.clientX - dragInfo.current.startX;
+    const dy = e.clientY - dragInfo.current.startY;
+
+    if (Math.abs(dx) > 4 || Math.abs(dy) > 4) {
+      dragInfo.current.hasMoved = true;
+    }
+
+    const rect = trackerRef.current?.getBoundingClientRect();
+    const elemWidth = rect?.width || 110;
+    const elemHeight = rect?.height || 45;
+
+    const newX = Math.min(Math.max(8, dragInfo.current.elemStartX + dx), window.innerWidth - elemWidth - 8);
+    const newY = Math.min(Math.max(50, dragInfo.current.elemStartY + dy), window.innerHeight - elemHeight - 8);
+
+    setPosition({ x: newX, y: newY });
+  };
+
+  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragInfo.current.isDragging) return;
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {}
+    dragInfo.current.isDragging = false;
+  };
+
+  const handleTrackerClick = () => {
+    if (!dragInfo.current.hasMoved) {
+      setIsCollapsed((prev) => !prev);
+    }
+    dragInfo.current.hasMoved = false;
+  };
 
   const loadData = () => {
-    const sum = getSummary(selectedDate);
-    setClosingCash(Math.round(sum.todayCashInHand || sum.cash || 0));
-    setClosingBank(Math.round(sum.todayBankBalance || sum.bank || 0));
+    // Exact Report Page figures for Cash in Hand and Bank Balance
+    const rep = getReportPageFigures(selectedDate);
+    setClosingCash(rep.reportCashInHand);
+    setClosingBank(rep.reportBankBalance);
+    const closed = isDayClosed(selectedDate);
+    setDayClosed(closed);
 
     const allTx: Tx[] = getLocalTxs();
     const dCats = getCategories("disburse").map((c) => c.name.toLowerCase().trim());
@@ -107,7 +208,6 @@ export default function CashSheet({
     let alamgirSum = 0;
     let manualLoanFormsReceive = 0;
     let manualWelfareReceive = 0;
-    const aggregatedNotes: Record<string, number> = {};
 
     for (const t of dateReceive) {
       const cat = t.category.toLowerCase().trim();
@@ -118,12 +218,6 @@ export default function CashSheet({
       else if (cat.includes("alamgir")) alamgirSum += amt;
       else if (cat.includes("loan form") || cat.includes("sale")) manualLoanFormsReceive += amt;
       else if (cat.includes("welfare") || cat.includes("kallayan") || cat.includes("member")) manualWelfareReceive += amt;
-
-      if (t.denomination) {
-        for (const [k, v] of Object.entries(t.denomination)) {
-          aggregatedNotes[k] = (aggregatedNotes[k] || 0) + (Number(v) || 0);
-        }
-      }
     }
 
     const disburseLoans = datePayment.filter((t) => {
@@ -155,23 +249,23 @@ export default function CashSheet({
       loanForms: loanFormsFinal,
       memberWelfare: welfareFinal,
     });
-
-    if (Object.keys(aggregatedNotes).length > 0) {
-      setQuantities((prev) => {
-        const next = { ...prev };
-        for (const n of NOTES_LIST) {
-          const count = aggregatedNotes[String(n)];
-          if (count) next[String(n)] = String(count);
-        }
-        return next;
-      });
-    }
   };
+
+  // Only load quantities when the selected date changes (never on tx background events)
+  useEffect(() => {
+    setQuantities(getSavedQuantities(selectedDate));
+  }, [selectedDate]);
 
   useEffect(() => {
     loadData();
-    window.addEventListener("tx-changed", loadData);
-    return () => window.removeEventListener("tx-changed", loadData);
+    const onTx = () => loadData();
+    const onDayClose = () => loadData();
+    window.addEventListener("tx-changed", onTx);
+    window.addEventListener("day-close-changed", onDayClose);
+    return () => {
+      window.removeEventListener("tx-changed", onTx);
+      window.removeEventListener("day-close-changed", onDayClose);
+    };
   }, [selectedDate]);
 
   const noteTotal = NOTES_LIST.reduce((acc, n) => {
@@ -191,8 +285,69 @@ export default function CashSheet({
     officerAmounts.loanForms +
     officerAmounts.memberWelfare;
 
-  const handleQtyChange = (key: string, val: string) => {
-    setQuantities((prev) => ({ ...prev, [key]: val }));
+  const handleQtyChange = (key: string, rawVal: string) => {
+    const val = normalizeDigits(rawVal);
+    setQuantities((prev) => {
+      const next = { ...prev, [key]: val };
+      try {
+        localStorage.setItem(`${CASH_SHEET_DENOM_PREFIX}${selectedDate}`, JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+  };
+
+  const handleClearQuantities = () => {
+    const empty: Record<string, string> = {
+      "1000": "",
+      "500": "",
+      "200": "",
+      "100": "",
+      "50": "",
+      "20": "",
+      "10": "",
+      "5": "",
+      "2": "",
+      "1": "",
+      coins: "",
+      revenueStamp: "",
+      pendingSlip: "",
+    };
+    setQuantities(empty);
+    try {
+      localStorage.setItem(`${CASH_SHEET_DENOM_PREFIX}${selectedDate}`, JSON.stringify(empty));
+    } catch {}
+  };
+
+  const handleInitiateDayClose = () => {
+    setDayCloseModalOpen(true);
+  };
+
+  const handleConfirmDayClose = () => {
+    const sum = getSummary(selectedDate);
+    const closure: DayClosure = {
+      closeDate: selectedDate,
+      openingCash: sum.prevCash,
+      openingBank: sum.prevBank,
+      closingCash: closingCash,
+      closingBank: closingBank,
+      totalReceive: sum.receive,
+      totalPayment: sum.expense,
+      denomination: quantities,
+      status: "closed",
+      closedAt: new Date().toISOString(),
+      closedBy: "Cashier",
+      notes: diffDenomVsCash === 0 ? "Matched" : `Difference: ${diffDenomVsCash}`,
+    };
+    saveDayClosure(closure);
+    setDayCloseModalOpen(false);
+    setDayClosed(true);
+  };
+
+  const handleReopen = () => {
+    if (confirm(`আপনি কি নিশ্চিত যে ${selectedDate} তারিখের হিসাবটি পুনরায় আনলক/ওপেন (Re-open) করতে চান?`)) {
+      reopenDay(selectedDate);
+      setDayClosed(false);
+    }
   };
 
   const handlePrint = () => {
@@ -209,9 +364,21 @@ export default function CashSheet({
       const canvas = await html2canvas(element, { scale: 2, backgroundColor: "#ffffff" });
       const imgData = canvas.toDataURL("image/jpeg", 0.95);
       const pdf = new jsPDF("p", "mm", "a4");
-      const width = pdf.internal.pageSize.getWidth();
-      const height = (canvas.height * width) / canvas.width;
-      pdf.addImage(imgData, "JPEG", 0, 0, width, height);
+      const pageWidth = pdf.internal.pageSize.getWidth(); // 210mm
+      const pageHeight = pdf.internal.pageSize.getHeight(); // 297mm
+      const margin = 5;
+      const maxW = pageWidth - margin * 2; // 200mm
+      const maxH = pageHeight - margin * 2; // 287mm
+
+      let finalW = maxW;
+      let finalH = (canvas.height * finalW) / canvas.width;
+      if (finalH > maxH) {
+        finalH = maxH;
+        finalW = (canvas.width * finalH) / canvas.height;
+      }
+      const posX = (pageWidth - finalW) / 2;
+      const posY = (pageHeight - finalH) / 2;
+      pdf.addImage(imgData, "JPEG", posX, posY, finalW, finalH);
       pdf.save(`Cash_Sheet_GOBRA_${selectedDate}.pdf`);
     } catch {
       window.print();
@@ -221,49 +388,49 @@ export default function CashSheet({
   };
 
   const renderContent = (isInteractive: boolean = true) => (
-    <div className="w-full bg-white p-6 sm:p-10 text-slate-950 font-sans flex flex-col justify-between min-h-[950px]">
+    <div className="w-full bg-white p-3 sm:p-6 print:p-1.5 text-slate-950 font-sans flex flex-col justify-between">
       <div>
         {/* Document Header */}
-        <div className="text-center mb-4">
-          <h1 className="text-2xl sm:text-3xl font-black font-serif text-slate-900">
+        <div className="text-center mb-2 print:mb-1">
+          <h1 className="text-xl sm:text-2xl font-black font-serif text-slate-900 leading-tight">
             Bandhu Kallyan Foundation
           </h1>
-          <p className="text-xs sm:text-sm font-bold text-slate-800 mt-0.5">
+          <p className="text-[11px] sm:text-xs font-bold text-slate-800 mt-0.5">
             GOBRA BRANCH-0014 Branch.
           </p>
-          <div className="my-2 inline-block border-2 border-blue-900 bg-white px-6 py-0.5 rounded-sm">
-            <span className="font-serif italic font-extrabold text-base sm:text-lg text-blue-950">
+          <div className="my-1 inline-block border-2 border-blue-900 bg-white px-5 py-0.5 rounded-sm">
+            <span className="font-serif italic font-extrabold text-sm sm:text-base text-blue-950">
               Cash &amp; Bank Information
             </span>
           </div>
-          <div className="flex justify-end mt-1">
-            <div className="border border-slate-800 px-3 py-0.5 text-xs font-bold font-mono">
+          <div className="flex justify-end mt-0.5">
+            <div className="border border-slate-800 px-2.5 py-0.5 text-xs font-bold font-mono">
               Date: {selectedDate}
             </div>
           </div>
         </div>
 
         {/* Section A: Cash & Bank Information */}
-        <div className="mb-4">
-          <div className="mb-1 flex items-center justify-between text-xs sm:text-sm font-bold text-slate-900">
+        <div className="mb-2 print:mb-1">
+          <div className="mb-0.5 flex items-center justify-between text-xs sm:text-sm font-bold text-slate-900">
             <span>A. Cash &amp; Bank Information:</span>
             <span>Day: {getDayName(selectedDate)}</span>
           </div>
           <table className="w-full border-collapse border-2 border-black text-xs sm:text-sm">
             <tbody>
               <tr>
-                <td className="w-2/3 border border-black px-4 py-1.5 font-medium">
+                <td className="w-2/3 border border-black px-3 py-1 font-medium">
                   Closing Cash in Hand: TK (BDT)
                 </td>
-                <td className="w-1/3 border border-black px-4 py-1.5 text-right font-mono font-bold">
+                <td className="w-1/3 border border-black px-3 py-1 text-right font-mono font-bold">
                   {fmt(closingCash)}
                 </td>
               </tr>
               <tr>
-                <td className="w-2/3 border border-black px-4 py-1.5 font-medium">
+                <td className="w-2/3 border border-black px-3 py-1 font-medium">
                   Closing Cash at Bank: TK (BDT)
                 </td>
-                <td className="w-1/3 border border-black px-4 py-1.5 text-right font-mono font-bold">
+                <td className="w-1/3 border border-black px-3 py-1 text-right font-mono font-bold">
                   {fmt(closingBank)}
                 </td>
               </tr>
@@ -272,30 +439,15 @@ export default function CashSheet({
         </div>
 
         {/* Section B: Denominations */}
-        <div className="mb-4">
-          <div className="mb-1 flex items-center justify-between text-xs sm:text-sm font-bold text-slate-900">
+        <div className="mb-2 print:mb-1">
+          <div className="mb-0.5 flex items-center justify-between text-xs sm:text-sm font-bold text-slate-900">
             <span>B. Denominations of Cash / Notes :</span>
             {isInteractive && (
               <button
                 type="button"
-                onClick={() =>
-                  setQuantities({
-                    "1000": "",
-                    "500": "",
-                    "200": "",
-                    "100": "",
-                    "50": "",
-                    "20": "",
-                    "10": "",
-                    "5": "",
-                    "2": "",
-                    "1": "",
-                    coins: "",
-                    revenueStamp: "",
-                    pendingSlip: "",
-                  })
-                }
-                className="print:hidden rounded bg-slate-500 px-2.5 py-0.5 text-xs text-white"
+                onClick={handleClearQuantities}
+                className="print:hidden rounded bg-slate-500 hover:bg-slate-600 px-2 py-0.5 text-[11px] font-bold text-white cursor-pointer"
+                title="সকল নোট খালি করুন"
               >
                 Reset
               </button>
@@ -304,13 +456,13 @@ export default function CashSheet({
           <table className="w-full border-collapse border-2 border-black text-xs sm:text-sm">
             <thead>
               <tr className="bg-slate-100">
-                <th colSpan={2} className="border border-black px-2 py-1 text-center font-bold">Particulars</th>
-                <th rowSpan={2} className="w-32 border border-black px-2 py-1 text-center font-bold">TK (BDT)</th>
-                <th rowSpan={2} className="w-16 border border-black px-2 py-1 text-center font-bold">Ps</th>
+                <th colSpan={2} className="border border-black px-2 py-0.5 text-center font-bold">Particulars</th>
+                <th rowSpan={2} className="w-28 sm:w-32 border border-black px-2 py-0.5 text-center font-bold">TK (BDT)</th>
+                <th rowSpan={2} className="w-12 sm:w-16 border border-black px-2 py-0.5 text-center font-bold">Ps</th>
               </tr>
               <tr className="bg-slate-100">
-                <th className="border border-black px-2 py-1 text-center font-semibold">Notes</th>
-                <th className="w-24 border border-black px-2 py-1 text-center font-semibold">Quantity</th>
+                <th className="border border-black px-2 py-0.5 text-center font-semibold">Notes</th>
+                <th className="w-20 sm:w-24 border border-black px-2 py-0.5 text-center font-semibold">Quantity</th>
               </tr>
             </thead>
             <tbody>
@@ -319,143 +471,184 @@ export default function CashSheet({
                 const rowTk = qty * note;
                 return (
                   <tr key={note}>
-                    <td className="border border-black px-3 py-1 text-center font-mono font-bold">{note}</td>
-                    <td className="border border-black px-2 py-0.5 text-center">
+                    <td className="border border-black px-2.5 py-0.5 text-center font-mono font-bold">{note}</td>
+                    <td className="border border-black px-1.5 py-0.5 text-center">
                       {isInteractive ? (
                         <input
-                          type="number"
-                          min="0"
-                          value={quantities[String(note)]}
+                          type="text"
+                          inputMode="numeric"
+                          autoComplete="off"
+                          autoCorrect="off"
+                          autoCapitalize="off"
+                          spellCheck={false}
+                          value={quantities[String(note)] || ""}
                           onChange={(e) => handleQtyChange(String(note), e.target.value)}
-                          placeholder="-"
-                          className="w-full text-center font-mono text-xs sm:text-sm font-bold focus:outline-none"
+                          onFocus={(e) => e.target.select()}
+                          placeholder="0"
+                          className="w-full text-center font-mono text-xs sm:text-sm font-bold py-1 bg-yellow-50 focus:bg-amber-100 rounded border border-amber-300 focus:border-indigo-600 focus:outline-none transition cursor-text select-text"
                         />
                       ) : (
                         <span className="font-mono font-bold">{qty > 0 ? qty : "-"}</span>
                       )}
                     </td>
-                    <td className="border border-black px-3 py-1 text-right font-mono font-semibold">
+                    <td className="border border-black px-2.5 py-0.5 text-right font-mono font-semibold">
                       {rowTk > 0 ? fmt(rowTk) : "-"}
                     </td>
-                    <td className="border border-black px-2 py-1 text-center font-mono text-slate-400">-</td>
+                    <td className="border border-black px-1.5 py-0.5 text-center font-mono text-slate-400">-</td>
                   </tr>
                 );
               })}
               <tr>
-                <td className="border border-black px-3 py-1 text-center">Coins (1+2+5)</td>
-                <td className="border border-black px-2 py-0.5 text-center">
+                <td className="border border-black px-2.5 py-0.5 text-center">Coins (1+2+5)</td>
+                <td className="border border-black px-1.5 py-0.5 text-center">
                   {isInteractive ? (
                     <input
-                      type="number"
-                      value={quantities.coins}
+                      type="text"
+                      inputMode="numeric"
+                      autoComplete="off"
+                      autoCorrect="off"
+                      autoCapitalize="off"
+                      spellCheck={false}
+                      value={quantities.coins || ""}
                       onChange={(e) => handleQtyChange("coins", e.target.value)}
-                      placeholder="-"
-                      className="w-full text-center font-mono text-xs sm:text-sm font-bold focus:outline-none"
+                      onFocus={(e) => e.target.select()}
+                      placeholder="0"
+                      className="w-full text-center font-mono text-xs sm:text-sm font-bold py-1 bg-yellow-50 focus:bg-amber-100 rounded border border-amber-300 focus:border-indigo-600 focus:outline-none transition cursor-text select-text"
                     />
                   ) : (
                     <span>{quantities.coins || "-"}</span>
                   )}
                 </td>
-                <td className="border border-black px-3 py-1 text-right font-mono font-semibold">
+                <td className="border border-black px-2.5 py-0.5 text-right font-mono font-semibold">
                   {coinsAmt > 0 ? fmt(coinsAmt) : "-"}
                 </td>
-                <td className="border border-black px-2 py-1 text-center font-mono text-slate-400">-</td>
+                <td className="border border-black px-1.5 py-0.5 text-center font-mono text-slate-400">-</td>
               </tr>
               <tr className="font-bold bg-slate-100">
-                <td colSpan={2} className="border border-black px-3 py-1.5 text-right font-bold">Total :</td>
-                <td className="border border-black px-3 py-1.5 text-right font-mono font-bold">
+                <td colSpan={2} className="border border-black px-2.5 py-0.5 text-right font-bold">Total :</td>
+                <td className="border border-black px-2.5 py-0.5 text-right font-mono font-bold">
                   {totalDenomination > 0 ? fmt(totalDenomination) : "-"}
                 </td>
-                <td className="border border-black px-2 py-1.5 text-center">-</td>
+                <td className="border border-black px-1.5 py-0.5 text-center">-</td>
               </tr>
             </tbody>
           </table>
-          <div className="mt-1 text-xs sm:text-sm font-semibold text-slate-800">
+          <div className="mt-0.5 text-[11px] sm:text-xs font-semibold text-slate-800 truncate">
             <span className="font-bold">In Word:</span> {numberToWords(totalDenomination)}
           </div>
         </div>
 
-        {/* Section C: Credit Officers */}
-        <div className="mb-4">
-          <div className="mb-1 text-xs sm:text-sm font-bold text-slate-900">
+        {/* Section C: Credit Officer & Others Cash Received Information */}
+        <div className="mb-2 print:mb-1">
+          <div className="mb-0.5 text-xs sm:text-sm font-bold text-slate-900">
             C. Credit Officer &amp; Others Cash Received Information.
           </div>
           <table className="w-full border-collapse border-2 border-black text-xs sm:text-sm">
             <thead>
               <tr className="bg-slate-100">
-                <th className="w-12 border border-black px-2 py-1 text-center">S.L</th>
-                <th className="border border-black px-3 py-1 text-left">Employee Name</th>
-                <th className="w-20 border border-black px-2 py-1 text-center">PIN</th>
-                <th className="w-32 border border-black px-3 py-1 text-right">TK (BDT)</th>
-                <th className="w-32 border border-black px-2 py-1 text-center">Signature</th>
+                <th className="w-10 sm:w-12 border border-black px-2 py-0.5 text-center">S.L</th>
+                <th className="border border-black px-2.5 py-0.5 text-left">Employee Name</th>
+                <th className="w-16 sm:w-20 border border-black px-2 py-0.5 text-center">PIN</th>
+                <th className="w-28 sm:w-32 border border-black px-2.5 py-0.5 text-right">TK (BDT)</th>
+                <th className="w-24 sm:w-32 border border-black px-2 py-0.5 text-center">Signature</th>
               </tr>
             </thead>
             <tbody>
               <tr>
-                <td className="border border-black px-2 py-1 text-center">1</td>
-                <td className="border border-black px-3 py-1 font-medium">Md Monirul Islam</td>
-                <td className="border border-black px-2 py-1 text-center font-mono">621</td>
-                <td className="border border-black px-3 py-1 text-right font-mono font-bold">{fmt(officerAmounts.monir)}</td>
-                <td className="border border-black px-2 py-1"></td>
+                <td className="border border-black px-2 py-0.5 text-center">1</td>
+                <td className="border border-black px-2.5 py-0.5 font-medium">Md Monirul Islam</td>
+                <td className="border border-black px-2 py-0.5 text-center font-mono">621</td>
+                <td className="border border-black px-2.5 py-0.5 text-right font-mono font-bold">{fmt(officerAmounts.monir)}</td>
+                <td className="border border-black px-2 py-0.5"></td>
               </tr>
               <tr>
-                <td className="border border-black px-2 py-1 text-center">2</td>
-                <td className="border border-black px-3 py-1 font-medium">Ezaz Sakib</td>
-                <td className="border border-black px-2 py-1 text-center font-mono">1056</td>
-                <td className="border border-black px-3 py-1 text-right font-mono font-bold">{fmt(officerAmounts.sakib)}</td>
-                <td className="border border-black px-2 py-1"></td>
+                <td className="border border-black px-2 py-0.5 text-center">2</td>
+                <td className="border border-black px-2.5 py-0.5 font-medium">Ezaz Sakib</td>
+                <td className="border border-black px-2 py-0.5 text-center font-mono">1056</td>
+                <td className="border border-black px-2.5 py-0.5 text-right font-mono font-bold">{fmt(officerAmounts.sakib)}</td>
+                <td className="border border-black px-2 py-0.5"></td>
               </tr>
               <tr>
-                <td className="border border-black px-2 py-1 text-center">3</td>
-                <td className="border border-black px-3 py-1 font-medium">Md Mintu Moholder</td>
-                <td className="border border-black px-2 py-1 text-center font-mono">1189</td>
-                <td className="border border-black px-3 py-1 text-right font-mono font-bold">{fmt(officerAmounts.mintu)}</td>
-                <td className="border border-black px-2 py-1"></td>
+                <td className="border border-black px-2 py-0.5 text-center">3</td>
+                <td className="border border-black px-2.5 py-0.5 font-medium">Md Mintu Moholder</td>
+                <td className="border border-black px-2 py-0.5 text-center font-mono">1189</td>
+                <td className="border border-black px-2.5 py-0.5 text-right font-mono font-bold">{fmt(officerAmounts.mintu)}</td>
+                <td className="border border-black px-2 py-0.5"></td>
               </tr>
               <tr>
-                <td className="border border-black px-2 py-1 text-center">4</td>
-                <td className="border border-black px-3 py-1 font-medium">Md Alamgir Hossain</td>
-                <td className="border border-black px-2 py-1 text-center font-mono">1224</td>
-                <td className="border border-black px-3 py-1 text-right font-mono font-bold">{fmt(officerAmounts.alamgir)}</td>
-                <td className="border border-black px-2 py-1"></td>
+                <td className="border border-black px-2 py-0.5 text-center">4</td>
+                <td className="border border-black px-2.5 py-0.5 font-medium">Md Alamgir Hossain</td>
+                <td className="border border-black px-2 py-0.5 text-center font-mono">1224</td>
+                <td className="border border-black px-2.5 py-0.5 text-right font-mono font-bold">{fmt(officerAmounts.alamgir)}</td>
+                <td className="border border-black px-2 py-0.5"></td>
               </tr>
               <tr>
-                <td className="border border-black px-2 py-1 text-center">5</td>
-                <td className="border border-black px-3 py-1 font-medium">Sales of Loan Forms</td>
-                <td className="border border-black px-2 py-1 text-center font-mono">-</td>
-                <td className="border border-black px-3 py-1 text-right font-mono font-bold">{fmt(officerAmounts.loanForms)}</td>
-                <td className="border border-black px-2 py-1"></td>
+                <td className="border border-black px-2 py-0.5 text-center">5</td>
+                <td className="border border-black px-2.5 py-0.5 font-medium">Sales of Loan Forms</td>
+                <td className="border border-black px-2 py-0.5 text-center font-mono">-</td>
+                <td className="border border-black px-2.5 py-0.5 text-right font-mono font-bold">{fmt(officerAmounts.loanForms)}</td>
+                <td className="border border-black px-2 py-0.5"></td>
               </tr>
               <tr>
-                <td className="border border-black px-2 py-1 text-center">6</td>
-                <td className="border border-black px-3 py-1 font-medium">Member Welfare Fund</td>
-                <td className="border border-black px-2 py-1 text-center font-mono">-</td>
-                <td className="border border-black px-3 py-1 text-right font-mono font-bold">{fmt(officerAmounts.memberWelfare)}</td>
-                <td className="border border-black px-2 py-1"></td>
+                <td className="border border-black px-2 py-0.5 text-center">6</td>
+                <td className="border border-black px-2.5 py-0.5 font-medium">Member Welfare Fund</td>
+                <td className="border border-black px-2 py-0.5 text-center font-mono">-</td>
+                <td className="border border-black px-2.5 py-0.5 text-right font-mono font-bold">{fmt(officerAmounts.memberWelfare)}</td>
+                <td className="border border-black px-2 py-0.5"></td>
               </tr>
               <tr className="font-bold bg-slate-100">
-                <td colSpan={3} className="border border-black px-3 py-1.5 text-right font-bold">Total :</td>
-                <td className="border border-black px-3 py-1.5 text-right font-mono font-black">{fmt(totalOfficersReceived)}</td>
-                <td className="border border-black px-2 py-1.5"></td>
+                <td colSpan={3} className="border border-black px-2.5 py-1 text-right font-bold">Total :</td>
+                <td className="border border-black px-2.5 py-1 text-right font-mono font-black">{fmt(totalOfficersReceived)}</td>
+                <td className="border border-black px-2 py-0.5"></td>
               </tr>
             </tbody>
           </table>
-          <div className="mt-1 text-xs sm:text-sm font-semibold text-slate-800">
+          <div className="mt-0.5 text-[11px] sm:text-xs font-semibold text-slate-800 truncate">
             <span className="font-bold">In Word:</span> {numberToWords(totalOfficersReceived)}
           </div>
         </div>
       </div>
 
       {/* Signatures */}
-      <div className="mt-10 flex items-center justify-between px-10 text-xs sm:text-sm font-bold">
+      <div className="mt-4 print:mt-3 flex items-center justify-between px-10 text-xs sm:text-sm font-bold">
         <div className="w-32 border-t-2 border-slate-900 pt-1 text-center">Accountant</div>
         <div className="w-32 border-t-2 border-slate-900 pt-1 text-center">Manager</div>
       </div>
     </div>
   );
 
+  const diffDenomVsCash = totalDenomination - closingCash;
+
   return (
     <div className="space-y-4">
+      {/* Print Styles for Guaranteed Single Page */}
+      <style>{`
+        @media print {
+          @page {
+            size: A4 portrait;
+            margin: 5mm;
+          }
+          body {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+            background: white !important;
+          }
+          #cash-sheet-document {
+            width: 100% !important;
+            max-width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            border: none !important;
+            box-shadow: none !important;
+            page-break-after: avoid !important;
+            page-break-inside: avoid !important;
+          }
+          .print\\:hidden {
+            display: none !important;
+          }
+        }
+      `}</style>
+
       {/* Top Toolbar */}
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-white p-4 shadow-sm border border-slate-200 print:hidden">
         <div className="flex items-center gap-2">
@@ -469,6 +662,35 @@ export default function CashSheet({
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {/* Day Close Button / Status */}
+          {dayClosed ? (
+            <div className="flex items-center gap-1.5">
+              <span className="rounded-lg bg-emerald-700 px-3.5 py-1.5 text-xs font-bold text-white shadow flex items-center gap-1.5 ring-2 ring-emerald-500/40">
+                <span>🔒</span>
+                <span>Day Closed (দিন সমাপ্ত)</span>
+              </span>
+              <button
+                type="button"
+                onClick={handleReopen}
+                className="rounded-lg bg-amber-600 hover:bg-amber-700 px-3 py-1.5 text-xs font-bold text-white shadow cursor-pointer transition flex items-center gap-1"
+                title="দিন পুনরায় খুলুন"
+              >
+                <span>🔓</span>
+                <span>Re-open</span>
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={handleInitiateDayClose}
+              className="rounded-lg bg-emerald-600 hover:bg-emerald-700 px-3.5 py-1.5 text-xs font-bold text-white shadow cursor-pointer transition flex items-center gap-1.5 ring-2 ring-emerald-400/40"
+              title="এই তারিখের হিসাব চূড়ান্তভাবে বন্ধ করুন"
+            >
+              <span>🔒</span>
+              <span>Day Close করুন</span>
+            </button>
+          )}
+
           <button
             type="button"
             onClick={() => setPdfModalOpen(true)}
@@ -494,6 +716,25 @@ export default function CashSheet({
         </div>
       </div>
 
+      {/* Day Closed Notice Banner */}
+      {dayClosed && (
+        <div className="rounded-2xl border border-emerald-300 bg-emerald-50 p-3.5 text-xs sm:text-sm font-bold text-emerald-950 shadow-xs flex items-center justify-between print:hidden">
+          <div className="flex items-center gap-2">
+            <span className="text-base">🔒</span>
+            <span>
+              এই তারিখের ({selectedDate}) দিন সমাপ্ত (Day Closed) রয়েছে। হিসাব লক ও সুরক্ষিত আছে।
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={handleReopen}
+            className="rounded-lg bg-amber-600 hover:bg-amber-700 text-white px-3 py-1 text-xs font-bold transition shadow-xs cursor-pointer"
+          >
+            🔓 Re-open Day
+          </button>
+        </div>
+      )}
+
       {/* Main Document */}
       <div
         id="cash-sheet-document"
@@ -502,6 +743,179 @@ export default function CashSheet({
       >
         {renderContent(true)}
       </div>
+
+      {/* Draggable & Collapsible Difference Window (শুধুমাত্র পার্থক্য, ম্যানুয়ালি যে কোনো দিকে ড্র্যাগ করে সরানো যায়) */}
+      <div
+        ref={trackerRef}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+        onClick={handleTrackerClick}
+        style={
+          position
+            ? {
+                left: `${position.x}px`,
+                top: `${position.y}px`,
+                right: "auto",
+                bottom: "auto",
+              }
+            : {
+                right: "16px",
+                bottom: "75px",
+              }
+        }
+        className="fixed z-50 print:hidden select-none touch-none cursor-grab active:cursor-grabbing transition-shadow drop-shadow-2xl"
+      >
+        {isCollapsed ? (
+          /* কলাপ্স অবস্থা: রিপোর্ট পেজের মতো ছোট গোল ফ্লোটিং বাটন */
+          <div
+            className={`relative flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-full shadow-2xl border backdrop-blur-md transition-all hover:scale-110 active:scale-95 cursor-pointer ${
+              diffDenomVsCash === 0
+                ? "bg-slate-900/95 border-emerald-500/80 text-emerald-300 ring-2 ring-emerald-500/30"
+                : "bg-slate-900/95 border-rose-500/80 text-rose-300 ring-2 ring-rose-500/30"
+            }`}
+            title="পার্থক্য ট্র্যাকার (ট্যাপ করলে খুলবে)"
+          >
+            <span className="text-lg sm:text-xl leading-none select-none">⚖️</span>
+            <span
+              className={`absolute -top-1 -right-1 flex h-4 min-w-[16px] sm:h-4.5 sm:min-w-[18px] items-center justify-center rounded-full px-1 text-[9px] font-mono font-black shadow ${
+                diffDenomVsCash === 0
+                  ? "bg-emerald-400 text-slate-950"
+                  : "bg-rose-500 text-white"
+              }`}
+            >
+              {diffDenomVsCash === 0
+                ? "0"
+                : diffDenomVsCash > 0
+                ? `+${fmt(diffDenomVsCash)}`
+                : `-${fmt(Math.abs(diffDenomVsCash))}`}
+            </span>
+          </div>
+        ) : (
+          /* এক্সপান্ড অবস্থা: ছোট উইন্ডো - শুধু ডিফারেন্ট সংখ্যা লিখতে যতটুকু জায়গা লাগে ততটুকু */
+          <div
+            className={`rounded-xl px-2.5 py-1.5 shadow-2xl border backdrop-blur-md transition-all w-auto min-w-[105px] max-w-[145px] ${
+              diffDenomVsCash === 0
+                ? "bg-slate-900/95 border-emerald-500/80 text-white ring-2 ring-emerald-500/30"
+                : "bg-slate-900/95 border-rose-500/80 text-white ring-2 ring-rose-500/30"
+            }`}
+            title="টেনে সরানো যাবে / ক্লিক করলে ছোট হবে"
+          >
+            {/* ছোট হেডার ও ড্র্যাগ হ্যান্ডেল */}
+            <div className="flex items-center justify-between gap-1 pb-1 border-b border-slate-800 text-[10px]">
+              <span className="flex items-center gap-1 font-bold text-amber-400">
+                <span className="text-slate-400 text-[10px] cursor-grab">⠿</span>
+                <span>⚖️ ডিফারেন্স</span>
+              </span>
+              <span className="text-[10px] text-slate-400 hover:text-white cursor-pointer font-bold px-1 rounded">
+                ▲
+              </span>
+            </div>
+
+            {/* শুধু ডিফারেন্স সংখ্যা */}
+            <div className="text-center py-1">
+              <div
+                className={`font-mono font-black text-sm sm:text-base leading-tight tracking-tight ${
+                  diffDenomVsCash === 0 ? "text-emerald-400" : "text-rose-400"
+                }`}
+              >
+                {diffDenomVsCash === 0
+                  ? "0"
+                  : diffDenomVsCash > 0
+                  ? `+${fmt(diffDenomVsCash)}`
+                  : `-${fmt(Math.abs(diffDenomVsCash))}`}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Day Close Confirmation Modal */}
+      {dayCloseModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-5 sm:p-6 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between border-b pb-3 mb-4">
+              <div className="flex items-center gap-2">
+                <span className="text-2xl">🔒</span>
+                <h3 className="text-base sm:text-lg font-black text-slate-900">
+                  Day Close (দিন সমাপ্তি)
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDayCloseModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 text-lg cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs sm:text-sm">
+              <div className="rounded-xl bg-slate-50 border border-slate-200 p-3 space-y-1.5">
+                <div className="flex justify-between">
+                  <span className="text-slate-600 font-semibold">তারিখ:</span>
+                  <span className="font-mono font-black text-slate-900">{selectedDate}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-600 font-semibold">হাতে নগদ (Cash in Hand):</span>
+                  <span className="font-mono font-black text-emerald-700">{fmt(closingCash)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-600 font-semibold">নোট গণনা (Denomination):</span>
+                  <span className="font-mono font-black text-cyan-800">{fmt(totalDenomination)}</span>
+                </div>
+                <div className="flex justify-between border-t border-slate-200 pt-1.5 font-bold">
+                  <span className="text-slate-700">পার্থক্য (Difference):</span>
+                  <span
+                    className={`font-mono font-black ${
+                      diffDenomVsCash === 0
+                        ? "text-emerald-600"
+                        : "text-rose-600"
+                    }`}
+                  >
+                    {diffDenomVsCash === 0 ? "0 (মিল আছে ✓)" : `${diffDenomVsCash > 0 ? "+" : ""}${fmt(diffDenomVsCash)}`}
+                  </span>
+                </div>
+              </div>
+
+              {diffDenomVsCash !== 0 ? (
+                <div className="rounded-xl border border-rose-300 bg-rose-50 p-3 text-xs text-rose-900">
+                  <div className="font-bold flex items-center gap-1.5 mb-1 text-rose-800">
+                    <span>⚠️</span>
+                    <span>সতর্কতা: ক্যাশ ও নোটের মধ্যে অমিল রয়েছে!</span>
+                  </div>
+                  <div>
+                    হাতে নগদ ও নোটের মোট গণনায় ৳{fmt(Math.abs(diffDenomVsCash))} অমিল রয়েছে। আপনি কি নিশ্চিত যে এই অমিল রেখেই আজকের দিনটি ক্লোজ করতে চান?
+                  </div>
+                </div>
+              ) : (
+                <div className="rounded-xl border border-emerald-300 bg-emerald-50 p-3 text-xs text-emerald-900 font-medium">
+                  ✓ ক্যাশ ইন হ্যান্ড এবং ডেনোমিনেশন হিসাব শতভাগ মিলেছে। দিন ক্লোজ করার পর এই তারিখের হিসাব লক থাকবে।
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 mt-5 pt-3 border-t">
+              <button
+                type="button"
+                onClick={() => setDayCloseModalOpen(false)}
+                className="rounded-xl bg-slate-200 px-4 py-2 font-bold text-xs sm:text-sm text-slate-700 hover:bg-slate-300 transition cursor-pointer"
+              >
+                বাতিল
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmDayClose}
+                className="rounded-xl bg-emerald-600 px-5 py-2 font-bold text-xs sm:text-sm text-white hover:bg-emerald-700 shadow-md transition cursor-pointer flex items-center gap-1.5"
+              >
+                <span>🔒</span>
+                <span>হ্যাঁ, ডে ক্লোজ করুন</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* PDF View Modal */}
       {pdfModalOpen && (

@@ -296,16 +296,15 @@ export default function PaymentDenominationModal({
                           inputRefs.current[`${i}-qty`] = el;
                         }}
                         type="text"
-                        inputMode={showKeypad ? "none" : isOther ? "decimal" : "numeric"}
-                        readOnly={showKeypad}
+                        inputMode={isOther ? "decimal" : "numeric"}
                         value={qtyVals[i]}
                         placeholder={isOther ? "Any" : "0"}
                         onFocus={() => focusCell(i, "qty")}
                         onClick={() => focusCell(i, "qty")}
                         onChange={(e) => handleQtyChange(i, e.target.value)}
-                        className={`w-full rounded border px-1.5 py-1 text-center font-mono text-xs sm:text-sm font-bold focus:outline-none transition ${
-                          isQtyActive && showKeypad
-                            ? "border-blue-600 bg-blue-100/60 ring-2 ring-blue-400 text-blue-950 font-black caret-transparent"
+                        className={`w-full rounded border px-1.5 py-1 text-center font-mono text-xs sm:text-sm font-bold focus:outline-none transition select-text ${
+                          isQtyActive
+                            ? "border-blue-600 bg-blue-100/60 ring-2 ring-blue-400 text-blue-950 font-black"
                             : "border-slate-300 bg-yellow-50"
                         }`}
                       />
@@ -319,16 +318,15 @@ export default function PaymentDenominationModal({
                           inputRefs.current[`${i}-credit`] = el;
                         }}
                         type="text"
-                        inputMode={showKeypad ? "none" : "decimal"}
-                        readOnly={showKeypad}
+                        inputMode="decimal"
                         value={creditVals[i]}
                         placeholder="0"
                         onFocus={() => focusCell(i, "credit")}
                         onClick={() => focusCell(i, "credit")}
                         onChange={(e) => handleCreditChange(i, e.target.value)}
-                        className={`w-full rounded border px-1.5 py-1 text-right font-mono text-xs sm:text-sm font-bold focus:outline-none transition ${
-                          isCreditActive && showKeypad
-                            ? "border-emerald-600 bg-emerald-100/60 ring-2 ring-emerald-400 text-emerald-950 font-black caret-transparent"
+                        className={`w-full rounded border px-1.5 py-1 text-right font-mono text-xs sm:text-sm font-bold focus:outline-none transition select-text ${
+                          isCreditActive
+                            ? "border-emerald-600 bg-emerald-100/60 ring-2 ring-emerald-400 text-emerald-950 font-black"
                             : "border-emerald-300 bg-white text-emerald-900"
                         }`}
                       />
@@ -339,16 +337,15 @@ export default function PaymentDenominationModal({
                           inputRefs.current[`${i}-debit`] = el;
                         }}
                         type="text"
-                        inputMode={showKeypad ? "none" : "decimal"}
-                        readOnly={showKeypad}
+                        inputMode="decimal"
                         value={debitVals[i]}
                         placeholder="0"
                         onFocus={() => focusCell(i, "debit")}
                         onClick={() => focusCell(i, "debit")}
                         onChange={(e) => handleDebitChange(i, e.target.value)}
-                        className={`w-full rounded border px-1.5 py-1 text-right font-mono text-xs sm:text-sm font-bold focus:outline-none transition ${
-                          isDebitActive && showKeypad
-                            ? "border-rose-600 bg-rose-100/60 ring-2 ring-rose-400 text-rose-950 font-black caret-transparent"
+                        className={`w-full rounded border px-1.5 py-1 text-right font-mono text-xs sm:text-sm font-bold focus:outline-none transition select-text ${
+                          isDebitActive
+                            ? "border-rose-600 bg-rose-100/60 ring-2 ring-rose-400 text-rose-950 font-black"
                             : "border-rose-300 bg-white text-rose-900"
                         }`}
                       />

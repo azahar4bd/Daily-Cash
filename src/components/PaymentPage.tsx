@@ -16,6 +16,7 @@ import {
   getScRates,
   getSubCategoryRules,
   getKallyanRule,
+  isDayClosed,
 } from "@/lib/storage";
 import {
   calcServiceCharge,
@@ -24,7 +25,6 @@ import {
   titleCase,
   filterAllowedSubCategories,
   getInstallments,
-  DEFAULT_KALLYAN_RULE,
 } from "@/lib/categories";
 import type { Tx, Cat, ScRate, SubCategoryRule, KallyanRule } from "@/types";
 
@@ -50,6 +50,8 @@ export default function PaymentPage({ selectedDate }: { selectedDate: string }) 
   const [paymentDenomOpen, setPaymentDenomOpen] = useState(false);
   const [kallyanRule, setKallyanRule] = useState<KallyanRule>(getKallyanRule());
   const [kallyanSettingsOpen, setKallyanSettingsOpen] = useState(false);
+  const [filterCategory, setFilterCategory] = useState<string>("all");
+  const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null);
 
   const [form, setForm] = useState<PaymentFormState>({
     category: "",
@@ -105,6 +107,10 @@ export default function PaymentPage({ selectedDate }: { selectedDate: string }) 
   const currentRatePer100 = rateRow ? Number(rateRow.ratePer100) : 0;
 
   const handleSave = () => {
+    if (isDayClosed(form.txDate)) {
+      alert(`⚠️ এই তারিখের (${form.txDate}) দিন সমাপ্ত (Day Closed) রয়েছে। কোনো নতুন এন্ট্রি করা যাবে না। পরিবর্তন করতে চাইলে ক্যাশবুক পেজ থেকে দিনটি Re-open করুন।`);
+      return;
+    }
     if (!form.category.trim()) return setMsg("Category required");
     if (!form.amount || form.amount <= 0) return setMsg("Amount must be greater than 0");
 
@@ -132,6 +138,10 @@ export default function PaymentPage({ selectedDate }: { selectedDate: string }) 
 
   const handleUpdate = () => {
     if (!edit || !edit.id) return;
+    if (isDayClosed(edit.txDate)) {
+      alert(`⚠️ এই তারিখের (${edit.txDate}) দিন সমাপ্ত (Day Closed) রয়েছে। কোনো পরিবর্তন করা যাবে না। ক্যাশবুক পেজ থেকে দিনটি Re-open করুন।`);
+      return;
+    }
     const editIsDisb = isDisburseCategory(edit.category);
     const editSc = editIsDisb
       ? calcServiceCharge(edit.amount, edit.category, edit.subCategory, rates)
@@ -144,7 +154,7 @@ export default function PaymentPage({ selectedDate }: { selectedDate: string }) 
       subCategory: editIsDisb ? edit.subCategory : "",
       amount: String(edit.amount),
       serviceCharge: String(editSc),
-      description: edit.description,
+      description: edit.description || "",
       txDate: edit.txDate,
     });
 
@@ -152,19 +162,59 @@ export default function PaymentPage({ selectedDate }: { selectedDate: string }) 
     loadData();
   };
 
-  const handleDelete = (id: number) => {
-    if (!confirm("Delete this payment?")) return;
-    deleteTx(id);
-    loadData();
+  const confirmDelete = () => {
+    if (deleteTargetId !== null) {
+      const target = rows.find((r) => r.id === deleteTargetId);
+      if (target && isDayClosed(target.txDate)) {
+        alert("⚠️ দিন ক্লোজ থাকায় এই লেনদেনটি ডিলিট করা যাবে না। ক্যাশবুক থেকে Re-open করুন।");
+        setDeleteTargetId(null);
+        return;
+      }
+      deleteTx(deleteTargetId);
+      setDeleteTargetId(null);
+      loadData();
+    }
   };
 
+  const displayedRows =
+    filterCategory === "all"
+      ? rows
+      : rows.filter((r) => r.category.toLowerCase().trim() === filterCategory.toLowerCase().trim());
+
+  const displayedSum = displayedRows.reduce((s, r) => s + Number(r.amount), 0);
   const totalExpenseSum = rows.reduce((s, r) => s + Number(r.amount), 0);
+
+  const uniqueCategories: string[] = Array.from(
+    new Set(rows.map((r) => r.category.toLowerCase().trim()).filter(Boolean))
+  );
 
   return (
     <div className="space-y-6">
-      {/* Payment Entry Card */}
-      <div className="rounded-2xl border-t-4 border-red-500 bg-white p-5 sm:p-6 shadow-sm border border-slate-200">
-        <h1 className="mb-4 text-2xl font-bold text-slate-900">Payment</h1>
+      {/* Payment Entry Card (Accessible at top) */}
+      <div
+        id="payment-form-card"
+        className="rounded-2xl border-t-4 border-red-500 bg-white p-5 sm:p-6 shadow-sm border border-slate-200 transition-all"
+      >
+        <div className="flex items-center justify-between mb-4">
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 flex items-center gap-2">
+            <span>📤</span>
+            <span>Payment Entry</span>
+          </h1>
+          <span className="text-xs font-mono font-bold text-slate-600 bg-slate-100 px-2.5 py-1 rounded border border-slate-200">
+            {form.txDate}
+          </span>
+        </div>
+
+        {isDayClosed(form.txDate) && (
+          <div className="mb-4 rounded-xl border border-rose-300 bg-rose-50 p-3 text-xs sm:text-sm font-bold text-rose-800 flex items-center justify-between">
+            <span className="flex items-center gap-2">
+              <span>🔒</span>
+              <span>এই তারিখের ({form.txDate}) দিন সমাপ্ত (Day Closed) রয়েছে। হিসাবটি লক করা আছে।</span>
+            </span>
+            <span className="text-xs text-rose-600 font-semibold">ক্যাশবুকে Re-open করুন</span>
+          </div>
+        )}
+
         <div className="grid gap-4 md:grid-cols-2">
           {/* Date */}
           <div>
@@ -172,19 +222,20 @@ export default function PaymentPage({ selectedDate }: { selectedDate: string }) 
             <DatePicker
               value={form.txDate}
               onChange={(v) => setForm({ ...form, txDate: v })}
-              className="px-3 py-2"
+              className="px-3 py-2 text-sm"
             />
           </div>
+
           {/* Category with Scrollable Box */}
           <div>
             <div className="mb-1 flex items-center justify-between">
-              <label className="text-xs font-bold text-slate-700">Category (খাত)</label>
+              <label className="text-xs font-bold text-slate-700">Category</label>
               <button
                 type="button"
                 onClick={() => setManageOpen(true)}
                 className="text-xs font-bold text-blue-600 hover:underline cursor-pointer"
               >
-                Manage
+                ⚙ Manage
               </button>
             </div>
             <PaymentCategoryDropdown
@@ -195,6 +246,7 @@ export default function PaymentPage({ selectedDate }: { selectedDate: string }) 
               onManageClick={() => setManageOpen(true)}
             />
           </div>
+
           {/* Sub Category */}
           {isCurrentDisburse && (
             <div>
@@ -203,7 +255,7 @@ export default function PaymentPage({ selectedDate }: { selectedDate: string }) 
                 <button
                   type="button"
                   onClick={() => setRulesModalOpen(true)}
-                  className="text-xs font-bold text-blue-600 hover:underline flex items-center gap-1"
+                  className="text-xs font-bold text-blue-600 hover:underline flex items-center gap-1 cursor-pointer"
                 >
                   ⚙ Rules
                 </button>
@@ -222,6 +274,7 @@ export default function PaymentPage({ selectedDate }: { selectedDate: string }) 
               </select>
             </div>
           )}
+
           {/* Amount */}
           <div className={!isCurrentDisburse ? "md:col-span-1" : ""}>
             <div className="mb-1 flex items-center justify-between">
@@ -231,7 +284,7 @@ export default function PaymentPage({ selectedDate }: { selectedDate: string }) 
               <button
                 type="button"
                 onClick={() => setPaymentDenomOpen(true)}
-                className="flex items-center gap-1 rounded bg-amber-500 hover:bg-amber-600 px-2.5 py-0.5 text-xs font-bold text-slate-950 shadow-xs"
+                className="flex items-center gap-1 rounded-lg bg-amber-500 hover:bg-amber-600 px-2.5 py-1 text-xs font-bold text-slate-950 shadow-xs cursor-pointer"
               >
                 💳 Denomination
               </button>
@@ -241,28 +294,33 @@ export default function PaymentPage({ selectedDate }: { selectedDate: string }) 
               min={0}
               step="1"
               value={form.amount || ""}
-              placeholder="0"
+              placeholder=""
               onChange={(e) => setForm({ ...form, amount: Math.round(Number(e.target.value) || 0) })}
               className="w-full rounded-lg border border-slate-300 bg-yellow-50 px-3 py-2 text-right font-mono text-lg font-bold focus:border-blue-500 focus:outline-none"
             />
           </div>
-          {/* Description */}
-          <div className="md:col-span-2">
+
+          {/* Description Field (Amount এর পাশে ২য় ঘর) */}
+          <div className="md:col-span-1">
             <label className="mb-1 block text-xs font-bold text-slate-700">Description</label>
             <input
+              type="text"
               value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
-              placeholder="Description..."
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+              placeholder=""
+              autoComplete="off"
+              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-800 focus:border-blue-500 focus:outline-none"
             />
           </div>
+
           {/* Save / Reset */}
-          <div className="flex gap-2 md:col-span-2">
+          <div className="flex gap-2.5 md:col-span-2 pt-1">
             <button
               onClick={handleSave}
-              className="rounded-lg bg-green-600 px-6 py-2 font-bold text-sm text-white shadow hover:bg-green-700"
+              disabled={isDayClosed(form.txDate)}
+              className="min-h-[44px] rounded-xl bg-red-600 px-6 py-2.5 font-bold text-sm text-white shadow hover:bg-red-700 active:scale-98 transition cursor-pointer disabled:opacity-50"
             >
-              Save
+              Save Payment
             </button>
             <button
               onClick={() => {
@@ -276,13 +334,13 @@ export default function PaymentPage({ selectedDate }: { selectedDate: string }) 
                 });
                 setMsg("");
               }}
-              className="rounded-lg bg-slate-500 px-6 py-2 font-bold text-sm text-white hover:bg-slate-600"
+              className="min-h-[44px] rounded-xl bg-slate-500 px-6 py-2.5 font-bold text-sm text-white hover:bg-slate-600 active:scale-98 transition cursor-pointer"
             >
               Reset
             </button>
           </div>
 
-          {/* Cards */}
+          {/* Summary Cards */}
           {isCurrentDisburse ? (
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 md:col-span-2">
               <div className="rounded-xl bg-amber-500 p-2.5 text-white shadow-xs">
@@ -291,7 +349,7 @@ export default function PaymentPage({ selectedDate }: { selectedDate: string }) 
                   <button
                     type="button"
                     onClick={() => setRatesOpen(true)}
-                    className="flex h-5 w-5 items-center justify-center rounded-full bg-white/30 text-xs"
+                    className="flex h-5 w-5 items-center justify-center rounded-full bg-white/30 text-xs cursor-pointer"
                   >
                     ⚙
                   </button>
@@ -302,24 +360,23 @@ export default function PaymentPage({ selectedDate }: { selectedDate: string }) 
                 <div className="text-xs font-semibold">Kisti {nInstallments ? `(${nInstallments})` : ""}</div>
                 <div className="mt-1 font-mono text-base sm:text-lg font-bold text-right">{fmt(kistiAmount)}</div>
               </div>
-              <div className="rounded-xl bg-linear-to-br from-teal-600 to-emerald-700 p-2.5 text-white shadow-sm ring-1 ring-teal-400/40 hover:shadow-md transition">
+              <div className="rounded-xl bg-gradient-to-br from-teal-600 to-emerald-700 p-2.5 text-white shadow-sm ring-1 ring-teal-400/40">
                 <div className="flex items-center justify-between text-xs font-bold">
                   <span className="flex items-center gap-1 truncate pr-1">
                     <span>🤝</span>
-                    <span>কল্যাণ (Kallyan)</span>
+                    <span>Kallyan Fund</span>
                   </span>
                   <button
                     type="button"
                     onClick={() => setKallyanSettingsOpen(true)}
-                    className="flex items-center gap-1 rounded-md bg-white/20 hover:bg-white/30 px-1.5 py-0.5 text-[10px] font-bold text-white transition cursor-pointer shadow-2xs"
-                    title="কল্যাণ তহবিল সেটিংস পরিবর্তন করুন"
+                    className="flex items-center gap-1 rounded-md bg-white/20 hover:bg-white/30 px-1.5 py-0.5 text-[10px] font-bold text-white transition cursor-pointer"
+                    title="Change Kallyan Fund Settings"
                   >
                     <span>⚙️</span>
-                    <span>সেটিংস</span>
                   </button>
                 </div>
                 <div className="mt-1 flex items-baseline justify-between">
-                  <span className="text-[10px] font-semibold text-teal-100 truncate" title={`${titleCase(form.category || "General")}: ${curKallyanCfg.percent}% + ${curKallyanCfg.fixed} Tk`}>
+                  <span className="text-[10px] font-semibold text-teal-100 truncate">
                     {curKallyanCfg.percent}% + {curKallyanCfg.fixed}৳
                   </span>
                   <span className="font-mono text-base sm:text-lg font-black text-right">
@@ -344,81 +401,103 @@ export default function PaymentPage({ selectedDate }: { selectedDate: string }) 
         {msg && <p className="mt-2 text-xs font-bold text-emerald-700">{msg}</p>}
       </div>
 
-      {/* Table */}
+      {/* Saved Table Card */}
       <div className="overflow-hidden rounded-2xl bg-white shadow-sm border border-slate-200">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b px-5 py-3 bg-slate-50">
           <div className="font-bold text-slate-800 text-sm sm:text-base">
-            Saved Payment Entries ({rows.length})
+            Saved Payment Entries ({displayedRows.length}/{rows.length})
           </div>
-          <div className="text-xs font-mono font-bold text-slate-600 bg-white px-2.5 py-1 rounded border border-slate-200">
-            Date: {selectedDate}
+
+          {/* Category-wise Filtering Dropdown */}
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-bold text-slate-600">Category Filter:</label>
+            <select
+              value={filterCategory}
+              onChange={(e) => setFilterCategory(e.target.value)}
+              className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs sm:text-sm font-semibold text-slate-800 shadow-2xs focus:border-blue-500 focus:outline-none cursor-pointer"
+            >
+              <option value="all">All Categories ({rows.length})</option>
+              {uniqueCategories.map((cat) => (
+                <option key={cat} value={cat}>
+                  {titleCase(cat)}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
-        <div className="overflow-x-auto">
+
+        {/* Scrollable Table Container */}
+        <div className="overflow-x-auto max-h-[60vh] sm:max-h-[68vh] overflow-y-auto">
           <table className="w-full text-xs sm:text-sm">
-            <thead className="bg-slate-800 text-left text-white">
+            <thead className="sticky top-0 bg-slate-800 text-left text-white z-10">
               <tr>
-                <th className="px-3 py-2.5">#</th>
-                <th className="px-3 py-2.5">Category</th>
-                <th className="px-3 py-2.5">Sub Cat.</th>
-                <th className="px-3 py-2.5">Description</th>
-                <th className="px-3 py-2.5 text-right">Disburse/Expense</th>
-                <th className="px-3 py-2.5 text-center">Action</th>
+                <th className="px-3.5 py-2.5">#</th>
+                <th className="px-3.5 py-2.5">Category</th>
+                <th className="px-3.5 py-2.5">Sub Cat.</th>
+                <th className="px-3.5 py-2.5">Description</th>
+                <th className="px-3.5 py-2.5 text-right">Disburse/Expense</th>
+                <th className="px-3.5 py-2.5 text-center">Action</th>
               </tr>
             </thead>
             <tbody>
-              {rows.length === 0 ? (
+              {displayedRows.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="px-3 py-6 text-center text-slate-400">
-                    No payment entries on {selectedDate}
+                    {filterCategory === "all"
+                      ? `No payment entries on ${selectedDate}`
+                      : `No entries for category "${titleCase(filterCategory)}"`}
                   </td>
                 </tr>
               ) : (
-                rows.map((r, i) => (
+                displayedRows.map((r, i) => (
                   <tr key={r.id} className="border-b hover:bg-slate-50">
-                    <td className="px-3 py-2 text-slate-500 font-mono">{i + 1}</td>
-                    <td className="px-3 py-2 font-bold text-slate-800">{titleCase(r.category)}</td>
-                    <td className="px-3 py-2 text-slate-600 text-xs">{r.subCategory || "-"}</td>
-                    <td className="px-3 py-2 text-slate-600">{r.description}</td>
-                    <td className="px-3 py-2 text-right font-mono font-black text-slate-900">
+                    <td className="px-3.5 py-2 text-slate-500 font-mono">{i + 1}</td>
+                    <td className="px-3.5 py-2 font-bold text-slate-800">{titleCase(r.category)}</td>
+                    <td className="px-3.5 py-2 text-slate-600 text-xs">{r.subCategory || "-"}</td>
+                    <td className="px-3.5 py-2 text-slate-600 text-xs">{r.description || "-"}</td>
+                    <td className="px-3.5 py-2 text-right font-mono font-black text-slate-900">
                       {fmt(r.amount)}
                     </td>
-                    <td className="px-3 py-2 text-center whitespace-nowrap">
-                      <button
-                        onClick={() =>
-                          setEdit({
-                            id: r.id,
-                            category: r.category,
-                            subCategory: r.subCategory ?? "",
-                            amount: Number(r.amount),
-                            serviceCharge: Number(r.serviceCharge || 0),
-                            description: r.description ?? "",
-                            txDate: r.txDate,
-                          })
-                        }
-                        className="mr-1.5 rounded bg-blue-600 px-2.5 py-1 text-xs font-bold text-white hover:bg-blue-700"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDelete(r.id)}
-                        className="rounded bg-rose-600 px-2.5 py-1 text-xs font-bold text-white hover:bg-rose-700"
-                      >
-                        Delete
-                      </button>
+                    <td className="px-3.5 py-2 text-center whitespace-nowrap">
+                      <div className="flex items-center justify-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setEdit({
+                              id: r.id,
+                              category: r.category,
+                              subCategory: r.subCategory ?? "",
+                              amount: Number(r.amount),
+                              serviceCharge: Number(r.serviceCharge || 0),
+                              description: r.description ?? "",
+                              txDate: r.txDate,
+                            })
+                          }
+                          className="min-h-[36px] rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-blue-700 transition"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setDeleteTargetId(r.id)}
+                          className="min-h-[36px] rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-rose-700 transition"
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))
               )}
             </tbody>
             {rows.length > 0 && (
-              <tfoot className="bg-slate-100 font-bold border-t-2 border-slate-300">
+              <tfoot className="sticky bottom-0 bg-slate-100 font-bold border-t-2 border-slate-300 z-10 shadow-inner">
                 <tr>
-                  <td colSpan={4} className="px-3 py-2.5 text-right font-bold text-slate-800">
-                    Total Payment
+                  <td colSpan={4} className="px-3.5 py-2.5 text-right font-bold text-slate-800">
+                    {filterCategory === "all" ? "Total Payment" : `Subtotal (${titleCase(filterCategory)})`}
                   </td>
-                  <td className="px-3 py-2.5 text-right font-mono font-black text-slate-900">
-                    {fmt(totalExpenseSum)}
+                  <td className="px-3.5 py-2.5 text-right font-mono font-black text-slate-900">
+                    {fmt(filterCategory === "all" ? totalExpenseSum : displayedSum)}
                   </td>
                   <td />
                 </tr>
@@ -428,13 +507,47 @@ export default function PaymentPage({ selectedDate }: { selectedDate: string }) 
         </div>
       </div>
 
-      {/* Edit Modal */}
+      {/* Mistouch Prevention - Delete Confirmation Modal */}
+      {deleteTargetId !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95">
+            <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+              <span className="text-rose-600 text-lg">⚠️</span>
+              <span>Confirm Delete</span>
+            </h3>
+            <p className="mt-2 text-sm text-slate-600">
+              Are you sure you want to permanently delete this payment entry? This action cannot be undone.
+            </p>
+            <div className="mt-5 flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setDeleteTargetId(null)}
+                className="min-h-[44px] rounded-xl bg-slate-200 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-300 active:scale-95 transition"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmDelete}
+                className="min-h-[44px] rounded-xl bg-rose-600 px-5 py-2 text-sm font-bold text-white hover:bg-rose-700 active:scale-95 transition"
+              >
+                Delete Entry
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Modal (with restored Description field) */}
       {edit && (
         <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 p-4">
           <div className="max-h-[95vh] w-full max-w-2xl overflow-auto rounded-2xl bg-white p-5 sm:p-6 shadow-2xl">
             <div className="mb-4 flex items-center justify-between border-b pb-3">
               <h2 className="text-lg font-bold">Edit Payment #{edit.id}</h2>
-              <button onClick={() => setEdit(null)} className="text-2xl text-slate-400 hover:text-rose-600">
+              <button
+                onClick={() => setEdit(null)}
+                className="min-h-[36px] min-w-[36px] text-2xl text-slate-400 hover:text-rose-600 flex items-center justify-center"
+              >
                 ×
               </button>
             </div>
@@ -444,11 +557,11 @@ export default function PaymentPage({ selectedDate }: { selectedDate: string }) 
                 <DatePicker
                   value={edit.txDate}
                   onChange={(v) => setEdit({ ...edit, txDate: v })}
-                  className="px-3 py-2"
+                  className="px-3 py-2 text-sm"
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-bold text-slate-700">Category (খাত)</label>
+                <label className="mb-1 block text-xs font-bold text-slate-700">Category</label>
                 <PaymentCategoryDropdown
                   value={edit.category}
                   onChange={(cat) => setEdit({ ...edit, category: cat, subCategory: "" })}
@@ -474,36 +587,38 @@ export default function PaymentPage({ selectedDate }: { selectedDate: string }) 
                   </select>
                 </div>
               )}
-              <div>
+              <div className="md:col-span-1">
                 <label className="mb-1 block text-xs font-bold text-slate-700">Disburse/Expense</label>
                 <input
                   type="number"
-                  placeholder="0"
+                  placeholder=""
                   value={edit.amount || ""}
                   onChange={(e) => setEdit({ ...edit, amount: Math.round(Number(e.target.value) || 0) })}
                   className="w-full rounded-lg border border-slate-300 bg-yellow-50 px-3 py-2 text-right font-mono text-lg font-bold"
                 />
               </div>
-              <div>
+              <div className="md:col-span-1">
                 <label className="mb-1 block text-xs font-bold text-slate-700">Description</label>
                 <input
+                  type="text"
                   value={edit.description}
                   onChange={(e) => setEdit({ ...edit, description: e.target.value })}
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2"
+                  placeholder=""
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
                 />
               </div>
-              <div className="flex justify-end gap-2 md:col-span-2 border-t pt-3">
-                <button
-                  onClick={handleUpdate}
-                  className="rounded-lg bg-green-600 px-6 py-2 font-bold text-sm text-white hover:bg-green-700"
-                >
-                  Update
-                </button>
+              <div className="flex justify-end gap-3 md:col-span-2 border-t pt-3 mt-2">
                 <button
                   onClick={() => setEdit(null)}
-                  className="rounded-lg bg-slate-500 px-6 py-2 font-bold text-sm text-white hover:bg-slate-600"
+                  className="min-h-[44px] rounded-xl bg-slate-200 px-5 py-2 font-bold text-sm text-slate-700 hover:bg-slate-300 transition"
                 >
                   Cancel
+                </button>
+                <button
+                  onClick={handleUpdate}
+                  className="min-h-[44px] rounded-xl bg-red-600 px-6 py-2 font-bold text-sm text-white hover:bg-red-700 transition"
+                >
+                  Update Entry
                 </button>
               </div>
             </div>

@@ -3,6 +3,7 @@ import CategoryInput from "./CategoryInput";
 import { fmt } from "./DenominationPopup";
 import ReportDenominationModal from "./ReportDenominationModal";
 import StaffCustomKeyboard, { StaffFieldKey } from "./StaffCustomKeyboard";
+import { titleCase } from "@/lib/categories";
 import {
   getLocalStaffReports,
   saveStaffReport,
@@ -11,6 +12,8 @@ import {
   getLocalTxs,
   getSummary,
   getCategories,
+  isDayClosed,
+  evaluateMathExpression,
 } from "@/lib/storage";
 import type { StaffReportItem, Tx } from "@/types";
 
@@ -38,14 +41,16 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
   const [edit, setEdit] = useState<StaffReportItem | null>(null);
   const [filterStaff, setFilterStaff] = useState<string>("");
   const [denomModalOpen, setDenomModalOpen] = useState(false);
-  const [staffPopupOpen, setStaffPopupOpen] = useState(true);
+  const [staffPopupOpen, setStaffPopupOpen] = useState(false);
   const [staffPopupMinimized, setStaffPopupMinimized] = useState(false);
   const [keyboardOpen, setKeyboardOpen] = useState(false);
   const [activeKeyboardField, setActiveKeyboardField] = useState<StaffFieldKey>("loan");
   const [prevCash, setPrevCash] = useState(0);
   const [prevBank, setPrevBank] = useState(0);
+  const [dashboardCashInHand, setDashboardCashInHand] = useState(0);
   const [allTxList, setAllTxList] = useState<Tx[]>([]);
   const [disburseCatList, setDisburseCatList] = useState<string[]>([]);
+  const [dayClosed, setDayClosed] = useState(false);
 
   const loadData = () => {
     const sReports = getLocalStaffReports(selectedDate);
@@ -54,17 +59,25 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
     const sumData = getSummary(selectedDate);
     setPrevCash(sumData.prevCash);
     setPrevBank(sumData.prevBank);
+    setDashboardCashInHand(sumData.cash);
 
     const dCats = getCategories("disburse");
     setDisburseCatList(dCats.map((c) => c.name.toLowerCase().trim()));
 
     setAllTxList(getLocalTxs());
+    setDayClosed(isDayClosed(selectedDate));
   };
 
   useEffect(() => {
     loadData();
-    window.addEventListener("tx-changed", loadData);
-    return () => window.removeEventListener("tx-changed", loadData);
+    const onTx = () => loadData();
+    const onDayClose = () => loadData();
+    window.addEventListener("tx-changed", onTx);
+    window.addEventListener("day-close-changed", onDayClose);
+    return () => {
+      window.removeEventListener("tx-changed", onTx);
+      window.removeEventListener("day-close-changed", onDayClose);
+    };
   }, [selectedDate]);
 
   // Auto-scroll screen when switching fields so the active field stays in front
@@ -80,16 +93,28 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
   }, [activeKeyboardField, keyboardOpen]);
 
   const handleSave = () => {
+    if (dayClosed) {
+      alert("⚠️ এই তারিখের দিন সমাপ্ত (Day Closed) রয়েছে। কোনো নতুন এন্ট্রি করা যাবে না। পরিবর্তন করতে চাইলে ক্যাশবুক পেজ থেকে দিনটি Re-open করুন।");
+      return;
+    }
     if (!form.staffName.trim()) {
-      alert("Staff Name required");
+      alert("দয়া করে স্টাফ নির্বাচন করুন");
       setActiveKeyboardField("staffName");
       setKeyboardOpen(true);
       return;
     }
 
     saveStaffReport({
-      ...form,
       reportDate: selectedDate,
+      staffName: form.staffName.trim(),
+      loan: evaluateMathExpression(form.loan) || "0",
+      rebate: evaluateMathExpression(form.rebate) || "0",
+      savings: evaluateMathExpression(form.savings) || "0",
+      dps: evaluateMathExpression(form.dps) || "0",
+      admission: evaluateMathExpression(form.admission) || "0",
+      passbook: evaluateMathExpression(form.passbook) || "0",
+      savingsAdjust: evaluateMathExpression(form.savingsAdjust) || "0",
+      nogodReturn: evaluateMathExpression(form.nogodReturn) || "0",
     });
 
     setForm({
@@ -124,12 +149,30 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
 
   const handleUpdate = () => {
     if (!edit || !edit.id) return;
-    updateStaffReport(edit);
+    if (dayClosed) {
+      alert("⚠️ দিন ক্লোজ থাকায় এই রিপোর্টটি এডিট করা যাবে না। ক্যাশবুক থেকে Re-open করুন।");
+      return;
+    }
+    updateStaffReport({
+      ...edit,
+      loan: evaluateMathExpression(edit.loan) || "0",
+      rebate: evaluateMathExpression(edit.rebate) || "0",
+      savings: evaluateMathExpression(edit.savings) || "0",
+      dps: evaluateMathExpression(edit.dps) || "0",
+      admission: evaluateMathExpression(edit.admission) || "0",
+      passbook: evaluateMathExpression(edit.passbook) || "0",
+      savingsAdjust: evaluateMathExpression(edit.savingsAdjust) || "0",
+      nogodReturn: evaluateMathExpression(edit.nogodReturn) || "0",
+    });
     setEdit(null);
     loadData();
   };
 
   const handleDelete = (id: number) => {
+    if (dayClosed) {
+      alert("⚠️ দিন ক্লোজ থাকায় এই রিপোর্টটি মুছে ফেলা যাবে না। ক্যাশবুক থেকে Re-open করুন।");
+      return;
+    }
     if (!confirm("Delete this staff report?")) return;
     deleteStaffReport(id);
     loadData();
@@ -294,7 +337,8 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
         >
           <div
             className="bg-purple-900 text-white px-3.5 py-2 flex items-center justify-between gap-3 text-xs font-bold cursor-pointer select-none"
-            onClick={() => setStaffPopupMinimized(!staffPopupMinimized)}
+            onClick={() => setStaffPopupOpen(false)}
+            title="ক্লিক করলে ছোট / কোলাপ্স হবে"
           >
             <div className="flex items-center gap-1.5">
               <span>👥</span>
@@ -305,12 +349,12 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
-                  setStaffPopupMinimized(!staffPopupMinimized);
+                  setStaffPopupOpen(false);
                 }}
                 className="hover:bg-purple-800 rounded px-1.5 py-0.5 text-xs transition cursor-pointer"
-                title={staffPopupMinimized ? "বক্স বড় করুন" : "বক্স ছোট করুন"}
+                title="বক্স ছোট / কোলাপ্স করুন"
               >
-                {staffPopupMinimized ? "▲" : "▼"}
+                ▼
               </button>
               <button
                 type="button"
@@ -319,7 +363,7 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
                   setStaffPopupOpen(false);
                 }}
                 className="hover:bg-rose-600 rounded px-2 py-0.5 text-xs transition cursor-pointer font-bold"
-                title="বক্স বন্ধ করুন (ফ্লোটিং বাটন থাকবে)"
+                title="বক্স বন্ধ করুন"
               >
                 ✕
               </button>
@@ -376,6 +420,15 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
 
       {/* Entry Form */}
       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        {dayClosed && (
+          <div className="mb-4 rounded-xl border border-rose-300 bg-rose-50 p-3 text-xs sm:text-sm font-bold text-rose-800 flex items-center justify-between">
+            <span className="flex items-center gap-2">
+              <span>🔒</span>
+              <span>এই তারিখের ({selectedDate}) দিন সমাপ্ত (Day Closed) রয়েছে। হিসাবটি লক করা আছে।</span>
+            </span>
+            <span className="text-xs text-rose-600 font-semibold">ক্যাশবুকে Re-open করুন</span>
+          </div>
+        )}
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b pb-3">
           <h2 className="text-xl font-bold text-slate-900">Staff Collection Report Entry</h2>
           <div className="flex items-center gap-2">
@@ -430,19 +483,29 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
             <label className="mb-1 block text-xs font-bold text-slate-700">Loan</label>
             <input
               type="text"
-              inputMode="none"
+              inputMode={keyboardOpen ? "none" : "text"}
               readOnly={keyboardOpen}
               value={form.loan}
               onFocus={() => {
                 setActiveKeyboardField("loan");
-                setKeyboardOpen(true);
               }}
               onClick={() => {
                 setActiveKeyboardField("loan");
-                setKeyboardOpen(true);
               }}
-              onChange={(e) => setForm({ ...form, loan: e.target.value })}
-              placeholder="0"
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val.endsWith("=")) {
+                  setForm({ ...form, loan: evaluateMathExpression(val) });
+                } else {
+                  setForm({ ...form, loan: val });
+                }
+              }}
+              onBlur={() => {
+                if (form.loan && form.loan.includes("+")) {
+                  setForm({ ...form, loan: evaluateMathExpression(form.loan) });
+                }
+              }}
+              placeholder="0 (উদা: ১+২+৩=৬)"
               className={`w-full rounded border px-2.5 py-1.5 text-right font-mono text-xs font-bold transition focus:outline-none cursor-pointer ${
                 keyboardOpen && activeKeyboardField === "loan"
                   ? "border-indigo-600 ring-2 ring-indigo-500 bg-amber-100 text-slate-950 scale-[1.02]"
@@ -454,18 +517,28 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
             <label className="mb-1 block text-xs font-bold text-slate-700">Rebate</label>
             <input
               type="text"
-              inputMode="none"
+              inputMode={keyboardOpen ? "none" : "text"}
               readOnly={keyboardOpen}
               value={form.rebate}
               onFocus={() => {
                 setActiveKeyboardField("rebate");
-                setKeyboardOpen(true);
               }}
               onClick={() => {
                 setActiveKeyboardField("rebate");
-                setKeyboardOpen(true);
               }}
-              onChange={(e) => setForm({ ...form, rebate: e.target.value })}
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val.endsWith("=")) {
+                  setForm({ ...form, rebate: evaluateMathExpression(val) });
+                } else {
+                  setForm({ ...form, rebate: val });
+                }
+              }}
+              onBlur={() => {
+                if (form.rebate && form.rebate.includes("+")) {
+                  setForm({ ...form, rebate: evaluateMathExpression(form.rebate) });
+                }
+              }}
               placeholder="0"
               className={`w-full rounded border px-2.5 py-1.5 text-right font-mono text-xs font-bold transition focus:outline-none cursor-pointer ${
                 keyboardOpen && activeKeyboardField === "rebate"
@@ -478,18 +551,28 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
             <label className="mb-1 block text-xs font-bold text-slate-700">Savings</label>
             <input
               type="text"
-              inputMode="none"
+              inputMode={keyboardOpen ? "none" : "text"}
               readOnly={keyboardOpen}
               value={form.savings}
               onFocus={() => {
                 setActiveKeyboardField("savings");
-                setKeyboardOpen(true);
               }}
               onClick={() => {
                 setActiveKeyboardField("savings");
-                setKeyboardOpen(true);
               }}
-              onChange={(e) => setForm({ ...form, savings: e.target.value })}
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val.endsWith("=")) {
+                  setForm({ ...form, savings: evaluateMathExpression(val) });
+                } else {
+                  setForm({ ...form, savings: val });
+                }
+              }}
+              onBlur={() => {
+                if (form.savings && form.savings.includes("+")) {
+                  setForm({ ...form, savings: evaluateMathExpression(form.savings) });
+                }
+              }}
               placeholder="0"
               className={`w-full rounded border px-2.5 py-1.5 text-right font-mono text-xs font-bold transition focus:outline-none cursor-pointer ${
                 keyboardOpen && activeKeyboardField === "savings"
@@ -502,18 +585,28 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
             <label className="mb-1 block text-xs font-bold text-slate-700">DPS</label>
             <input
               type="text"
-              inputMode="none"
+              inputMode={keyboardOpen ? "none" : "text"}
               readOnly={keyboardOpen}
               value={form.dps}
               onFocus={() => {
                 setActiveKeyboardField("dps");
-                setKeyboardOpen(true);
               }}
               onClick={() => {
                 setActiveKeyboardField("dps");
-                setKeyboardOpen(true);
               }}
-              onChange={(e) => setForm({ ...form, dps: e.target.value })}
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val.endsWith("=")) {
+                  setForm({ ...form, dps: evaluateMathExpression(val) });
+                } else {
+                  setForm({ ...form, dps: val });
+                }
+              }}
+              onBlur={() => {
+                if (form.dps && form.dps.includes("+")) {
+                  setForm({ ...form, dps: evaluateMathExpression(form.dps) });
+                }
+              }}
               placeholder="0"
               className={`w-full rounded border px-2.5 py-1.5 text-right font-mono text-xs font-bold transition focus:outline-none cursor-pointer ${
                 keyboardOpen && activeKeyboardField === "dps"
@@ -526,18 +619,28 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
             <label className="mb-1 block text-xs font-bold text-slate-700">Admission</label>
             <input
               type="text"
-              inputMode="none"
+              inputMode={keyboardOpen ? "none" : "text"}
               readOnly={keyboardOpen}
               value={form.admission}
               onFocus={() => {
                 setActiveKeyboardField("admission");
-                setKeyboardOpen(true);
               }}
               onClick={() => {
                 setActiveKeyboardField("admission");
-                setKeyboardOpen(true);
               }}
-              onChange={(e) => setForm({ ...form, admission: e.target.value })}
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val.endsWith("=")) {
+                  setForm({ ...form, admission: evaluateMathExpression(val) });
+                } else {
+                  setForm({ ...form, admission: val });
+                }
+              }}
+              onBlur={() => {
+                if (form.admission && form.admission.includes("+")) {
+                  setForm({ ...form, admission: evaluateMathExpression(form.admission) });
+                }
+              }}
               placeholder="0"
               className={`w-full rounded border px-2.5 py-1.5 text-right font-mono text-xs font-bold transition focus:outline-none cursor-pointer ${
                 keyboardOpen && activeKeyboardField === "admission"
@@ -550,18 +653,28 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
             <label className="mb-1 block text-xs font-bold text-slate-700">Passbook</label>
             <input
               type="text"
-              inputMode="none"
+              inputMode={keyboardOpen ? "none" : "text"}
               readOnly={keyboardOpen}
               value={form.passbook}
               onFocus={() => {
                 setActiveKeyboardField("passbook");
-                setKeyboardOpen(true);
               }}
               onClick={() => {
                 setActiveKeyboardField("passbook");
-                setKeyboardOpen(true);
               }}
-              onChange={(e) => setForm({ ...form, passbook: e.target.value })}
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val.endsWith("=")) {
+                  setForm({ ...form, passbook: evaluateMathExpression(val) });
+                } else {
+                  setForm({ ...form, passbook: val });
+                }
+              }}
+              onBlur={() => {
+                if (form.passbook && form.passbook.includes("+")) {
+                  setForm({ ...form, passbook: evaluateMathExpression(form.passbook) });
+                }
+              }}
               placeholder="0"
               className={`w-full rounded border px-2.5 py-1.5 text-right font-mono text-xs font-bold transition focus:outline-none cursor-pointer ${
                 keyboardOpen && activeKeyboardField === "passbook"
@@ -574,18 +687,28 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
             <label className="mb-1 block text-xs font-bold text-slate-700">Savings Adjust</label>
             <input
               type="text"
-              inputMode="none"
+              inputMode={keyboardOpen ? "none" : "text"}
               readOnly={keyboardOpen}
               value={form.savingsAdjust}
               onFocus={() => {
                 setActiveKeyboardField("savingsAdjust");
-                setKeyboardOpen(true);
               }}
               onClick={() => {
                 setActiveKeyboardField("savingsAdjust");
-                setKeyboardOpen(true);
               }}
-              onChange={(e) => setForm({ ...form, savingsAdjust: e.target.value })}
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val.endsWith("=")) {
+                  setForm({ ...form, savingsAdjust: evaluateMathExpression(val) });
+                } else {
+                  setForm({ ...form, savingsAdjust: val });
+                }
+              }}
+              onBlur={() => {
+                if (form.savingsAdjust && form.savingsAdjust.includes("+")) {
+                  setForm({ ...form, savingsAdjust: evaluateMathExpression(form.savingsAdjust) });
+                }
+              }}
               placeholder="0"
               className={`w-full rounded border px-2.5 py-1.5 text-right font-mono text-xs font-bold transition focus:outline-none cursor-pointer ${
                 keyboardOpen && activeKeyboardField === "savingsAdjust"
@@ -598,18 +721,28 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
             <label className="mb-1 block text-xs font-bold text-slate-700">Nogod Return</label>
             <input
               type="text"
-              inputMode="none"
+              inputMode={keyboardOpen ? "none" : "text"}
               readOnly={keyboardOpen}
               value={form.nogodReturn}
               onFocus={() => {
                 setActiveKeyboardField("nogodReturn");
-                setKeyboardOpen(true);
               }}
               onClick={() => {
                 setActiveKeyboardField("nogodReturn");
-                setKeyboardOpen(true);
               }}
-              onChange={(e) => setForm({ ...form, nogodReturn: e.target.value })}
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val.endsWith("=")) {
+                  setForm({ ...form, nogodReturn: evaluateMathExpression(val) });
+                } else {
+                  setForm({ ...form, nogodReturn: val });
+                }
+              }}
+              onBlur={() => {
+                if (form.nogodReturn && form.nogodReturn.includes("+")) {
+                  setForm({ ...form, nogodReturn: evaluateMathExpression(form.nogodReturn) });
+                }
+              }}
               placeholder="0"
               className={`w-full rounded border px-2.5 py-1.5 text-right font-mono text-xs font-bold transition focus:outline-none cursor-pointer ${
                 keyboardOpen && activeKeyboardField === "nogodReturn"
@@ -623,7 +756,8 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
           <button
             type="button"
             onClick={handleSave}
-            className="rounded-lg bg-green-600 px-6 py-2 text-sm font-bold text-white shadow hover:bg-green-700 cursor-pointer"
+            disabled={dayClosed}
+            className="rounded-lg bg-green-600 px-6 py-2 text-sm font-bold text-white shadow hover:bg-green-700 cursor-pointer disabled:opacity-50"
           >
             Save Report
           </button>
@@ -633,14 +767,6 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
             className="rounded-lg bg-slate-500 px-6 py-2 text-sm font-bold text-white hover:bg-slate-600 cursor-pointer"
           >
             Reset
-          </button>
-          <button
-            type="button"
-            onClick={() => setKeyboardOpen(!keyboardOpen)}
-            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-bold text-white hover:bg-indigo-700 cursor-pointer flex items-center gap-1.5"
-          >
-            <span>⌨️</span>
-            <span>{keyboardOpen ? "Hide Keyboard (কিবোর্ড লুকান)" : "Custom Keyboard (কাস্টম কিবোর্ড)"}</span>
           </button>
         </div>
       </div>
@@ -949,9 +1075,154 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
         <ReportDenominationModal
           open={denomModalOpen}
           onClose={() => setDenomModalOpen(false)}
-          cashInHand={todayCashInHand}
+          cashInHand={dashboardCashInHand}
           date={selectedDate}
         />
+      )}
+
+      {/* Staff Report Edit Modal (Staff wise Edit working) */}
+      {edit && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="max-h-[95vh] w-full max-w-xl overflow-y-auto rounded-2xl bg-white p-5 sm:p-6 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between border-b pb-3 mb-4">
+              <div className="flex items-center gap-2">
+                <span className="text-xl">✏️</span>
+                <h3 className="text-base sm:text-lg font-bold text-slate-900">
+                  Edit Staff Report ({titleCase(edit.staffName)})
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEdit(null)}
+                className="text-2xl text-slate-400 hover:text-rose-600 cursor-pointer"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+              <div className="col-span-2 sm:col-span-3">
+                <label className="mb-1 block text-xs font-bold text-slate-700">Staff Name</label>
+                <select
+                  value={edit.staffName}
+                  onChange={(e) => setEdit({ ...edit, staffName: e.target.value })}
+                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-bold text-slate-800"
+                >
+                  {allStaffNames.map((st) => (
+                    <option key={st} value={st}>
+                      {titleCase(st)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="mb-1 block text-xs font-bold text-slate-700">Loan</label>
+                <input
+                  type="number"
+                  value={edit.loan}
+                  onChange={(e) => setEdit({ ...edit, loan: e.target.value })}
+                  placeholder="0"
+                  className="w-full rounded-lg border border-slate-300 px-3 py-1.5 text-right font-mono text-sm font-bold"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-xs font-bold text-slate-700">Rebate</label>
+                <input
+                  type="number"
+                  value={edit.rebate}
+                  onChange={(e) => setEdit({ ...edit, rebate: e.target.value })}
+                  placeholder="0"
+                  className="w-full rounded-lg border border-slate-300 px-3 py-1.5 text-right font-mono text-sm font-bold"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-xs font-bold text-slate-700">Savings</label>
+                <input
+                  type="number"
+                  value={edit.savings}
+                  onChange={(e) => setEdit({ ...edit, savings: e.target.value })}
+                  placeholder="0"
+                  className="w-full rounded-lg border border-slate-300 px-3 py-1.5 text-right font-mono text-sm font-bold"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-xs font-bold text-slate-700">DPS</label>
+                <input
+                  type="number"
+                  value={edit.dps}
+                  onChange={(e) => setEdit({ ...edit, dps: e.target.value })}
+                  placeholder="0"
+                  className="w-full rounded-lg border border-slate-300 px-3 py-1.5 text-right font-mono text-sm font-bold"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-xs font-bold text-slate-700">Admission</label>
+                <input
+                  type="number"
+                  value={edit.admission}
+                  onChange={(e) => setEdit({ ...edit, admission: e.target.value })}
+                  placeholder="0"
+                  className="w-full rounded-lg border border-slate-300 px-3 py-1.5 text-right font-mono text-sm font-bold"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-xs font-bold text-slate-700">Passbook</label>
+                <input
+                  type="number"
+                  value={edit.passbook}
+                  onChange={(e) => setEdit({ ...edit, passbook: e.target.value })}
+                  placeholder="0"
+                  className="w-full rounded-lg border border-slate-300 px-3 py-1.5 text-right font-mono text-sm font-bold"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-xs font-bold text-slate-700">Savings Adjust</label>
+                <input
+                  type="number"
+                  value={edit.savingsAdjust}
+                  onChange={(e) => setEdit({ ...edit, savingsAdjust: e.target.value })}
+                  placeholder="0"
+                  className="w-full rounded-lg border border-rose-300 bg-rose-50 px-3 py-1.5 text-right font-mono text-sm font-bold text-rose-900"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-xs font-bold text-slate-700">Nogod Return</label>
+                <input
+                  type="number"
+                  value={edit.nogodReturn}
+                  onChange={(e) => setEdit({ ...edit, nogodReturn: e.target.value })}
+                  placeholder="0"
+                  className="w-full rounded-lg border border-rose-300 bg-rose-50 px-3 py-1.5 text-right font-mono text-sm font-bold text-rose-900"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 mt-6 border-t pt-3">
+              <button
+                type="button"
+                onClick={() => setEdit(null)}
+                className="min-h-[44px] rounded-xl bg-slate-200 px-5 py-2 font-bold text-sm text-slate-700 hover:bg-slate-300 transition cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleUpdate}
+                className="min-h-[44px] rounded-xl bg-blue-600 px-6 py-2 font-bold text-sm text-white hover:bg-blue-700 transition cursor-pointer"
+              >
+                Update Report
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Custom Keyboard for Staff Collection Report Entry */}

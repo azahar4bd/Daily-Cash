@@ -1,21 +1,29 @@
 import { useEffect, useState } from "react";
 import { fmt } from "./DenominationPopup";
 import { formatDisplay } from "./DatePicker";
-import { getSummary } from "@/lib/storage";
+import { getSummary, isDayClosed } from "@/lib/storage";
 import type { Summary } from "@/types";
 
 export default function Dashboard({ selectedDate }: { selectedDate: string }) {
   const [s, setS] = useState<Summary | null>(null);
+  const [closed, setClosed] = useState(false);
 
   const load = () => {
     const data = getSummary(selectedDate);
     setS(data);
+    setClosed(isDayClosed(selectedDate));
   };
 
   useEffect(() => {
     load();
-    window.addEventListener("tx-changed", load);
-    return () => window.removeEventListener("tx-changed", load);
+    const onTx = () => load();
+    const onDayClose = () => load();
+    window.addEventListener("tx-changed", onTx);
+    window.addEventListener("day-close-changed", onDayClose);
+    return () => {
+      window.removeEventListener("tx-changed", onTx);
+      window.removeEventListener("day-close-changed", onDayClose);
+    };
   }, [selectedDate]);
 
   const Card = ({
@@ -31,19 +39,28 @@ export default function Dashboard({ selectedDate }: { selectedDate: string }) {
     cls: string;
     subText?: string;
   }) => (
-    <div className={`rounded-xl p-2 text-white shadow-xs sm:p-2.5 ${cls}`}>
-      <div className="flex items-center justify-between text-[11px] font-semibold opacity-90 truncate">
-        <span className="truncate">{label}</span>
-        {bengaliLabel && (
-          <span className="text-[10px] opacity-80 ml-1 hidden sm:inline">
-            ({bengaliLabel})
-          </span>
-        )}
+    <div className={`rounded-xl px-2.5 py-1.5 text-white shadow-xs flex items-center justify-between gap-2 ${cls}`}>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-1 text-[11px] font-bold opacity-95 truncate">
+          <span className="truncate">{label}</span>
+          {bengaliLabel && (
+            <span className="text-[10px] opacity-80 hidden md:inline font-normal">
+              ({bengaliLabel})
+            </span>
+          )}
+        </div>
+        {subText && <div className="text-[9px] opacity-80 truncate">{subText}</div>}
       </div>
-      <div className="mt-0.5 truncate font-mono text-sm font-black sm:text-base">
+      <div className="shrink-0 font-mono text-xs sm:text-sm font-black text-right">
         {fmt(value)}
       </div>
-      {subText && <div className="text-[9px] opacity-75 truncate">{subText}</div>}
+    </div>
+  );
+
+  const StaffCard = ({ name, value }: { name: string; value: number }) => (
+    <div className="rounded-lg bg-sky-600 px-2.5 py-1 text-white shadow-xs flex items-center justify-between gap-1.5">
+      <span className="text-[11px] font-bold truncate opacity-95">{name}</span>
+      <span className="font-mono text-xs font-black text-right">{fmt(value)}</span>
     </div>
   );
 
@@ -54,18 +71,25 @@ export default function Dashboard({ selectedDate }: { selectedDate: string }) {
   );
 
   return (
-    <div className="mb-4 rounded-2xl bg-white p-3 shadow-sm border border-slate-200">
-      {/* Top 5 Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-        {/* Box 1: Display Date Only */}
-        <div className="col-span-2 sm:col-span-1 flex flex-col justify-center rounded-xl border border-slate-300 bg-slate-50 p-2 sm:p-2.5">
-          <div className="text-[11px] font-semibold text-slate-500">Date</div>
-          <div className="truncate font-mono text-xs font-black text-slate-900 sm:text-sm">
+    <div className="mb-3 rounded-2xl bg-white p-2.5 sm:p-3 shadow-sm border border-slate-200">
+      {/* Top 5 Compact Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5 sm:gap-2">
+        {/* Box 1: Display Date Only + Day Close Badge */}
+        <div className="col-span-2 sm:col-span-1 flex items-center justify-between rounded-xl border border-slate-300 bg-slate-50 px-2.5 py-1.5">
+          <div className="flex items-center gap-1.5">
+            <span className="text-[11px] font-bold text-slate-500">Date</span>
+            {closed && (
+              <span className="rounded bg-rose-100 px-1.5 py-0.2 text-[9px] font-black text-rose-700 border border-rose-300">
+                🔒 Closed
+              </span>
+            )}
+          </div>
+          <div className="truncate font-mono text-xs font-black text-slate-900">
             {formatDisplay(selectedDate) || selectedDate}
           </div>
         </div>
 
-        {/* Box 2: Cash in Hand (গত দিনের হাতে নগদ + আজ রিসিভ কৃত টাকা - আজ পেমেন্ট কৃত টাকা) */}
+        {/* Box 2: Cash in Hand */}
         <Card
           label="Cash in Hand"
           bengaliLabel="হাতে নগদ"
@@ -74,7 +98,7 @@ export default function Dashboard({ selectedDate }: { selectedDate: string }) {
           subText={`Prev: ${fmt(s?.prevCash ?? 0)}`}
         />
 
-        {/* Box 3: Bank Balance (গতদিনের ব্যাংক ব্যালেন্স + আজকে ব্যাংকে জমা - আজকে ব্যাংক থেকে উত্তোলন) */}
+        {/* Box 3: Bank Balance */}
         <Card
           label="Bank Balance"
           bengaliLabel="ব্যাংক ব্যালেন্স"
@@ -83,7 +107,7 @@ export default function Dashboard({ selectedDate }: { selectedDate: string }) {
           subText={`Prev: ${fmt(s?.prevBank ?? 0)}`}
         />
 
-        {/* Box 4: Total Receive (গত দিনের হাতে নগদ সহ মোট রিসিবকৃত টাকা) */}
+        {/* Box 4: Total Receive */}
         <Card
           label="Total Receive"
           bengaliLabel="মোট রিসিভ"
@@ -92,7 +116,7 @@ export default function Dashboard({ selectedDate }: { selectedDate: string }) {
           subText={`Today: ${fmt(s?.todayReceiveOnly ?? 0)}`}
         />
 
-        {/* Box 5: Total Payment (আজকে মোট পেমেন্ট কৃত টাকা) */}
+        {/* Box 5: Total Payment */}
         <Card
           label="Total Payment"
           bengaliLabel="মোট পেমেন্ট"
@@ -103,23 +127,23 @@ export default function Dashboard({ selectedDate }: { selectedDate: string }) {
       </div>
 
       {/* Staff wise row: আজকের রিসিভ কৃত মোট টাকা */}
-      <div className="mt-2.5 pt-2 border-t border-slate-100">
-        <div className="mb-1.5 flex items-center justify-between px-1">
+      <div className="mt-2 pt-1.5 border-t border-slate-100">
+        <div className="mb-1 flex items-center justify-between px-1">
           <div className="text-[11px] font-bold text-slate-700 flex items-center gap-1.5">
             <span>👥 Staff Wise</span>
             <span className="text-[10px] font-normal text-slate-500 hidden sm:inline">
               (আজকের রিসিভকৃত মোট টাকা)
             </span>
           </div>
-          <div className="text-xs font-mono font-black text-sky-800 bg-sky-50 px-2 py-0.5 rounded border border-sky-200">
+          <div className="text-[11px] font-mono font-black text-sky-800 bg-sky-50 px-2 py-0.2 rounded border border-sky-200">
             Total: {fmt(totalStaffReceive)}
           </div>
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-          <Card label="Monir" value={s?.persons?.monir ?? 0} cls="bg-sky-600" />
-          <Card label="Sakib" value={s?.persons?.sakib ?? 0} cls="bg-sky-600" />
-          <Card label="Mintu" value={s?.persons?.mintu ?? 0} cls="bg-sky-600" />
-          <Card label="Alamgir" value={s?.persons?.alamgir ?? 0} cls="bg-sky-600" />
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+          <StaffCard name="Monir" value={s?.persons?.monir ?? 0} />
+          <StaffCard name="Sakib" value={s?.persons?.sakib ?? 0} />
+          <StaffCard name="Mintu" value={s?.persons?.mintu ?? 0} />
+          <StaffCard name="Alamgir" value={s?.persons?.alamgir ?? 0} />
         </div>
       </div>
     </div>

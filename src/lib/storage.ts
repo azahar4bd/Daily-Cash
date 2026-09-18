@@ -7,6 +7,7 @@ import type {
   RebateRateItem,
   Summary,
   KallyanRule,
+  DayClosure,
 } from "@/types";
 import { DEFAULT_CATEGORIES, DEFAULT_SUBCAT_RULES, DEFAULT_KALLYAN_RULE } from "./categories";
 import { DEFAULT_REBATE_RATES } from "./defaultRebateRates";
@@ -20,6 +21,84 @@ const SUBCAT_RULE_KEY = "gobra_local_subcat_rules";
 const REBATE_KEY = "gobra_local_rebate_rates";
 const G_SHEET_KEY = "gobra_google_sheet_script_url";
 const KALLYAN_RULE_KEY = "gobra_local_kallyan_rule";
+const DAY_CLOSURES_KEY = "gobra_local_day_closures";
+
+/**
+ * Safely evaluates math expressions like "1+2+3" or "500+700+300"
+ * Returns the computed integer/number as string, or original string if invalid
+ */
+export function evaluateMathExpression(input: string): string {
+  if (!input) return "";
+  let expr = String(input).trim();
+  // Strip trailing '='
+  if (expr.endsWith("=")) {
+    expr = expr.slice(0, -1).trim();
+  }
+  if (!expr) return "";
+
+  // If already a plain number
+  if (/^-?\d+(\.\d+)?$/.test(expr)) return expr;
+
+  // If contains simple additions or math (+, -, *, /)
+  if (/^[0-9+\-*/. ]+$/.test(expr)) {
+    try {
+      // Split additions first (most common microfinance use case)
+      if (expr.includes("+") && !expr.includes("*") && !expr.includes("/")) {
+        const parts = expr.split("+").map((p) => p.trim()).filter(Boolean);
+        const sum = parts.reduce((acc, p) => acc + (Number(p) || 0), 0);
+        return String(Math.round(sum));
+      }
+
+      // Safe JS evaluation for expressions like "500+200-50"
+      const sanitized = expr.replace(/[^0-9+\-*/.]/g, "");
+      if (sanitized) {
+        // eslint-disable-next-line no-new-func
+        const res = Function(`'use strict'; return (${sanitized})`)();
+        if (typeof res === "number" && !isNaN(res) && isFinite(res)) {
+          return String(Math.round(res));
+        }
+      }
+    } catch {}
+  }
+  return input;
+}
+
+export function getLocalDayClosures(): DayClosure[] {
+  try {
+    const raw = localStorage.getItem(DAY_CLOSURES_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function getDayClosure(date: string): DayClosure | null {
+  const list = getLocalDayClosures();
+  return list.find((c) => c.closeDate === date) || null;
+}
+
+export function isDayClosed(date: string): boolean {
+  const c = getDayClosure(date);
+  return c !== null && c.status === "closed";
+}
+
+export function saveDayClosure(payload: DayClosure): DayClosure {
+  const list = getLocalDayClosures().filter((c) => c.closeDate !== payload.closeDate);
+  const updated = [payload, ...list];
+  localStorage.setItem(DAY_CLOSURES_KEY, JSON.stringify(updated));
+  window.dispatchEvent(new CustomEvent("day-close-changed", { detail: payload }));
+  window.dispatchEvent(new Event("tx-changed"));
+  enqueueNeonAction({ type: "day_close", payload });
+  return payload;
+}
+
+export function reopenDay(date: string): void {
+  const list = getLocalDayClosures().filter((c) => c.closeDate !== date);
+  localStorage.setItem(DAY_CLOSURES_KEY, JSON.stringify(list));
+  window.dispatchEvent(new CustomEvent("day-close-changed", { detail: { closeDate: date, status: "reopened" } }));
+  window.dispatchEvent(new Event("tx-changed"));
+  enqueueNeonAction({ type: "day_reopen", payload: date });
+}
 
 export function getLocalTxs(): Tx[] {
   try {
@@ -609,7 +688,7 @@ export function getSummary(targetDate: string): Summary {
         dayLoanForm +
         dayOthersIncome;
       const totalDayExpenditure =
-        expDisburse + expBankDeposit + expSavingsReturn + expOthers;
+        expDisburse + dayBankDeposit + expSavingsReturn + expOthers;
       dayClosingCash = Math.round(totalDayIncome - totalDayExpenditure);
     } else {
       dayClosingCash = Math.round(runningCash + dayTxCashReceive - dayTxPayment);
@@ -681,4 +760,112 @@ export function getSummary(targetDate: string): Summary {
     totalStaffReceive,
     persons,
   };
+}
+
+export function getReportPageFigures(selectedDate: string): {
+  reportCashInHand: number;
+  reportBankBalance: number;
+} {
+  const sum = getSummary(selectedDate);
+  const allTx = getLocalTxs();
+  const daySr = getLocalStaffReports(selectedDate);
+
+  const prevCash = sum.prevCash;
+  const prevBank = sum.prevBank;
+
+  const targetDateTxs = allTx.filter((t) => t.txDate === selectedDate);
+  const targetReceives = targetDateTxs.filter((t) => t.type === "receive");
+  const targetPayments = targetDateTxs.filter((t) => t.type === "payment");
+
+  // Total Collection without rebate from staff reports
+  const srGrantTotal = daySr.reduce(
+    (s, r) =>
+      s +
+      (Number(r.loan) || 0) +
+      (Number(r.savings) || 0) +
+      (Number(r.dps) || 0) +
+      (Number(r.passbook) || 0) +
+      (Number(r.admission) || 0),
+    0
+  );
+
+  const DEFAULT_STAFF = ["monir", "sakib", "mintu", "alamgir"];
+  const staffReceives = targetReceives
+    .filter((t) => DEFAULT_STAFF.some((st) => t.category.toLowerCase().includes(st)))
+    .reduce((s, t) => s + (Number(t.amount) || 0), 0);
+
+  const incomeAday = srGrantTotal > 0 ? srGrantTotal : staffReceives;
+  const incomeHandCash = prevCash;
+  const incomeBankWithdraw = targetReceives
+    .filter((t) => t.category.toLowerCase().includes("bank withdraw"))
+    .reduce((s, t) => s + (Number(t.amount) || 0), 0);
+
+  const disburseLoans = targetPayments.filter((t) => {
+    const cat = t.category.toLowerCase().trim();
+    return (
+      ["jagoron", "agrossor", "buni", "sufolon", "mfce"].some((k) => cat.includes(k)) ||
+      Boolean(t.subCategory && t.subCategory.trim().length > 0)
+    );
+  });
+
+  let buniyadDisburseSum = 0;
+  let otherDisburseSum = 0;
+  for (const t of disburseLoans) {
+    const amt = Number(t.amount) || 0;
+    const cat = t.category.toLowerCase().trim();
+    if (cat.includes("buni")) buniyadDisburseSum += amt;
+    else otherDisburseSum += amt;
+  }
+  const incomeKallayan = Math.round(otherDisburseSum * 0.01 + buniyadDisburseSum * 0.005);
+  const incomeLoanForm = disburseLoans.length * 5;
+
+  const incomeOthers = targetReceives
+    .filter((t) => {
+      const c = t.category.toLowerCase().trim();
+      if (c.includes("bank withdraw") || c.includes("fund receive")) return false;
+      if (c.includes("welfare") || c.includes("kallayan") || c.includes("loan form")) return false;
+      if (DEFAULT_STAFF.some((st) => c.includes(st))) return false;
+      return true;
+    })
+    .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+
+  const expDisburse = disburseLoans.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+  const expBankDeposit = targetPayments
+    .filter(
+      (t) =>
+        t.category.toLowerCase().includes("bank deposit") ||
+        t.category.toLowerCase().includes("bank deposite")
+    )
+    .reduce((s, t) => s + (Number(t.amount) || 0), 0);
+  const expSavingsReturn = daySr.reduce(
+    (s, r) => s + (Number(r.savingsAdjust) || 0) + (Number(r.nogodReturn) || 0),
+    0
+  );
+  const expOthers = targetPayments
+    .filter(
+      (t) =>
+        !["jagoron", "agrossor", "buni", "sufolon", "mfce", "bank deposit", "bank deposite"].some(
+          (k) => t.category.toLowerCase().includes(k)
+        )
+    )
+    .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+
+  const totalIncome =
+    incomeAday +
+    incomeHandCash +
+    incomeBankWithdraw +
+    incomeKallayan +
+    incomeLoanForm +
+    incomeOthers;
+  const totalExpenditure = expDisburse + expBankDeposit + expSavingsReturn + expOthers;
+
+  const reportCashInHand = Math.round(totalIncome - totalExpenditure);
+  const fundReceiveToday = targetReceives
+    .filter((t) => t.category.toLowerCase().includes("fund receive"))
+    .reduce((s, t) => s + (Number(t.amount) || 0), 0);
+  const reportBankBalance = Math.round(
+    prevBank - incomeBankWithdraw + expBankDeposit + fundReceiveToday
+  );
+
+  return { reportCashInHand, reportBankBalance };
 }

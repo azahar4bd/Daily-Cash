@@ -245,15 +245,15 @@ export default function RebatePage() {
             </h3>
           </div>
           <div className="max-h-80 overflow-auto rounded-xl border border-slate-200">
-            <table className="w-full text-left text-xs sm:text-sm">
+            <table className="w-full text-left text-xs sm:text-sm whitespace-nowrap">
               <thead className="sticky top-0 bg-slate-800 text-white">
                 <tr>
-                  <th className="px-3 py-2 text-center">Advance Kisti</th>
-                  <th className="px-3 py-2 text-right">Rate</th>
-                  <th className="px-3 py-2 text-right">
+                  <th className="px-3 py-2 text-center whitespace-nowrap">Advance Kisti</th>
+                  <th className="px-3 py-2 text-right whitespace-nowrap">Rate</th>
+                  <th className="px-3 py-2 text-right whitespace-nowrap">
                     Rebate ({form.disburse ? `${fmt(form.disburse)} Tk` : "Disburse"})
                   </th>
-                  <th className="px-3 py-2 text-center">Status</th>
+                  <th className="px-3 py-2 text-center whitespace-nowrap">Status</th>
                 </tr>
               </thead>
               <tbody>
@@ -270,12 +270,12 @@ export default function RebatePage() {
                           : "hover:bg-slate-50"
                       }`}
                     >
-                      <td className="px-3 py-2 text-center font-mono">Kisti {r.kisti}</td>
-                      <td className="px-3 py-2 text-right font-mono font-semibold">{Number(r.rate)}</td>
-                      <td className="px-3 py-2 text-right font-mono font-bold text-amber-800">
+                      <td className="px-3 py-2 text-center font-mono whitespace-nowrap">Kisti {r.kisti}</td>
+                      <td className="px-3 py-2 text-right font-mono font-semibold whitespace-nowrap">{Number(r.rate)}</td>
+                      <td className="px-3 py-2 text-right font-mono font-bold text-amber-800 whitespace-nowrap">
                         {fmt(rowRebate)}
                       </td>
-                      <td className="px-3 py-2 text-center">
+                      <td className="px-3 py-2 text-center whitespace-nowrap">
                         {isSelected ? (
                           <span className="inline-block rounded bg-amber-600 px-2 py-0.5 text-[10px] font-bold text-white">
                             Selected
