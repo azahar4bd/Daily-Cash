@@ -18,9 +18,11 @@ type EditTab = "rate" | "item" | "category_rename" | "duration_rename";
 export default function RebateRateManager({
   onClose,
   onUpdated,
+  isEmbedded = false,
 }: {
-  onClose: () => void;
+  onClose?: () => void;
   onUpdated?: () => void;
+  isEmbedded?: boolean;
 }) {
   const [rates, setRates] = useState<RebateRateItem[]>([]);
   const [filterProduct, setFilterProduct] = useState("");
@@ -107,7 +109,8 @@ export default function RebateRateManager({
         if (
           !r.product.toLowerCase().includes(q) &&
           !r.duration.toLowerCase().includes(q) &&
-          !String(r.kisti).includes(q)
+          !String(r.kisti).includes(q) &&
+          !String(r.rate).includes(q)
         ) {
           return false;
         }
@@ -277,29 +280,35 @@ export default function RebateRateManager({
     onUpdated?.();
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-2 sm:p-4 backdrop-blur-xs animate-in fade-in duration-200">
-      <div className="flex h-full sm:h-auto sm:max-h-[95vh] w-full max-w-5xl flex-col rounded-2xl bg-white shadow-2xl overflow-hidden border border-slate-200">
-        
-        {/* Top Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b bg-linear-to-r from-slate-900 via-indigo-950 to-slate-900 px-4 sm:px-6 py-3.5 text-white shrink-0">
-          <div className="flex items-center justify-between w-full sm:w-auto">
-            <div className="flex items-center gap-2.5">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-500/20 text-indigo-300 ring-1 ring-indigo-400/30 text-lg shadow-inner">
-                📋
-              </div>
-              <div>
-                <h3 className="text-base sm:text-lg font-black tracking-tight text-white flex items-center gap-2">
-                  <span>Rebate Rate Database</span>
-                  <span className="rounded-md bg-indigo-500/20 px-2 py-0.5 text-[10px] font-bold text-indigo-200 ring-1 ring-indigo-400/30">
-                    ম্যানেজার
-                  </span>
-                </h3>
-                <p className="text-xs text-slate-300 font-medium">
-                  মোট <b className="text-amber-400 font-mono text-sm">{rates.length}</b> টি রেট ডাটাবেজে সংরক্ষিত
-                </p>
-              </div>
+  // Main UI Content
+  const managerContent = (
+    <div
+      className={`flex flex-col bg-white overflow-hidden border border-slate-300 ${
+        isEmbedded
+          ? "w-full rounded-2xl shadow-md min-h-[550px]"
+          : "h-full sm:h-[94vh] w-full max-w-[97vw] 2xl:max-w-7xl rounded-2xl shadow-2xl"
+      }`}
+    >
+      {/* Top Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b bg-linear-to-r from-slate-900 via-indigo-950 to-slate-900 px-4 sm:px-6 py-3.5 text-white shrink-0">
+        <div className="flex items-center justify-between w-full sm:w-auto">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-500/20 text-indigo-300 ring-1 ring-indigo-400/30 text-lg shadow-inner">
+              📋
             </div>
+            <div>
+              <h3 className="text-base sm:text-lg font-black tracking-tight text-white flex items-center gap-2">
+                <span>Rebate Rate Database</span>
+                <span className="rounded-md bg-indigo-500/20 px-2 py-0.5 text-[10px] font-bold text-indigo-200 ring-1 ring-indigo-400/30">
+                  {isEmbedded ? "লাইভ টেবিল" : "ম্যানেজার"}
+                </span>
+              </h3>
+              <p className="text-xs text-slate-300 font-medium">
+                মোট <b className="text-amber-400 font-mono text-sm">{rates.length}</b> টি রেট সংরক্ষিত • সব দিক থেকে স্ক্রোলযোগ্য
+              </p>
+            </div>
+          </div>
+          {!isEmbedded && onClose && (
             <button
               onClick={onClose}
               className="sm:hidden text-2xl text-slate-400 hover:text-white p-1 leading-none cursor-pointer"
@@ -307,23 +316,36 @@ export default function RebateRateManager({
             >
               ✕
             </button>
-          </div>
+          )}
+        </div>
 
-          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
-            {/* Primary Action Button: "এডিট ও কনফিগারেশন" */}
-            <button
-              type="button"
-              onClick={() => setShowEditPanel(!showEditPanel)}
-              className={`rounded-xl px-3.5 py-2 text-xs sm:text-sm font-black transition cursor-pointer flex items-center gap-1.5 shadow-sm ${
-                showEditPanel
-                  ? "bg-amber-400 text-slate-950 ring-2 ring-amber-300"
-                  : "bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-600/30"
-              }`}
-            >
-              <span>{showEditPanel ? "✕" : "⚙️"}</span>
-              <span>{showEditPanel ? "প্যানেল বন্ধ করুন" : "ডাটাবেজ এডিট ও ফর্ম"}</span>
-            </button>
+        <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+          {/* Toggle Edit Panel */}
+          <button
+            type="button"
+            onClick={() => setShowEditPanel(!showEditPanel)}
+            className={`rounded-xl px-3.5 py-2 text-xs sm:text-sm font-black transition cursor-pointer flex items-center gap-1.5 shadow-sm ${
+              showEditPanel
+                ? "bg-amber-400 text-slate-950 ring-2 ring-amber-300"
+                : "bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-600/30"
+            }`}
+          >
+            <span>{showEditPanel ? "✕" : "⚙️"}</span>
+            <span>{showEditPanel ? "প্যানেল বন্ধ করুন" : "ডাটাবেজ এডিট ও ফর্ম"}</span>
+          </button>
 
+          {/* Reset Defaults button */}
+          <button
+            type="button"
+            onClick={() => setShowResetConfirm(true)}
+            className="rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-3 py-2 text-xs font-bold transition cursor-pointer flex items-center gap-1"
+            title="প্রাথমিক ডিফল্ট রেটে রিসেট করুন"
+          >
+            <span>🔄</span>
+            <span className="hidden sm:inline">ডিফল্ট রিসেট</span>
+          </button>
+
+          {!isEmbedded && onClose && (
             <button
               onClick={onClose}
               className="hidden sm:block text-2xl text-slate-400 hover:text-white transition cursor-pointer px-1.5 leading-none"
@@ -331,637 +353,621 @@ export default function RebateRateManager({
             >
               ✕
             </button>
-          </div>
+          )}
         </div>
+      </div>
 
-        {/* Global Notification Banner */}
-        {msg && (
-          <div className="bg-amber-50 border-b border-amber-200 px-4 py-2.5 flex items-center justify-between text-xs font-bold text-amber-900 shrink-0">
-            <span>💡 {msg}</span>
+      {/* Global Notification Banner */}
+      {msg && (
+        <div className="bg-amber-50 border-b border-amber-200 px-4 py-2.5 flex items-center justify-between text-xs font-bold text-amber-900 shrink-0">
+          <span>💡 {msg}</span>
+          <button
+            onClick={() => setMsg("")}
+            className="text-amber-700 hover:text-amber-950 text-sm px-1.5 font-bold cursor-pointer"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* BEAUTIFUL UNIFIED DATABASE EDIT & MODIFY PANEL                            */}
+      {/* ========================================================================= */}
+      {showEditPanel && (
+        <div className="border-b bg-linear-to-b from-slate-50 to-indigo-50/30 p-3 sm:p-5 border-slate-200 shrink-0 shadow-inner space-y-3.5 animate-in slide-in-from-top-2 duration-200 max-h-[50vh] overflow-y-auto">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="flex h-2.5 w-2.5 rounded-full bg-indigo-600 animate-pulse"></span>
+              <span className="text-xs sm:text-sm font-black text-slate-900 uppercase tracking-wider">
+                ডাটাবেজ এডিট ও পরিবর্তন ফর্ম
+              </span>
+            </div>
             <button
-              onClick={() => setMsg("")}
-              className="text-amber-700 hover:text-amber-950 text-sm px-1.5 font-bold cursor-pointer"
+              onClick={() => setShowEditPanel(false)}
+              className="text-xs text-slate-500 hover:text-slate-800 font-bold cursor-pointer flex items-center gap-1"
             >
-              ✕
+              <span>লুকান</span>
+              <span>✕</span>
             </button>
           </div>
-        )}
 
-        {/* ========================================================================= */}
-        {/* BEAUTIFUL UNIFIED DATABASE EDIT & MODIFY PANEL                            */}
-        {/* ========================================================================= */}
-        {showEditPanel && (
-          <div className="border-b bg-linear-to-b from-slate-50 to-indigo-50/30 p-3 sm:p-5 border-slate-200 shrink-0 shadow-inner space-y-3.5 animate-in slide-in-from-top-2 duration-200 max-h-[50vh] overflow-y-auto">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="flex h-2.5 w-2.5 rounded-full bg-indigo-600 animate-pulse"></span>
-                <span className="text-xs sm:text-sm font-black text-slate-900 uppercase tracking-wider">
-                  ডাটাবেজ এডিট ও পরিবর্তন ফর্ম
+          {/* Segmented Control Tabs */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 p-1 bg-slate-200/80 rounded-xl">
+            <button
+              type="button"
+              onClick={() => setEditTab("rate")}
+              className={`py-2 px-3 text-xs font-black rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                editTab === "rate"
+                  ? "bg-white text-indigo-700 shadow-sm"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              <span>➕</span>
+              <span>একক রেট যোগ</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setEditTab("item")}
+              className={`py-2 px-3 text-xs font-black rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                editTab === "item"
+                  ? "bg-white text-emerald-700 shadow-sm"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              <span>📦</span>
+              <span>নতুন প্রোডাক্ট তৈরি</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setEditTab("category_rename")}
+              className={`py-2 px-3 text-xs font-black rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                editTab === "category_rename"
+                  ? "bg-white text-amber-700 shadow-sm"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              <span>🏷️</span>
+              <span>প্রোডাক্ট রিনেম</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setEditTab("duration_rename")}
+              className={`py-2 px-3 text-xs font-black rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                editTab === "duration_rename"
+                  ? "bg-white text-amber-700 shadow-sm"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              <span>⏱️</span>
+              <span>ডিউরেশন রিনেম</span>
+            </button>
+          </div>
+
+          {/* TAB 1: একক রেট যোগ / পরিবর্তন ফর্ম */}
+          {editTab === "rate" && (
+            <div className="rounded-2xl border border-indigo-200 bg-white p-4 shadow-xs space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 border-b border-indigo-100 pb-2">
+                <span className="text-xs font-black text-indigo-950 flex items-center gap-1.5">
+                  <span>✏️</span> নির্দিষ্ট প্রোডাক্ট ও কিস্তির রেট নির্ধারণ করুন:
                 </span>
+                <div className="flex items-center gap-1 flex-wrap">
+                  <span className="text-[10px] text-slate-400 font-bold">কুইক প্রোডাক্ট:</span>
+                  {products.slice(0, 5).map((p) => (
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() => setNewProduct(p)}
+                      className={`rounded px-1.5 py-0.5 text-[10px] font-bold transition cursor-pointer ${
+                        newProduct === p
+                          ? "bg-indigo-600 text-white"
+                          : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                      }`}
+                    >
+                      {p}
+                    </button>
+                  ))}
+                </div>
               </div>
-              <button
-                onClick={() => setShowEditPanel(false)}
-                className="text-xs text-slate-500 hover:text-slate-800 font-bold cursor-pointer flex items-center gap-1"
-              >
-                <span>লুকান</span>
-                <span>✕</span>
-              </button>
-            </div>
 
-            {/* Segmented Control Tabs */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 p-1 bg-slate-200/80 rounded-xl">
-              <button
-                type="button"
-                onClick={() => setEditTab("rate")}
-                className={`py-2 px-3 text-xs font-black rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                  editTab === "rate"
-                    ? "bg-white text-indigo-700 shadow-sm"
-                    : "text-slate-600 hover:text-slate-900"
-                }`}
-              >
-                <span>➕</span>
-                <span>একক রেট যোগ</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setEditTab("item")}
-                className={`py-2 px-3 text-xs font-black rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                  editTab === "item"
-                    ? "bg-white text-emerald-700 shadow-sm"
-                    : "text-slate-600 hover:text-slate-900"
-                }`}
-              >
-                <span>📦</span>
-                <span>নতুন প্রোডাক্ট তৈরি</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setEditTab("category_rename")}
-                className={`py-2 px-3 text-xs font-black rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                  editTab === "category_rename"
-                    ? "bg-white text-amber-700 shadow-sm"
-                    : "text-slate-600 hover:text-slate-900"
-                }`}
-              >
-                <span>🏷️</span>
-                <span>প্রোডাক্ট রিনেম</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setEditTab("duration_rename")}
-                className={`py-2 px-3 text-xs font-black rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                  editTab === "duration_rename"
-                    ? "bg-white text-amber-700 shadow-sm"
-                    : "text-slate-600 hover:text-slate-900"
-                }`}
-              >
-                <span>⏱️</span>
-                <span>ডিউরেশন রিনেম</span>
-              </button>
-            </div>
-
-            {/* TAB 1: একক রেট যোগ / পরিবর্তন ফর্ম */}
-            {editTab === "rate" && (
-              <div className="rounded-2xl border border-indigo-200 bg-white p-4 shadow-xs space-y-3">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 border-b border-indigo-100 pb-2">
-                  <span className="text-xs font-black text-indigo-950 flex items-center gap-1.5">
-                    <span>✏️</span> নির্দিষ্ট প্রোডাক্ট ও কিস্তির রেট নির্ধারণ করুন:
-                  </span>
-                  {/* Quick Product Chips */}
-                  <div className="flex items-center gap-1 flex-wrap">
-                    <span className="text-[10px] text-slate-400 font-bold">কুইক প্রোডাক্ট:</span>
-                    {products.slice(0, 5).map((p) => (
-                      <button
-                        key={p}
-                        type="button"
-                        onClick={() => setNewProduct(p)}
-                        className={`rounded px-1.5 py-0.5 text-[10px] font-bold transition cursor-pointer ${
-                          newProduct === p
-                            ? "bg-indigo-600 text-white"
-                            : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                        }`}
-                      >
-                        {p}
-                      </button>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-end">
+                <div>
+                  <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                    প্রোডাক্ট (Product) *
+                  </label>
+                  <input
+                    list="edit-panel-products-list"
+                    placeholder="e.g. Jagoron"
+                    value={newProduct}
+                    onChange={(e) => setNewProduct(e.target.value)}
+                    className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs sm:text-sm font-bold text-slate-900 focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600 focus:outline-none bg-slate-50/50"
+                  />
+                  <datalist id="edit-panel-products-list">
+                    {products.map((p) => (
+                      <option key={p} value={p} />
                     ))}
-                  </div>
+                  </datalist>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-end">
-                  {/* Product */}
-                  <div>
-                    <label className="text-[11px] font-bold text-slate-700 block mb-1">
-                      প্রোডাক্ট (Product) *
+                <div>
+                  <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                    ডিউরেশন (Duration) *
+                  </label>
+                  <select
+                    value={newDuration}
+                    onChange={(e) => setNewDuration(e.target.value)}
+                    className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs sm:text-sm font-bold text-slate-900 focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600 focus:outline-none bg-slate-50/50 cursor-pointer"
+                  >
+                    {STANDARD_DURATIONS.map((d) => (
+                      <option key={d} value={d}>
+                        {d}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-[11px] font-bold text-slate-700">
+                      অগ্রিম কিস্তি (Kisti) *
                     </label>
-                    <input
-                      list="edit-panel-products-list"
-                      placeholder="e.g. Jagoron"
-                      value={newProduct}
-                      onChange={(e) => setNewProduct(e.target.value)}
-                      className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs sm:text-sm font-bold text-slate-900 focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600 focus:outline-none bg-slate-50/50"
-                    />
-                    <datalist id="edit-panel-products-list">
-                      {products.map((p) => (
-                        <option key={p} value={p} />
-                      ))}
-                    </datalist>
+                    <span className="text-[10px] text-slate-400 font-mono">1, 2, 5...</span>
                   </div>
-
-                  {/* Duration */}
-                  <div>
-                    <label className="text-[11px] font-bold text-slate-700 block mb-1">
-                      ডিউরেশন (Duration) *
-                    </label>
-                    <select
-                      value={newDuration}
-                      onChange={(e) => setNewDuration(e.target.value)}
-                      className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs sm:text-sm font-bold text-slate-900 focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600 focus:outline-none bg-slate-50/50 cursor-pointer"
-                    >
-                      {STANDARD_DURATIONS.map((d) => (
-                        <option key={d} value={d}>
-                          {d}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Kisti */}
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <label className="text-[11px] font-bold text-slate-700">
-                        অগ্রিম কিস্তি (Kisti) *
-                      </label>
-                      <span className="text-[10px] text-slate-400 font-mono">1, 2, 5...</span>
-                    </div>
-                    <div className="flex items-center">
-                      <button
-                        type="button"
-                        onClick={() => setNewKisti(String(Math.max(1, (Number(newKisti) || 1) - 1)))}
-                        className="px-2.5 py-2 bg-slate-100 hover:bg-slate-200 border border-r-0 border-slate-300 rounded-l-xl text-xs font-bold text-slate-700 cursor-pointer"
-                      >
-                        -
-                      </button>
-                      <input
-                        type="number"
-                        min={1}
-                        placeholder="কিস্তি নং"
-                        value={newKisti}
-                        onChange={(e) => setNewKisti(e.target.value)}
-                        className="w-full border-y border-slate-300 px-2 py-2 text-center text-xs sm:text-sm font-mono font-black text-slate-900 focus:outline-none bg-slate-50/50"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setNewKisti(String((Number(newKisti) || 0) + 1))}
-                        className="px-2.5 py-2 bg-slate-100 hover:bg-slate-200 border border-l-0 border-slate-300 rounded-r-xl text-xs font-bold text-slate-700 cursor-pointer"
-                      >
-                        +
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Rate */}
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <label className="text-[11px] font-bold text-slate-700">
-                        রেট (Rate Tk) *
-                      </label>
-                      <span className="text-[10px] text-indigo-600 font-bold">প্রতি হাজারে</span>
-                    </div>
-                    <div className="relative">
-                      <input
-                        type="number"
-                        step="0.01"
-                        placeholder="0.00"
-                        value={newRate}
-                        onChange={(e) => setNewRate(e.target.value)}
-                        className="w-full rounded-xl border border-slate-300 px-3 py-2 text-right font-mono text-sm font-black text-indigo-900 focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600 focus:outline-none bg-slate-50/50"
-                      />
-                      <span className="absolute left-2.5 top-2 text-xs font-bold text-slate-400">
-                        ৳
-                      </span>
-                    </div>
-                    {/* Quick rate buttons */}
-                    <div className="flex gap-1 mt-1">
-                      {[0.5, 1.0, 2.5, 5.0].map((rv) => (
-                        <button
-                          key={rv}
-                          type="button"
-                          onClick={() => setNewRate(String(rv))}
-                          className="flex-1 rounded py-0.5 text-[9px] font-mono font-bold bg-indigo-50 text-indigo-700 hover:bg-indigo-100 cursor-pointer"
-                        >
-                          {rv}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Submit Button */}
-                  <div>
+                  <div className="flex items-center">
                     <button
                       type="button"
-                      onClick={handleAddRate}
-                      className="w-full rounded-xl bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 py-2.5 text-xs sm:text-sm font-black text-white shadow-md shadow-indigo-600/20 transition cursor-pointer flex items-center justify-center gap-1.5"
+                      onClick={() => setNewKisti(String(Math.max(1, (Number(newKisti) || 1) - 1)))}
+                      className="px-2.5 py-2 bg-slate-100 hover:bg-slate-200 border border-r-0 border-slate-300 rounded-l-xl text-xs font-bold text-slate-700 cursor-pointer"
                     >
-                      <span>✓</span>
-                      <span>রেট সেভ করুন</span>
+                      -
                     </button>
-                  </div>
-                </div>
-
-                {/* Real-time Calculation Impact Preview */}
-                {newRate && (
-                  <div className="flex items-center justify-between rounded-xl bg-indigo-50/70 border border-indigo-200/80 px-3 py-1.5 text-xs text-indigo-950">
-                    <span className="font-semibold">
-                      💡 প্রভাব: ৫০,০০০ টাকা লোনে এই রেটে ({Number(newRate) || 0} Tk) রিবেট হবে:
-                    </span>
-                    <span className="font-mono font-black text-sm text-indigo-900">
-                      {Math.round(50 * (Number(newRate) || 0))} ৳
-                    </span>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* TAB 2: নতুন আইটেম / সম্পূর্ণ প্রোডাক্ট তৈরি */}
-            {editTab === "item" && (
-              <div className="rounded-2xl border border-emerald-200 bg-white p-4 shadow-xs space-y-3">
-                <div className="border-b border-emerald-100 pb-2">
-                  <span className="text-xs font-black text-emerald-950 flex items-center gap-1.5">
-                    <span>📦</span> নতুন প্রোডাক্ট এবং কিস্তির রো এক ক্লিকে স্বয়ংক্রিয় তৈরি করুন:
-                  </span>
-                  <p className="text-[11px] text-slate-500 mt-0.5">
-                    প্রোডাক্টের নাম, মোট কিস্তি সংখ্যা এবং বেইজ রেট দিলে সবগুলো কিস্তির রেট রো একসাথে জেনারেট হবে।
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
-                  <div>
-                    <label className="text-[11px] font-bold text-slate-700 block mb-1">
-                      প্রোডাক্ট নাম (New Item Name) *
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="যেমন: Jagoron Special বা Agro Micro"
-                      value={newItemName}
-                      onChange={(e) => setNewItemName(e.target.value)}
-                      className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs sm:text-sm font-bold text-slate-900 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 focus:outline-none bg-slate-50/50"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-[11px] font-bold text-slate-700 block mb-1">
-                      ডিউরেশন (Duration) *
-                    </label>
-                    <select
-                      value={newItemDuration}
-                      onChange={(e) => setNewItemDuration(e.target.value)}
-                      className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs sm:text-sm font-bold text-slate-900 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 focus:outline-none bg-slate-50/50 cursor-pointer"
-                    >
-                      <option value="Week">Week (সাপ্তাহিক - ৪৬ কিস্তি)</option>
-                      <option value="Month">Month (মাসিক - ১২ কিস্তি)</option>
-                      <option value="1.5 Year">1.5 Year (দেড় বছর - ১৮ কিস্তি)</option>
-                      <option value="2 Year">2 Year (দুই বছর - ২৪ কিস্তি)</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="text-[11px] font-bold text-slate-700 block mb-1">
-                      মোট কিস্তি সংখ্যা (Total Kisti) *
-                    </label>
                     <input
                       type="number"
-                      placeholder="e.g. 46"
-                      value={newItemTotalKisti}
-                      onChange={(e) => setNewItemTotalKisti(e.target.value)}
-                      className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs sm:text-sm font-mono font-bold text-slate-900 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 focus:outline-none bg-slate-50/50"
+                      min={1}
+                      placeholder="কিস্তি নং"
+                      value={newKisti}
+                      onChange={(e) => setNewKisti(e.target.value)}
+                      className="w-full border-y border-slate-300 px-2 py-2 text-center text-xs sm:text-sm font-mono font-black text-slate-900 focus:outline-none bg-slate-50/50"
                     />
-                  </div>
-
-                  <div>
                     <button
                       type="button"
-                      onClick={handleAddNewItem}
-                      className="w-full rounded-xl bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 py-2.5 text-xs sm:text-sm font-black text-white shadow-md shadow-emerald-600/20 transition cursor-pointer flex items-center justify-center gap-1.5"
+                      onClick={() => setNewKisti(String((Number(newKisti) || 0) + 1))}
+                      className="px-2.5 py-2 bg-slate-100 hover:bg-slate-200 border border-l-0 border-slate-300 rounded-r-xl text-xs font-bold text-slate-700 cursor-pointer"
                     >
-                      <span>➕</span>
-                      <span>নতুন প্রোডাক্ট তৈরি করুন</span>
+                      +
                     </button>
                   </div>
                 </div>
-              </div>
-            )}
 
-            {/* TAB 3: Category / Product Rename */}
-            {editTab === "category_rename" && (
-              <div className="rounded-2xl border border-amber-200 bg-white p-4 shadow-xs space-y-3">
-                <div className="border-b border-amber-100 pb-2">
-                  <span className="text-xs font-black text-amber-950 flex items-center gap-1.5">
-                    <span>🏷️</span> প্রোডাক্ট / ক্যাটাগরি নাম পরিবর্তন (Bulk Rename):
-                  </span>
-                  <p className="text-[11px] text-slate-500 mt-0.5">
-                    পুরো ডাটাবেজের সকল এন্ট্রিতে বর্তমান প্রোডাক্টটির নাম এক ক্লিকে নতুন নামে পরিবর্তিত হয়ে যাবে।
-                  </p>
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-[11px] font-bold text-slate-700">
+                      রেট (Rate Tk / 1000) *
+                    </label>
+                    <span className="text-[10px] text-indigo-700 font-bold">Tk</span>
+                  </div>
+                  <input
+                    type="number"
+                    step="0.01"
+                    placeholder="e.g. 2.50"
+                    value={newRate}
+                    onChange={(e) => setNewRate(e.target.value)}
+                    className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs sm:text-sm font-mono font-black text-indigo-950 focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600 focus:outline-none bg-slate-50/50 text-right"
+                  />
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">
-                      বর্তমান প্রোডাক্ট (Old Name):
-                    </label>
-                    <select
-                      value={renameFromProduct}
-                      onChange={(e) => setRenameFromProduct(e.target.value)}
-                      className="w-full rounded-xl border border-slate-300 bg-slate-50/50 px-3 py-2 text-xs sm:text-sm font-bold text-slate-800 focus:outline-none cursor-pointer"
-                    >
-                      {products.map((p) => (
-                        <option key={p} value={p}>
-                          {p} ({rates.filter((r) => r.product === p).length} rates)
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">
-                      নতুন নাম (New Product Name):
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Jagoron New বা বুনিয়াদ"
-                      value={renameToProduct}
-                      onChange={(e) => setRenameToProduct(e.target.value)}
-                      className="w-full rounded-xl border border-slate-300 bg-slate-50/50 px-3 py-2 text-xs sm:text-sm font-bold text-slate-800 focus:border-amber-600 focus:outline-none"
-                    />
-                  </div>
-
-                  <div>
-                    <button
-                      type="button"
-                      onClick={handleBulkRenameProduct}
-                      className="w-full rounded-xl bg-amber-600 hover:bg-amber-700 active:bg-amber-800 py-2.5 text-xs sm:text-sm font-black text-white shadow-md shadow-amber-600/20 transition cursor-pointer flex items-center justify-center gap-1.5"
-                    >
-                      <span>🔄</span>
-                      <span>নাম পরিবর্তন করুন</span>
-                    </button>
-                  </div>
+                <div>
+                  <button
+                    type="button"
+                    onClick={handleAddRate}
+                    className="w-full rounded-xl bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 py-2.5 text-xs sm:text-sm font-black text-white shadow-md shadow-indigo-600/20 transition cursor-pointer flex items-center justify-center gap-1.5"
+                  >
+                    <span>💾</span>
+                    <span>রেট সংরক্ষণ করুন</span>
+                  </button>
                 </div>
               </div>
-            )}
-
-            {/* TAB 4: Duration Rename */}
-            {editTab === "duration_rename" && (
-              <div className="rounded-2xl border border-amber-200 bg-white p-4 shadow-xs space-y-3">
-                <div className="border-b border-amber-100 pb-2">
-                  <span className="text-xs font-black text-amber-950 flex items-center gap-1.5">
-                    <span>⏱️</span> ডিউরেশন নাম পরিবর্তন (Bulk Rename):
-                  </span>
-                  <p className="text-[11px] text-slate-500 mt-0.5">
-                    পুরো ডাটাবেজে বর্তমান ডিউরেশনের নাম এক ক্লিকে নতুন নামে আপডেট করুন।
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">
-                      বর্তমান ডিউরেশন:
-                    </label>
-                    <select
-                      value={renameFromDuration}
-                      onChange={(e) => setRenameFromDuration(e.target.value)}
-                      className="w-full rounded-xl border border-slate-300 bg-slate-50/50 px-3 py-2 text-xs sm:text-sm font-bold text-slate-800 focus:outline-none cursor-pointer"
-                    >
-                      {durations.map((d) => (
-                        <option key={d} value={d}>
-                          {d} ({rates.filter((r) => r.duration === d).length} rates)
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">
-                      নতুন ডিউরেশন নাম:
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Weekly বা মাসিক"
-                      value={renameToDuration}
-                      onChange={(e) => setRenameToDuration(e.target.value)}
-                      className="w-full rounded-xl border border-slate-300 bg-slate-50/50 px-3 py-2 text-xs sm:text-sm font-bold text-slate-800 focus:border-amber-600 focus:outline-none"
-                    />
-                  </div>
-
-                  <div>
-                    <button
-                      type="button"
-                      onClick={handleBulkRenameDuration}
-                      className="w-full rounded-xl bg-amber-600 hover:bg-amber-700 active:bg-amber-800 py-2.5 text-xs sm:text-sm font-black text-white shadow-md shadow-amber-600/20 transition cursor-pointer flex items-center justify-center gap-1.5"
-                    >
-                      <span>🔄</span>
-                      <span>ডিউরেশন পরিবর্তন করুন</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Filter and Search Bar */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b bg-slate-100 px-4 sm:px-6 py-3 shrink-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <select
-              value={filterProduct}
-              onChange={(e) => setFilterProduct(e.target.value)}
-              className="rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-800 cursor-pointer shadow-2xs focus:outline-none"
-            >
-              <option value="">সকল প্রোডাক্ট ({products.length})</option>
-              {products.map((p) => (
-                <option key={p} value={p}>
-                  {p}
-                </option>
-              ))}
-            </select>
-
-            <select
-              value={filterDuration}
-              onChange={(e) => setFilterDuration(e.target.value)}
-              className="rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-800 cursor-pointer shadow-2xs focus:outline-none"
-            >
-              <option value="">সকল ডিউরেশন ({durations.length})</option>
-              {durations.map((d) => (
-                <option key={d} value={d}>
-                  {d}
-                </option>
-              ))}
-            </select>
-
-            {(filterProduct || filterDuration || search) && (
-              <button
-                onClick={() => {
-                  setFilterProduct("");
-                  setFilterDuration("");
-                  setSearch("");
-                }}
-                className="text-xs font-bold text-rose-600 hover:underline cursor-pointer px-1.5"
-              >
-                ফিল্টার মুছুন
-              </button>
-            )}
-          </div>
-
-          <div className="flex items-center gap-2">
-            <div className="relative flex-1 sm:w-64">
-              <input
-                type="text"
-                placeholder="সার্চ (প্রোডাক্ট, কিস্তি, রেট)..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs sm:text-sm font-medium pr-7 focus:outline-none focus:border-indigo-600"
-              />
-              {search && (
-                <button
-                  onClick={() => setSearch("")}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-slate-600 font-bold"
-                >
-                  ✕
-                </button>
-              )}
             </div>
-            <span className="text-xs text-slate-600 font-bold whitespace-nowrap">
-              <b className="text-slate-900 font-mono">{filtered.length}</b> টি পাওয়া গেছে
-            </span>
-          </div>
-        </div>
+          )}
 
-        {/* Content Container (Scrollable Table & Cards) */}
-        <div className="flex-1 overflow-y-auto p-2 sm:p-4">
-          {filtered.length === 0 ? (
-            <div className="py-16 text-center text-slate-400 font-medium">
-              <span className="text-4xl block mb-2">🔍</span>
-              কোনো রেট খুঁজে পাওয়া যায়নি।
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {/* Mobile swipe hint banner */}
-              <div className="sm:hidden flex items-center justify-between text-[11px] font-bold text-indigo-800 bg-indigo-50 border border-indigo-200 px-3 py-1.5 rounded-xl shadow-2xs">
-                <span className="flex items-center gap-1.5">
-                  <span className="text-sm">↔️</span>
-                  <span>ডানে-বামে স্ক্রোল করে সম্পূর্ণ ডাটা দেখুন</span>
+          {/* TAB 2: নতুন প্রোডাক্ট / আইটেম তৈরি */}
+          {editTab === "item" && (
+            <div className="rounded-2xl border border-emerald-200 bg-white p-4 shadow-xs space-y-3">
+              <div className="border-b border-emerald-100 pb-2">
+                <span className="text-xs font-black text-emerald-950 flex items-center gap-1.5">
+                  <span>📦</span> নতুন লোন প্রোডাক্ট তৈরি করুন (Auto-generate all kistis):
                 </span>
-                <span className="text-[10px] bg-indigo-200/80 text-indigo-900 px-1.5 py-0.5 rounded font-mono font-bold">
-                  ৫টি কলাম
-                </span>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  নতুন প্রোডাক্টের নাম দিলে পুরো কিস্তির সিরিজ স্বয়ংক্রিয়ভাবে ডাটাবেজে তৈরি হয়ে যাবে।
+                </p>
               </div>
 
-              {/* Table Container with native horizontal scrolling enabled */}
-              <div className="rounded-2xl border border-slate-300 bg-white shadow-sm overflow-x-auto touch-pan-x">
-                <table className="w-full min-w-[650px] text-xs sm:text-sm border-collapse">
-                  <thead className="sticky top-0 z-10 bg-slate-900 text-white shadow-xs">
-                    <tr>
-                      <th className="px-4 py-3 text-left font-bold whitespace-nowrap border-r border-slate-800 w-36">
-                        Product (প্রোডাক্ট)
-                      </th>
-                      <th className="px-4 py-3 text-left font-bold whitespace-nowrap border-r border-slate-800 w-28">
-                        Duration (ডিউরেশন)
-                      </th>
-                      <th className="px-4 py-3 text-center font-bold whitespace-nowrap border-r border-slate-800 w-36">
-                        Advance Kisti (অগ্রিম কিস্তি)
-                      </th>
-                      <th className="px-4 py-3 text-right font-bold whitespace-nowrap border-r border-slate-800 w-36">
-                        Rate (Tk / 1000)
-                      </th>
-                      <th className="px-4 py-3 text-center font-bold whitespace-nowrap w-32">
-                        Action (অ্যাকশন)
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-200 font-medium">
-                    {filtered.map((r, idx) => (
-                      <tr
-                        key={r.id}
-                        className={`transition ${
-                          idx % 2 === 0 ? "bg-white" : "bg-slate-50/70"
-                        } hover:bg-indigo-50/50`}
-                      >
-                        <td className="px-4 py-2.5 whitespace-nowrap border-r border-slate-200">
-                          <span className="font-bold text-slate-900">{r.product}</span>
-                        </td>
-                        <td className="px-4 py-2.5 whitespace-nowrap border-r border-slate-200">
-                          <span className="rounded-md bg-indigo-50 border border-indigo-200 px-2.5 py-0.5 text-xs font-semibold text-indigo-700">
-                            {r.duration}
-                          </span>
-                        </td>
-                        <td className="px-4 py-2.5 text-center whitespace-nowrap border-r border-slate-200">
-                          <span className="font-mono font-bold text-slate-800 bg-slate-100 border border-slate-200 px-2.5 py-0.5 rounded-md">
-                            কিস্তি {r.kisti}
-                          </span>
-                        </td>
-                        <td className="px-4 py-2.5 text-right whitespace-nowrap border-r border-slate-200">
-                          <span className="font-mono font-black text-indigo-900 text-sm">
-                            {Number(r.rate).toFixed(2)} ৳
-                          </span>
-                          <span className="text-[10px] text-slate-400 ml-1">/ ১০০০</span>
-                        </td>
-                        <td className="px-4 py-2.5 text-center whitespace-nowrap">
-                          <div className="flex items-center justify-center gap-1.5">
-                            <button
-                              type="button"
-                              onClick={() => handleOpenEditModal(r)}
-                              className="rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 text-xs font-bold transition shadow-xs cursor-pointer flex items-center gap-1"
-                              title="Edit / Modify rate"
-                            >
-                              <span>✏️</span>
-                              <span>এডিট</span>
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setPendingDelete(r)}
-                              className="rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 px-2.5 py-1.5 text-xs font-bold transition cursor-pointer"
-                              title="Delete rate"
-                            >
-                              🗑️
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
+                <div>
+                  <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                    প্রোডাক্ট নাম (New Item Name) *
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="যেমন: Jagoron Special বা Agro Micro"
+                    value={newItemName}
+                    onChange={(e) => setNewItemName(e.target.value)}
+                    className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs sm:text-sm font-bold text-slate-900 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 focus:outline-none bg-slate-50/50"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                    ডিউরেশন (Duration) *
+                  </label>
+                  <select
+                    value={newItemDuration}
+                    onChange={(e) => setNewItemDuration(e.target.value)}
+                    className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs sm:text-sm font-bold text-slate-900 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 focus:outline-none bg-slate-50/50 cursor-pointer"
+                  >
+                    <option value="Week">Week (সাপ্তাহিক - ৪৬ কিস্তি)</option>
+                    <option value="Month">Month (মাসিক - ১২ কিস্তি)</option>
+                    <option value="1.5 Year">1.5 Year (দেড় বছর - ১৮ কিস্তি)</option>
+                    <option value="2 Year">2 Year (দুই বছর - ২৪ কিস্তি)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                    মোট কিস্তি সংখ্যা (Total Kisti) *
+                  </label>
+                  <input
+                    type="number"
+                    placeholder="e.g. 46"
+                    value={newItemTotalKisti}
+                    onChange={(e) => setNewItemTotalKisti(e.target.value)}
+                    className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs sm:text-sm font-mono font-bold text-slate-900 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 focus:outline-none bg-slate-50/50"
+                  />
+                </div>
+
+                <div>
+                  <button
+                    type="button"
+                    onClick={handleAddNewItem}
+                    className="w-full rounded-xl bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 py-2.5 text-xs sm:text-sm font-black text-white shadow-md shadow-emerald-600/20 transition cursor-pointer flex items-center justify-center gap-1.5"
+                  >
+                    <span>➕</span>
+                    <span>নতুন প্রোডাক্ট তৈরি করুন</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 3: Category / Product Rename */}
+          {editTab === "category_rename" && (
+            <div className="rounded-2xl border border-amber-200 bg-white p-4 shadow-xs space-y-3">
+              <div className="border-b border-amber-100 pb-2">
+                <span className="text-xs font-black text-amber-950 flex items-center gap-1.5">
+                  <span>🏷️</span> প্রোডাক্ট / ক্যাটাগরি নাম পরিবর্তন (Bulk Rename):
+                </span>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  পুরো ডাটাবেজের সকল এন্ট্রিতে বর্তমান প্রোডাক্টটির নাম এক ক্লিকে নতুন নামে পরিবর্তিত হয়ে যাবে।
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    বর্তমান প্রোডাক্ট (Old Name):
+                  </label>
+                  <select
+                    value={renameFromProduct}
+                    onChange={(e) => setRenameFromProduct(e.target.value)}
+                    className="w-full rounded-xl border border-slate-300 bg-slate-50/50 px-3 py-2 text-xs sm:text-sm font-bold text-slate-800 focus:outline-none cursor-pointer"
+                  >
+                    {products.map((p) => (
+                      <option key={p} value={p}>
+                        {p} ({rates.filter((r) => r.product === p).length} rates)
+                      </option>
                     ))}
-                  </tbody>
-                </table>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    নতুন নাম (New Product Name):
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Jagoron New বা বুনিয়াদ"
+                    value={renameToProduct}
+                    onChange={(e) => setRenameToProduct(e.target.value)}
+                    className="w-full rounded-xl border border-slate-300 bg-slate-50/50 px-3 py-2 text-xs sm:text-sm font-bold text-slate-800 focus:border-amber-600 focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <button
+                    type="button"
+                    onClick={handleBulkRenameProduct}
+                    className="w-full rounded-xl bg-amber-600 hover:bg-amber-700 active:bg-amber-800 py-2.5 text-xs sm:text-sm font-black text-white shadow-md shadow-amber-600/20 transition cursor-pointer flex items-center justify-center gap-1.5"
+                  >
+                    <span>🔄</span>
+                    <span>নাম পরিবর্তন করুন</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 4: Duration Rename */}
+          {editTab === "duration_rename" && (
+            <div className="rounded-2xl border border-amber-200 bg-white p-4 shadow-xs space-y-3">
+              <div className="border-b border-amber-100 pb-2">
+                <span className="text-xs font-black text-amber-950 flex items-center gap-1.5">
+                  <span>⏱️</span> ডিউরেশন নাম পরিবর্তন (Bulk Rename):
+                </span>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  পুরো ডাটাবেজে বর্তমান ডিউরেশনের নাম এক ক্লিকে নতুন নামে আপডেট করুন।
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    বর্তমান ডিউরেশন:
+                  </label>
+                  <select
+                    value={renameFromDuration}
+                    onChange={(e) => setRenameFromDuration(e.target.value)}
+                    className="w-full rounded-xl border border-slate-300 bg-slate-50/50 px-3 py-2 text-xs sm:text-sm font-bold text-slate-800 focus:outline-none cursor-pointer"
+                  >
+                    {durations.map((d) => (
+                      <option key={d} value={d}>
+                        {d} ({rates.filter((r) => r.duration === d).length} rates)
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    নতুন ডিউরেশন নাম:
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Weekly বা মাসিক"
+                    value={renameToDuration}
+                    onChange={(e) => setRenameToDuration(e.target.value)}
+                    className="w-full rounded-xl border border-slate-300 bg-slate-50/50 px-3 py-2 text-xs sm:text-sm font-bold text-slate-800 focus:border-amber-600 focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <button
+                    type="button"
+                    onClick={handleBulkRenameDuration}
+                    className="w-full rounded-xl bg-amber-600 hover:bg-amber-700 active:bg-amber-800 py-2.5 text-xs sm:text-sm font-black text-white shadow-md shadow-amber-600/20 transition cursor-pointer flex items-center justify-center gap-1.5"
+                  >
+                    <span>🔄</span>
+                    <span>ডিউরেশন পরিবর্তন করুন</span>
+                  </button>
+                </div>
               </div>
             </div>
           )}
         </div>
+      )}
 
-        {/* Footer with Total Row Status & Scroll Hint (No Pagination) */}
-        <div className="border-t bg-slate-50 px-4 sm:px-6 py-3 flex flex-col sm:flex-row items-center justify-between gap-2.5 text-xs text-slate-600 shrink-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-bold text-slate-700">মোট রেট এন্ট্রি:</span>
-            <span className="font-mono font-black text-indigo-950 bg-indigo-100 px-2.5 py-0.5 rounded-full border border-indigo-200 text-xs">
-              {filtered.length} টি
-            </span>
-            {(filterProduct || filterDuration || search) && (
-              <span className="text-[11px] text-slate-500 font-medium">
-                (সর্বমোট {rates.length} টির মধ্যে ফিল্টারকৃত)
-              </span>
+      {/* Filter and Search Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 border-b bg-slate-100 px-4 sm:px-6 py-3 shrink-0">
+        <div className="flex items-center gap-2 flex-wrap">
+          <select
+            value={filterProduct}
+            onChange={(e) => setFilterProduct(e.target.value)}
+            className="rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-800 cursor-pointer shadow-2xs focus:outline-none"
+          >
+            <option value="">সকল প্রোডাক্ট ({products.length})</option>
+            {products.map((p) => (
+              <option key={p} value={p}>
+                {p}
+              </option>
+            ))}
+          </select>
+
+          <select
+            value={filterDuration}
+            onChange={(e) => setFilterDuration(e.target.value)}
+            className="rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-800 cursor-pointer shadow-2xs focus:outline-none"
+          >
+            <option value="">সকল ডিউরেশন ({durations.length})</option>
+            {durations.map((d) => (
+              <option key={d} value={d}>
+                {d}
+              </option>
+            ))}
+          </select>
+
+          {(filterProduct || filterDuration || search) && (
+            <button
+              onClick={() => {
+                setFilterProduct("");
+                setFilterDuration("");
+                setSearch("");
+              }}
+              className="text-xs font-bold text-rose-600 hover:underline cursor-pointer px-1.5"
+            >
+              ফিল্টার মুছুন
+            </button>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1 sm:w-64">
+            <input
+              type="text"
+              placeholder="সার্চ (প্রোডাক্ট, কিস্তি, রেট)..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-xs sm:text-sm font-medium pr-7 focus:outline-none focus:border-indigo-600"
+            />
+            {search && (
+              <button
+                onClick={() => setSearch("")}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-slate-600 font-bold cursor-pointer"
+              >
+                ✕
+              </button>
             )}
           </div>
-          <div className="text-[11px] text-slate-500 font-semibold flex items-center gap-2">
-            <span>↕️ স্ক্রোল করে সকল রো দেখুন</span>
-            <span>•</span>
-            <span>↔️ ডানে-বামে টেনে সম্পূর্ণ টেবিল দেখুন</span>
-          </div>
+          <span className="text-xs text-slate-600 font-bold whitespace-nowrap">
+            <b className="text-slate-900 font-mono">{filtered.length}</b> টি পাওয়া গেছে
+          </span>
         </div>
       </div>
+
+      {/* ========================================================================= */}
+      {/* UNIFIED 2D SCROLL TABLE CONTAINER (সব দিক থেকে স্ক্রোলযোগ্য - X এবং Y)     */}
+      {/* ========================================================================= */}
+      <div className="flex-1 w-full min-h-[460px] max-h-[calc(90vh-230px)] overflow-auto bg-white select-text relative border-t border-b border-slate-300">
+        {filtered.length === 0 ? (
+          <div className="py-24 text-center text-slate-400 font-medium">
+            <span className="text-5xl block mb-2">🔍</span>
+            কোনো রেট তথ্য খুঁজে পাওয়া যায়নি।
+          </div>
+        ) : (
+          <table className="w-full min-w-[780px] text-xs sm:text-sm border-collapse">
+            <thead className="sticky top-0 z-20 bg-linear-to-r from-slate-900 via-indigo-950 to-slate-900 text-white shadow-md border-b-2 border-indigo-500/50">
+              <tr>
+                <th className="px-3.5 py-3 text-center font-bold whitespace-nowrap border-r border-slate-800 w-14">
+                  S.L
+                </th>
+                <th className="px-4 py-3 text-left font-bold whitespace-nowrap border-r border-slate-800 w-48">
+                  Product (প্রোডাক্ট)
+                </th>
+                <th className="px-4 py-3 text-left font-bold whitespace-nowrap border-r border-slate-800 w-36">
+                  Duration (ডিউরেশন)
+                </th>
+                <th className="px-4 py-3 text-center font-bold whitespace-nowrap border-r border-slate-800 w-36">
+                  Advance Kisti (অগ্রিম কিস্তি)
+                </th>
+                <th className="px-4 py-3 text-right font-bold whitespace-nowrap border-r border-slate-800 w-48">
+                  Rate (Tk / 1000)
+                </th>
+                <th className="px-4 py-3 text-center font-bold whitespace-nowrap w-36">
+                  Action (অ্যাকশন)
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-200 font-medium">
+              {filtered.map((r, idx) => (
+                <tr
+                  key={r.id}
+                  className={`transition ${
+                    idx % 2 === 0 ? "bg-white" : "bg-slate-50/80"
+                  } hover:bg-amber-50/70`}
+                >
+                  <td className="px-3.5 py-2.5 text-center font-mono font-bold text-slate-500 border-r border-slate-200">
+                    {idx + 1}
+                  </td>
+                  <td className="px-4 py-2.5 whitespace-nowrap border-r border-slate-200">
+                    <div className="flex items-center gap-2">
+                      <span className="h-2 w-2 rounded-full bg-indigo-600"></span>
+                      <span className="font-bold text-slate-900">{r.product}</span>
+                    </div>
+                  </td>
+                  <td className="px-4 py-2.5 whitespace-nowrap border-r border-slate-200">
+                    <span
+                      className={`inline-block rounded-md border px-2.5 py-0.5 text-xs font-bold ${
+                        r.duration === "Week"
+                          ? "bg-blue-50 border-blue-200 text-blue-700"
+                          : r.duration === "Month"
+                          ? "bg-emerald-50 border-emerald-200 text-emerald-700"
+                          : "bg-purple-50 border-purple-200 text-purple-700"
+                      }`}
+                    >
+                      {r.duration}
+                    </span>
+                  </td>
+                  <td className="px-4 py-2.5 text-center whitespace-nowrap border-r border-slate-200">
+                    <span className="font-mono font-black text-slate-800 bg-slate-100 border border-slate-300 px-3 py-1 rounded-lg shadow-2xs">
+                      কিস্তি {r.kisti}
+                    </span>
+                  </td>
+                  <td className="px-4 py-2.5 text-right whitespace-nowrap border-r border-slate-200">
+                    <div className="flex items-center justify-end gap-1.5">
+                      <span className="font-mono font-black text-indigo-950 text-sm sm:text-base">
+                        {Number(r.rate).toFixed(2)} ৳
+                      </span>
+                      <span className="text-[10px] text-slate-500 font-bold">/ ১০০০</span>
+                    </div>
+                    <div className="text-[10px] text-slate-400 font-mono">
+                      (৫০ হাজারে {Math.round(50 * Number(r.rate))} ৳)
+                    </div>
+                  </td>
+                  <td className="px-4 py-2.5 text-center whitespace-nowrap">
+                    <div className="flex items-center justify-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleOpenEditModal(r)}
+                        className="rounded-lg bg-indigo-50 hover:bg-indigo-600 text-indigo-700 hover:text-white border border-indigo-200 px-3 py-1.5 text-xs font-bold transition shadow-2xs cursor-pointer flex items-center gap-1"
+                        title="Edit / Modify rate"
+                      >
+                        <span>✏️</span>
+                        <span>এডিট</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPendingDelete(r)}
+                        className="rounded-lg bg-rose-50 hover:bg-rose-600 text-rose-700 hover:text-white border border-rose-200 px-2.5 py-1.5 text-xs font-bold transition shadow-2xs cursor-pointer"
+                        title="Delete rate"
+                      >
+                        🗑️
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {/* Footer with Total Row Status & Scroll Hint (No Pagination) */}
+      <div className="border-t bg-slate-50 px-4 sm:px-6 py-3 flex flex-col sm:flex-row items-center justify-between gap-2.5 text-xs text-slate-600 shrink-0">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="font-bold text-slate-700">মোট রেট এন্ট্রি:</span>
+          <span className="font-mono font-black text-indigo-950 bg-indigo-100 px-2.5 py-0.5 rounded-full border border-indigo-200 text-xs">
+            {filtered.length} টি
+          </span>
+          {(filterProduct || filterDuration || search) && (
+            <span className="text-[11px] text-slate-500 font-medium">
+              (সর্বমোট {rates.length} টির মধ্যে ফিল্টারকৃত)
+            </span>
+          )}
+        </div>
+        <div className="text-[11px] text-indigo-900 font-bold flex items-center gap-2 bg-indigo-50 px-3 py-1 rounded-xl border border-indigo-200">
+          <span>↕️ উপর-নিচে স্ক্রোল</span>
+          <span>•</span>
+          <span>↔️ ডানে-বামে টেনে সম্পূর্ণ টেবিল দেখুন</span>
+        </div>
+      </div>
+    </div>
+  );
+
+  return (
+    <>
+      {isEmbedded ? (
+        <div className="w-full">{managerContent}</div>
+      ) : (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/75 p-2 sm:p-4 backdrop-blur-xs animate-in fade-in duration-200">
+          {managerContent}
+        </div>
+      )}
 
       {/* ========================================================================= */}
       {/* DEDICATED RATE EDIT & MODIFY MODAL (সরাসরি এডিট ও সংশোধন পপআপ)          */}
       {/* ========================================================================= */}
       {editModalItem && (
-        <div className="fixed inset-0 z-60 flex items-center justify-center bg-slate-950/70 p-4 animate-in fade-in zoom-in-95 duration-150">
+        <div className="fixed inset-0 z-60 flex items-center justify-center bg-slate-950/75 p-4 animate-in fade-in zoom-in-95 duration-150">
           <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl border border-indigo-200 overflow-hidden">
             {/* Modal Header */}
             <div className="bg-linear-to-r from-indigo-700 to-indigo-900 px-5 py-3.5 text-white flex items-center justify-between">
@@ -1108,7 +1114,7 @@ export default function RebateRateManager({
 
       {/* Delete Confirmation Modal */}
       {pendingDelete && (
-        <div className="fixed inset-0 z-70 flex items-center justify-center bg-slate-950/70 p-4 animate-in fade-in">
+        <div className="fixed inset-0 z-70 flex items-center justify-center bg-slate-950/75 p-4 animate-in fade-in">
           <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl border border-slate-200">
             <div className="flex items-center gap-3 mb-3 text-rose-600">
               <div className="w-10 h-10 rounded-full bg-rose-100 flex items-center justify-center text-xl shrink-0">
@@ -1160,6 +1166,42 @@ export default function RebateRateManager({
           </div>
         </div>
       )}
-    </div>
+
+      {/* Reset Defaults Confirmation Modal */}
+      {showResetConfirm && (
+        <div className="fixed inset-0 z-70 flex items-center justify-center bg-slate-950/75 p-4 animate-in fade-in">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl border border-slate-200">
+            <div className="flex items-center gap-3 mb-3 text-amber-600">
+              <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center text-xl shrink-0">
+                🔄
+              </div>
+              <div>
+                <h4 className="text-base font-bold text-slate-900">ডিফল্ট রিসেট নিশ্চিতকরণ</h4>
+                <p className="text-xs text-slate-500">সকল রেট আদি অবস্থায় ফিরে যাবে</p>
+              </div>
+            </div>
+            <p className="text-xs text-slate-600 mb-4">
+              আপনি কি নিশ্চিত যে ডাটাবেজের সমস্ত কাস্টম পরিবর্তন মুছে মূল ডিফল্ট রেটে ফিরে যেতে চান?
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setShowResetConfirm(false)}
+                className="flex-1 rounded-xl bg-slate-200 hover:bg-slate-300 py-2.5 text-xs sm:text-sm font-bold text-slate-700 transition cursor-pointer"
+              >
+                ✕ বাতিল
+              </button>
+              <button
+                type="button"
+                onClick={executeResetDefaults}
+                className="flex-1 rounded-xl bg-amber-600 hover:bg-amber-700 py-2.5 text-xs sm:text-sm font-bold text-white shadow transition cursor-pointer flex items-center justify-center gap-1"
+              >
+                ✓ হ্যাঁ, রিসেট করুন
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
