@@ -245,7 +245,7 @@ export default function RebatePage() {
             </h3>
           </div>
           <div className="max-h-80 overflow-auto rounded-xl border border-slate-200">
-            <table className="w-full text-left text-xs sm:text-sm whitespace-nowrap">
+            <table className="w-full min-w-[420px] text-left text-xs sm:text-sm whitespace-nowrap">
               <thead className="sticky top-0 bg-slate-800 text-white">
                 <tr>
                   <th className="px-3 py-2 text-center whitespace-nowrap">Advance Kisti</th>

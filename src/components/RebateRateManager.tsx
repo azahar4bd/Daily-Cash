@@ -370,7 +370,7 @@ export default function RebateRateManager({
         {/* BEAUTIFUL UNIFIED DATABASE EDIT & MODIFY PANEL                            */}
         {/* ========================================================================= */}
         {showEditPanel && (
-          <div className="border-b bg-linear-to-b from-slate-50 to-indigo-50/30 p-3 sm:p-5 border-slate-200 shrink-0 shadow-inner space-y-3.5 animate-in slide-in-from-top-2 duration-200">
+          <div className="border-b bg-linear-to-b from-slate-50 to-indigo-50/30 p-3 sm:p-5 border-slate-200 shrink-0 shadow-inner space-y-3.5 animate-in slide-in-from-top-2 duration-200 max-h-[50vh] overflow-y-auto">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className="flex h-2.5 w-2.5 rounded-full bg-indigo-600 animate-pulse"></span>
@@ -857,92 +857,101 @@ export default function RebateRateManager({
         </div>
 
         {/* Content Container (Scrollable Table & Cards) */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto p-2 sm:p-4">
           {filtered.length === 0 ? (
             <div className="py-16 text-center text-slate-400 font-medium">
               <span className="text-4xl block mb-2">🔍</span>
               কোনো রেট খুঁজে পাওয়া যায়নি।
             </div>
           ) : (
-            <>
-              {/* Unified Beautiful Table (সকল ডিভাইসে টেবিল আকারে একটি আইটেম এক লাইনে) */}
-              <div className="p-3 sm:p-4 overflow-x-auto">
-                <div className="rounded-2xl border border-slate-300 overflow-hidden shadow-sm bg-white">
-                  <table className="w-full text-xs sm:text-sm border-collapse">
-                    <thead className="bg-slate-900 text-white">
-                      <tr>
-                        <th className="px-4 py-3 text-left font-bold whitespace-nowrap border-r border-slate-800">
-                          Product (প্রোডাক্ট)
-                        </th>
-                        <th className="px-4 py-3 text-left font-bold whitespace-nowrap border-r border-slate-800">
-                          Duration (ডিউরেশন)
-                        </th>
-                        <th className="px-4 py-3 text-center font-bold whitespace-nowrap border-r border-slate-800">
-                          Advance Kisti (অগ্রিম কিস্তি)
-                        </th>
-                        <th className="px-4 py-3 text-right font-bold whitespace-nowrap border-r border-slate-800">
-                          Rate (Tk / 1000)
-                        </th>
-                        <th className="px-4 py-3 text-center font-bold whitespace-nowrap">
-                          Action (অ্যাকশন)
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-200 font-medium">
-                      {paginatedList.map((r, idx) => (
-                        <tr
-                          key={r.id}
-                          className={`transition ${
-                            idx % 2 === 0 ? "bg-white" : "bg-slate-50/70"
-                          } hover:bg-indigo-50/50`}
-                        >
-                          <td className="px-4 py-2.5 whitespace-nowrap border-r border-slate-200">
-                            <span className="font-bold text-slate-900">{r.product}</span>
-                          </td>
-                          <td className="px-4 py-2.5 whitespace-nowrap border-r border-slate-200">
-                            <span className="rounded-md bg-indigo-50 border border-indigo-200 px-2.5 py-0.5 text-xs font-semibold text-indigo-700">
-                              {r.duration}
-                            </span>
-                          </td>
-                          <td className="px-4 py-2.5 text-center whitespace-nowrap border-r border-slate-200">
-                            <span className="font-mono font-bold text-slate-800 bg-slate-100 border border-slate-200 px-2.5 py-0.5 rounded-md">
-                              কিস্তি {r.kisti}
-                            </span>
-                          </td>
-                          <td className="px-4 py-2.5 text-right whitespace-nowrap border-r border-slate-200">
-                            <span className="font-mono font-black text-indigo-900 text-sm">
-                              {Number(r.rate).toFixed(2)} ৳
-                            </span>
-                            <span className="text-[10px] text-slate-400 ml-1">/ ১০০০</span>
-                          </td>
-                          <td className="px-4 py-2.5 text-center whitespace-nowrap">
-                            <div className="flex items-center justify-center gap-1.5">
-                              <button
-                                type="button"
-                                onClick={() => handleOpenEditModal(r)}
-                                className="rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 text-xs font-bold transition shadow-xs cursor-pointer flex items-center gap-1"
-                                title="Edit / Modify rate"
-                              >
-                                <span>✏️</span>
-                                <span>এডিট</span>
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setPendingDelete(r)}
-                                className="rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 px-2.5 py-1.5 text-xs font-bold transition cursor-pointer"
-                                title="Delete rate"
-                              >
-                                🗑️
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+            <div className="space-y-2">
+              {/* Mobile swipe hint banner */}
+              <div className="sm:hidden flex items-center justify-between text-[11px] font-bold text-indigo-800 bg-indigo-50 border border-indigo-200 px-3 py-1.5 rounded-xl shadow-2xs">
+                <span className="flex items-center gap-1.5">
+                  <span className="text-sm">↔️</span>
+                  <span>ডানে-বামে স্ক্রোল করে সম্পূর্ণ ডাটা দেখুন</span>
+                </span>
+                <span className="text-[10px] bg-indigo-200/80 text-indigo-900 px-1.5 py-0.5 rounded font-mono font-bold">
+                  ৫টি কলাম
+                </span>
               </div>
-            </>
+
+              {/* Table Container with native horizontal scrolling enabled */}
+              <div className="rounded-2xl border border-slate-300 bg-white shadow-sm overflow-x-auto touch-pan-x">
+                <table className="w-full min-w-[650px] text-xs sm:text-sm border-collapse">
+                  <thead className="sticky top-0 z-10 bg-slate-900 text-white shadow-xs">
+                    <tr>
+                      <th className="px-4 py-3 text-left font-bold whitespace-nowrap border-r border-slate-800 w-36">
+                        Product (প্রোডাক্ট)
+                      </th>
+                      <th className="px-4 py-3 text-left font-bold whitespace-nowrap border-r border-slate-800 w-28">
+                        Duration (ডিউরেশন)
+                      </th>
+                      <th className="px-4 py-3 text-center font-bold whitespace-nowrap border-r border-slate-800 w-36">
+                        Advance Kisti (অগ্রিম কিস্তি)
+                      </th>
+                      <th className="px-4 py-3 text-right font-bold whitespace-nowrap border-r border-slate-800 w-36">
+                        Rate (Tk / 1000)
+                      </th>
+                      <th className="px-4 py-3 text-center font-bold whitespace-nowrap w-32">
+                        Action (অ্যাকশন)
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200 font-medium">
+                    {paginatedList.map((r, idx) => (
+                      <tr
+                        key={r.id}
+                        className={`transition ${
+                          idx % 2 === 0 ? "bg-white" : "bg-slate-50/70"
+                        } hover:bg-indigo-50/50`}
+                      >
+                        <td className="px-4 py-2.5 whitespace-nowrap border-r border-slate-200">
+                          <span className="font-bold text-slate-900">{r.product}</span>
+                        </td>
+                        <td className="px-4 py-2.5 whitespace-nowrap border-r border-slate-200">
+                          <span className="rounded-md bg-indigo-50 border border-indigo-200 px-2.5 py-0.5 text-xs font-semibold text-indigo-700">
+                            {r.duration}
+                          </span>
+                        </td>
+                        <td className="px-4 py-2.5 text-center whitespace-nowrap border-r border-slate-200">
+                          <span className="font-mono font-bold text-slate-800 bg-slate-100 border border-slate-200 px-2.5 py-0.5 rounded-md">
+                            কিস্তি {r.kisti}
+                          </span>
+                        </td>
+                        <td className="px-4 py-2.5 text-right whitespace-nowrap border-r border-slate-200">
+                          <span className="font-mono font-black text-indigo-900 text-sm">
+                            {Number(r.rate).toFixed(2)} ৳
+                          </span>
+                          <span className="text-[10px] text-slate-400 ml-1">/ ১০০০</span>
+                        </td>
+                        <td className="px-4 py-2.5 text-center whitespace-nowrap">
+                          <div className="flex items-center justify-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => handleOpenEditModal(r)}
+                              className="rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 text-xs font-bold transition shadow-xs cursor-pointer flex items-center gap-1"
+                              title="Edit / Modify rate"
+                            >
+                              <span>✏️</span>
+                              <span>এডিট</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setPendingDelete(r)}
+                              className="rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 px-2.5 py-1.5 text-xs font-bold transition cursor-pointer"
+                              title="Delete rate"
+                            >
+                              🗑️
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           )}
         </div>
 
