@@ -283,8 +283,15 @@ export default function PaymentPage({ selectedDate }: { selectedDate: string }) 
               </label>
               <button
                 type="button"
-                onClick={() => setPaymentDenomOpen(true)}
-                className="flex items-center gap-1 rounded-lg bg-amber-500 hover:bg-amber-600 px-2.5 py-1 text-xs font-bold text-slate-950 shadow-xs cursor-pointer"
+                disabled={isDayClosed(form.txDate)}
+                onClick={() => {
+                  if (isDayClosed(form.txDate)) {
+                    alert(`⚠️ এই তারিখের (${form.txDate}) দিন সমাপ্ত (Day Closed) রয়েছে। কোনো নতুন এন্ট্রি করা যাবে না। পরিবর্তন করতে চাইলে ক্যাশবুক পেজ থেকে দিনটি Re-open করুন।`);
+                    return;
+                  }
+                  setPaymentDenomOpen(true);
+                }}
+                className="flex items-center gap-1 rounded-lg bg-amber-500 hover:bg-amber-600 px-2.5 py-1 text-xs font-bold text-slate-950 shadow-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 💳 Denomination
               </button>
@@ -293,10 +300,15 @@ export default function PaymentPage({ selectedDate }: { selectedDate: string }) 
               type="number"
               min={0}
               step="1"
+              disabled={isDayClosed(form.txDate)}
               value={form.amount || ""}
               placeholder=""
               onChange={(e) => setForm({ ...form, amount: Math.round(Number(e.target.value) || 0) })}
-              className="w-full rounded-lg border border-slate-300 bg-yellow-50 px-3 py-2 text-right font-mono text-lg font-bold focus:border-blue-500 focus:outline-none"
+              className={`w-full rounded-lg border px-3 py-2 text-right font-mono text-lg font-bold focus:outline-none ${
+                isDayClosed(form.txDate)
+                  ? "border-slate-300 bg-slate-100 text-slate-500 cursor-not-allowed opacity-60"
+                  : "border-slate-300 bg-yellow-50 focus:border-blue-500"
+              }`}
             />
           </div>
 
@@ -305,11 +317,16 @@ export default function PaymentPage({ selectedDate }: { selectedDate: string }) 
             <label className="mb-1 block text-xs font-bold text-slate-700">Description</label>
             <input
               type="text"
+              disabled={isDayClosed(form.txDate)}
               value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
               placeholder=""
               autoComplete="off"
-              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-800 focus:border-blue-500 focus:outline-none"
+              className={`w-full rounded-lg border px-3 py-2 text-sm font-semibold text-slate-800 focus:outline-none ${
+                isDayClosed(form.txDate)
+                  ? "border-slate-300 bg-slate-100 text-slate-500 cursor-not-allowed opacity-60"
+                  : "border-slate-300 bg-white focus:border-blue-500"
+              }`}
             />
           </div>
 
@@ -462,7 +479,12 @@ export default function PaymentPage({ selectedDate }: { selectedDate: string }) 
                       <div className="flex items-center justify-center gap-2">
                         <button
                           type="button"
-                          onClick={() =>
+                          disabled={isDayClosed(r.txDate)}
+                          onClick={() => {
+                            if (isDayClosed(r.txDate)) {
+                              alert(`⚠️ এই তারিখের (${r.txDate}) দিন সমাপ্ত (Day Closed) রয়েছে। কোনো পরিবর্তন করা যাবে না। ক্যাশবুক পেজ থেকে দিনটি Re-open করুন।`);
+                              return;
+                            }
                             setEdit({
                               id: r.id,
                               category: r.category,
@@ -471,18 +493,35 @@ export default function PaymentPage({ selectedDate }: { selectedDate: string }) 
                               serviceCharge: Number(r.serviceCharge || 0),
                               description: r.description ?? "",
                               txDate: r.txDate,
-                            })
-                          }
-                          className="min-h-[36px] rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-blue-700 transition"
+                            });
+                          }}
+                          className={`min-h-[36px] rounded-lg px-3 py-1.5 text-xs font-bold text-white transition ${
+                            isDayClosed(r.txDate)
+                              ? "bg-slate-400 cursor-not-allowed opacity-50"
+                              : "bg-blue-600 hover:bg-blue-700 cursor-pointer"
+                          }`}
+                          title={isDayClosed(r.txDate) ? "দিন সমাপ্ত (Locked) - ক্যাশবুক থেকে Re-open করুন" : "Edit"}
                         >
-                          Edit
+                          {isDayClosed(r.txDate) ? "🔒 Edit" : "Edit"}
                         </button>
                         <button
                           type="button"
-                          onClick={() => setDeleteTargetId(r.id)}
-                          className="min-h-[36px] rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-rose-700 transition"
+                          disabled={isDayClosed(r.txDate)}
+                          onClick={() => {
+                            if (isDayClosed(r.txDate)) {
+                              alert(`⚠️ এই তারিখের (${r.txDate}) দিন সমাপ্ত (Day Closed) রয়েছে। কোনো কিছু মুছে ফেলা যাবে না। ক্যাশবুক পেজ থেকে দিনটি Re-open করুন।`);
+                              return;
+                            }
+                            setDeleteTargetId(r.id);
+                          }}
+                          className={`min-h-[36px] rounded-lg px-3 py-1.5 text-xs font-bold text-white transition ${
+                            isDayClosed(r.txDate)
+                              ? "bg-slate-400 cursor-not-allowed opacity-50"
+                              : "bg-rose-600 hover:bg-rose-700 cursor-pointer"
+                          }`}
+                          title={isDayClosed(r.txDate) ? "দিন সমাপ্ত (Locked) - ক্যাশবুক থেকে Re-open করুন" : "Delete"}
                         >
-                          Delete
+                          {isDayClosed(r.txDate) ? "🔒 Del" : "Delete"}
                         </button>
                       </div>
                     </td>

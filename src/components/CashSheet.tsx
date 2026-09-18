@@ -298,6 +298,10 @@ export default function CashSheet({
     officerAmounts.memberWelfare;
 
   const handleQtyChange = (key: string, rawVal: string) => {
+    if (dayClosed) {
+      alert("⚠️ এই তারিখের দিন সমাপ্ত (Day Closed) রয়েছে। হিসাবটি লক করা আছে। পরিবর্তন করতে চাইলে দিনটি Re-open করুন।");
+      return;
+    }
     const val = normalizeDigits(rawVal);
     setQuantities((prev) => {
       const next = { ...prev, [key]: val };
@@ -309,6 +313,10 @@ export default function CashSheet({
   };
 
   const handleClearQuantities = () => {
+    if (dayClosed) {
+      alert("⚠️ এই তারিখের দিন সমাপ্ত (Day Closed) রয়েছে। হিসাবটি লক করা আছে। পরিবর্তন করতে চাইলে দিনটি Re-open করুন।");
+      return;
+    }
     const empty: Record<string, string> = {
       "1000": "",
       "500": "",
@@ -470,9 +478,14 @@ export default function CashSheet({
             {isInteractive && (
               <button
                 type="button"
+                disabled={dayClosed}
                 onClick={handleClearQuantities}
-                className="print:hidden rounded bg-slate-500 hover:bg-slate-600 px-2 py-0.5 text-[11px] font-bold text-white cursor-pointer"
-                title="সকল নোট খালি করুন"
+                className={`print:hidden rounded px-2 py-0.5 text-[11px] font-bold text-white transition ${
+                  dayClosed
+                    ? "bg-slate-400 cursor-not-allowed opacity-50"
+                    : "bg-slate-500 hover:bg-slate-600 cursor-pointer"
+                }`}
+                title={dayClosed ? "দিন সমাপ্ত (Locked) - ক্যাশবুক থেকে Re-open করুন" : "সকল নোট খালি করুন"}
               >
                 Reset
               </button>
@@ -519,11 +532,20 @@ export default function CashSheet({
                             autoCorrect="off"
                             autoCapitalize="off"
                             spellCheck={false}
+                            disabled={dayClosed}
+                            readOnly={dayClosed}
                             value={quantities[String(note)] || ""}
                             onChange={(e) => handleQtyChange(String(note), e.target.value)}
-                            onFocus={(e) => e.target.select()}
+                            onFocus={(e) => {
+                              if (dayClosed) return;
+                              e.target.select();
+                            }}
                             placeholder="0"
-                            className="print:hidden w-full text-center font-mono text-xs sm:text-sm font-bold py-0.5 bg-yellow-50 focus:bg-amber-100 rounded border border-amber-300 focus:border-indigo-600 focus:outline-none transition cursor-text select-text"
+                            className={`print:hidden w-full text-center font-mono text-xs sm:text-sm font-bold py-0.5 rounded border transition ${
+                              dayClosed
+                                ? "bg-slate-100 text-slate-500 border-slate-300 cursor-not-allowed opacity-70"
+                                : "bg-yellow-50 focus:bg-amber-100 border-amber-300 focus:border-indigo-600 focus:outline-none cursor-text select-text"
+                            }`}
                           />
                           <span className="hidden print:inline font-mono font-bold">
                             {qty > 0 ? qty : "-"}
@@ -554,11 +576,20 @@ export default function CashSheet({
                         autoCorrect="off"
                         autoCapitalize="off"
                         spellCheck={false}
+                        disabled={dayClosed}
+                        readOnly={dayClosed}
                         value={quantities.coins || ""}
                         onChange={(e) => handleQtyChange("coins", e.target.value)}
-                        onFocus={(e) => e.target.select()}
+                        onFocus={(e) => {
+                          if (dayClosed) return;
+                          e.target.select();
+                        }}
                         placeholder="0"
-                        className="print:hidden w-full text-center font-mono text-xs sm:text-sm font-bold py-0.5 bg-yellow-50 focus:bg-amber-100 rounded border border-amber-300 focus:border-indigo-600 focus:outline-none transition cursor-text select-text"
+                        className={`print:hidden w-full text-center font-mono text-xs sm:text-sm font-bold py-0.5 rounded border transition ${
+                          dayClosed
+                            ? "bg-slate-100 text-slate-500 border-slate-300 cursor-not-allowed opacity-70"
+                            : "bg-yellow-50 focus:bg-amber-100 border-amber-300 focus:border-indigo-600 focus:outline-none cursor-text select-text"
+                        }`}
                       />
                       <span className="hidden print:inline font-mono font-bold">
                         {quantities.coins || "-"}
@@ -584,11 +615,20 @@ export default function CashSheet({
                         type="text"
                         inputMode="numeric"
                         autoComplete="off"
+                        disabled={dayClosed}
+                        readOnly={dayClosed}
                         value={quantities.revenueStamp || ""}
                         onChange={(e) => handleQtyChange("revenueStamp", e.target.value)}
-                        onFocus={(e) => e.target.select()}
+                        onFocus={(e) => {
+                          if (dayClosed) return;
+                          e.target.select();
+                        }}
                         placeholder="0"
-                        className="print:hidden w-full text-center font-mono text-xs sm:text-sm font-bold py-0.5 bg-yellow-50 focus:bg-amber-100 rounded border border-amber-300 focus:border-indigo-600 focus:outline-none transition cursor-text select-text"
+                        className={`print:hidden w-full text-center font-mono text-xs sm:text-sm font-bold py-0.5 rounded border transition ${
+                          dayClosed
+                            ? "bg-slate-100 text-slate-500 border-slate-300 cursor-not-allowed opacity-70"
+                            : "bg-yellow-50 focus:bg-amber-100 border-amber-300 focus:border-indigo-600 focus:outline-none cursor-text select-text"
+                        }`}
                       />
                       <span className="hidden print:inline font-mono font-bold">
                         {quantities.revenueStamp ? quantities.revenueStamp : "-"}
@@ -614,11 +654,20 @@ export default function CashSheet({
                         type="text"
                         inputMode="numeric"
                         autoComplete="off"
+                        disabled={dayClosed}
+                        readOnly={dayClosed}
                         value={quantities.pendingSlip || ""}
                         onChange={(e) => handleQtyChange("pendingSlip", e.target.value)}
-                        onFocus={(e) => e.target.select()}
+                        onFocus={(e) => {
+                          if (dayClosed) return;
+                          e.target.select();
+                        }}
                         placeholder="0"
-                        className="print:hidden w-full text-center font-mono text-xs sm:text-sm font-bold py-0.5 bg-yellow-50 focus:bg-amber-100 rounded border border-amber-300 focus:border-indigo-600 focus:outline-none transition cursor-text select-text"
+                        className={`print:hidden w-full text-center font-mono text-xs sm:text-sm font-bold py-0.5 rounded border transition ${
+                          dayClosed
+                            ? "bg-slate-100 text-slate-500 border-slate-300 cursor-not-allowed opacity-70"
+                            : "bg-yellow-50 focus:bg-amber-100 border-amber-300 focus:border-indigo-600 focus:outline-none cursor-text select-text"
+                        }`}
                       />
                       <span className="hidden print:inline font-mono font-bold">
                         {quantities.pendingSlip ? quantities.pendingSlip : "-"}

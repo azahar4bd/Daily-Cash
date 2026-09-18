@@ -121,7 +121,12 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
     setDisburseCatList(dCats.map((c) => c.name.toLowerCase().trim()));
 
     setAllTxList(getLocalTxs());
-    setDayClosed(isDayClosed(selectedDate));
+    const closed = isDayClosed(selectedDate);
+    setDayClosed(closed);
+    if (closed) {
+      setKeyboardOpen(false);
+      setEdit(null);
+    }
   };
 
   useEffect(() => {
@@ -148,6 +153,15 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
     }, 50);
     return () => clearTimeout(timer);
   }, [activeKeyboardField, keyboardOpen, edit]);
+
+  const handleFieldClick = (field: StaffFieldKey) => {
+    if (dayClosed) {
+      alert("⚠️ এই তারিখের দিন সমাপ্ত (Day Closed) রয়েছে। হিসাবটি লক করা আছে। পরিবর্তন করতে চাইলে ক্যাশবুক পেজ থেকে দিনটি Re-open করুন।");
+      return;
+    }
+    setActiveKeyboardField(field);
+    setKeyboardOpen(true);
+  };
 
   const handleSave = () => {
     if (dayClosed) {
@@ -514,21 +528,34 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => setKeyboardOpen(!keyboardOpen)}
+              disabled={dayClosed}
+              onClick={() => {
+                if (dayClosed) {
+                  alert("⚠️ এই তারিখের দিন সমাপ্ত (Day Closed) রয়েছে। হিসাবটি লক করা আছে। ক্যাশবুক থেকে দিনটি Re-open করুন।");
+                  return;
+                }
+                setKeyboardOpen(!keyboardOpen);
+              }}
               className={`rounded-xl px-3 py-1 text-xs font-bold transition flex items-center gap-1.5 shadow-xs border cursor-pointer ${
-                keyboardOpen
+                dayClosed
+                  ? "bg-slate-200 text-slate-500 border-slate-300 cursor-not-allowed opacity-60"
+                  : keyboardOpen
                   ? "bg-indigo-600 text-white border-indigo-500 shadow-indigo-300 ring-2 ring-indigo-400/40"
                   : "bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border-indigo-200"
               }`}
-              title="কাস্টম কিবোর্ড অন/অফ করুন"
+              title={dayClosed ? "দিন সমাপ্ত (Locked)" : "কাস্টম কিবোর্ড অন/অফ করুন"}
             >
-              <span>⌨️ কাস্টম কিবোর্ড</span>
+              <span>{dayClosed ? "🔒 লক করা" : "⌨️ কাস্টম কিবোর্ড"}</span>
               <span
                 className={`text-[10px] px-1.5 py-0.2 rounded font-mono font-bold ${
-                  keyboardOpen ? "bg-indigo-900 text-white" : "bg-indigo-200 text-indigo-900"
+                  dayClosed
+                    ? "bg-slate-300 text-slate-600"
+                    : keyboardOpen
+                    ? "bg-indigo-900 text-white"
+                    : "bg-indigo-200 text-indigo-900"
                 }`}
               >
-                {keyboardOpen ? "ON" : "OFF"}
+                {dayClosed ? "LOCKED" : keyboardOpen ? "ON" : "OFF"}
               </span>
             </button>
             <div className="text-xs font-mono font-bold text-slate-700 bg-slate-100 px-3 py-1 rounded-lg border border-slate-200">
@@ -539,10 +566,7 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
           <div
             id="field-staffName"
-            onClick={() => {
-              setActiveKeyboardField("staffName");
-              setKeyboardOpen(true);
-            }}
+            onClick={() => handleFieldClick("staffName")}
             className={`rounded-lg transition ${
               keyboardOpen && activeKeyboardField === "staffName"
                 ? "ring-2 ring-indigo-500 p-0.5 bg-amber-50"
@@ -553,6 +577,7 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
             <CategoryInput
               value={form.staffName}
               onChange={(v) => {
+                if (dayClosed) return;
                 setForm({ ...form, staffName: v });
                 setActiveKeyboardField("loan");
               }}
@@ -572,15 +597,10 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
               type="text"
               inputMode="none"
               readOnly={true}
+              disabled={dayClosed}
               value={form.loan}
-              onFocus={() => {
-                setActiveKeyboardField("loan");
-                setKeyboardOpen(true);
-              }}
-              onClick={() => {
-                setActiveKeyboardField("loan");
-                setKeyboardOpen(true);
-              }}
+              onFocus={() => handleFieldClick("loan")}
+              onClick={() => handleFieldClick("loan")}
               onChange={(e) => {
                 const val = e.target.value;
                 if (val.endsWith("=")) {
@@ -596,7 +616,9 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
               }}
               placeholder="0 (উদা: ১+২+৩=৬)"
               className={`w-full rounded border px-2.5 py-1.5 text-right font-mono text-xs font-bold transition focus:outline-none cursor-pointer ${
-                keyboardOpen && activeKeyboardField === "loan"
+                dayClosed
+                  ? "border-slate-300 bg-slate-100 text-slate-500 cursor-not-allowed opacity-60"
+                  : keyboardOpen && activeKeyboardField === "loan"
                   ? "border-indigo-600 ring-2 ring-indigo-500 bg-amber-100 text-slate-950 scale-[1.02]"
                   : "border-slate-300 bg-yellow-50 text-slate-900"
               }`}
@@ -615,15 +637,10 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
               type="text"
               inputMode="none"
               readOnly={true}
+              disabled={dayClosed}
               value={form.rebate}
-              onFocus={() => {
-                setActiveKeyboardField("rebate");
-                setKeyboardOpen(true);
-              }}
-              onClick={() => {
-                setActiveKeyboardField("rebate");
-                setKeyboardOpen(true);
-              }}
+              onFocus={() => handleFieldClick("rebate")}
+              onClick={() => handleFieldClick("rebate")}
               onChange={(e) => {
                 const val = e.target.value;
                 if (val.endsWith("=")) {
@@ -639,7 +656,9 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
               }}
               placeholder="0"
               className={`w-full rounded border px-2.5 py-1.5 text-right font-mono text-xs font-bold transition focus:outline-none cursor-pointer ${
-                keyboardOpen && activeKeyboardField === "rebate"
+                dayClosed
+                  ? "border-slate-300 bg-slate-100 text-slate-500 cursor-not-allowed opacity-60"
+                  : keyboardOpen && activeKeyboardField === "rebate"
                   ? "border-indigo-600 ring-2 ring-indigo-500 bg-amber-100 text-slate-950 scale-[1.02]"
                   : "border-slate-300 bg-amber-50 text-slate-900"
               }`}
@@ -658,15 +677,10 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
               type="text"
               inputMode="none"
               readOnly={true}
+              disabled={dayClosed}
               value={form.savings}
-              onFocus={() => {
-                setActiveKeyboardField("savings");
-                setKeyboardOpen(true);
-              }}
-              onClick={() => {
-                setActiveKeyboardField("savings");
-                setKeyboardOpen(true);
-              }}
+              onFocus={() => handleFieldClick("savings")}
+              onClick={() => handleFieldClick("savings")}
               onChange={(e) => {
                 const val = e.target.value;
                 if (val.endsWith("=")) {
@@ -682,7 +696,9 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
               }}
               placeholder="0"
               className={`w-full rounded border px-2.5 py-1.5 text-right font-mono text-xs font-bold transition focus:outline-none cursor-pointer ${
-                keyboardOpen && activeKeyboardField === "savings"
+                dayClosed
+                  ? "border-slate-300 bg-slate-100 text-slate-500 cursor-not-allowed opacity-60"
+                  : keyboardOpen && activeKeyboardField === "savings"
                   ? "border-indigo-600 ring-2 ring-indigo-500 bg-amber-100 text-slate-950 scale-[1.02]"
                   : "border-slate-300 bg-yellow-50 text-slate-900"
               }`}
@@ -701,15 +717,10 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
               type="text"
               inputMode="none"
               readOnly={true}
+              disabled={dayClosed}
               value={form.dps}
-              onFocus={() => {
-                setActiveKeyboardField("dps");
-                setKeyboardOpen(true);
-              }}
-              onClick={() => {
-                setActiveKeyboardField("dps");
-                setKeyboardOpen(true);
-              }}
+              onFocus={() => handleFieldClick("dps")}
+              onClick={() => handleFieldClick("dps")}
               onChange={(e) => {
                 const val = e.target.value;
                 if (val.endsWith("=")) {
@@ -725,7 +736,9 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
               }}
               placeholder="0"
               className={`w-full rounded border px-2.5 py-1.5 text-right font-mono text-xs font-bold transition focus:outline-none cursor-pointer ${
-                keyboardOpen && activeKeyboardField === "dps"
+                dayClosed
+                  ? "border-slate-300 bg-slate-100 text-slate-500 cursor-not-allowed opacity-60"
+                  : keyboardOpen && activeKeyboardField === "dps"
                   ? "border-indigo-600 ring-2 ring-indigo-500 bg-amber-100 text-slate-950 scale-[1.02]"
                   : "border-slate-300 text-slate-900"
               }`}
@@ -744,15 +757,10 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
               type="text"
               inputMode="none"
               readOnly={true}
+              disabled={dayClosed}
               value={form.admission}
-              onFocus={() => {
-                setActiveKeyboardField("admission");
-                setKeyboardOpen(true);
-              }}
-              onClick={() => {
-                setActiveKeyboardField("admission");
-                setKeyboardOpen(true);
-              }}
+              onFocus={() => handleFieldClick("admission")}
+              onClick={() => handleFieldClick("admission")}
               onChange={(e) => {
                 const val = e.target.value;
                 if (val.endsWith("=")) {
@@ -768,7 +776,9 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
               }}
               placeholder="0"
               className={`w-full rounded border px-2.5 py-1.5 text-right font-mono text-xs font-bold transition focus:outline-none cursor-pointer ${
-                keyboardOpen && activeKeyboardField === "admission"
+                dayClosed
+                  ? "border-slate-300 bg-slate-100 text-slate-500 cursor-not-allowed opacity-60"
+                  : keyboardOpen && activeKeyboardField === "admission"
                   ? "border-indigo-600 ring-2 ring-indigo-500 bg-amber-100 text-slate-950 scale-[1.02]"
                   : "border-slate-300 text-slate-900"
               }`}
@@ -787,15 +797,10 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
               type="text"
               inputMode="none"
               readOnly={true}
+              disabled={dayClosed}
               value={form.passbook}
-              onFocus={() => {
-                setActiveKeyboardField("passbook");
-                setKeyboardOpen(true);
-              }}
-              onClick={() => {
-                setActiveKeyboardField("passbook");
-                setKeyboardOpen(true);
-              }}
+              onFocus={() => handleFieldClick("passbook")}
+              onClick={() => handleFieldClick("passbook")}
               onChange={(e) => {
                 const val = e.target.value;
                 if (val.endsWith("=")) {
@@ -811,7 +816,9 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
               }}
               placeholder="0"
               className={`w-full rounded border px-2.5 py-1.5 text-right font-mono text-xs font-bold transition focus:outline-none cursor-pointer ${
-                keyboardOpen && activeKeyboardField === "passbook"
+                dayClosed
+                  ? "border-slate-300 bg-slate-100 text-slate-500 cursor-not-allowed opacity-60"
+                  : keyboardOpen && activeKeyboardField === "passbook"
                   ? "border-indigo-600 ring-2 ring-indigo-500 bg-amber-100 text-slate-950 scale-[1.02]"
                   : "border-slate-300 text-slate-900"
               }`}
@@ -830,15 +837,10 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
               type="text"
               inputMode="none"
               readOnly={true}
+              disabled={dayClosed}
               value={form.savingsAdjust}
-              onFocus={() => {
-                setActiveKeyboardField("savingsAdjust");
-                setKeyboardOpen(true);
-              }}
-              onClick={() => {
-                setActiveKeyboardField("savingsAdjust");
-                setKeyboardOpen(true);
-              }}
+              onFocus={() => handleFieldClick("savingsAdjust")}
+              onClick={() => handleFieldClick("savingsAdjust")}
               onChange={(e) => {
                 const val = e.target.value;
                 if (val.endsWith("=")) {
@@ -854,7 +856,9 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
               }}
               placeholder="0"
               className={`w-full rounded border px-2.5 py-1.5 text-right font-mono text-xs font-bold transition focus:outline-none cursor-pointer ${
-                keyboardOpen && activeKeyboardField === "savingsAdjust"
+                dayClosed
+                  ? "border-slate-300 bg-slate-100 text-slate-500 cursor-not-allowed opacity-60"
+                  : keyboardOpen && activeKeyboardField === "savingsAdjust"
                   ? "border-indigo-600 ring-2 ring-indigo-500 bg-amber-100 text-slate-950 scale-[1.02]"
                   : "border-rose-300 bg-rose-50 text-rose-900"
               }`}
@@ -873,15 +877,10 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
               type="text"
               inputMode="none"
               readOnly={true}
+              disabled={dayClosed}
               value={form.nogodReturn}
-              onFocus={() => {
-                setActiveKeyboardField("nogodReturn");
-                setKeyboardOpen(true);
-              }}
-              onClick={() => {
-                setActiveKeyboardField("nogodReturn");
-                setKeyboardOpen(true);
-              }}
+              onFocus={() => handleFieldClick("nogodReturn")}
+              onClick={() => handleFieldClick("nogodReturn")}
               onChange={(e) => {
                 const val = e.target.value;
                 if (val.endsWith("=")) {
@@ -897,7 +896,9 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
               }}
               placeholder="0"
               className={`w-full rounded border px-2.5 py-1.5 text-right font-mono text-xs font-bold transition focus:outline-none cursor-pointer ${
-                keyboardOpen && activeKeyboardField === "nogodReturn"
+                dayClosed
+                  ? "border-slate-300 bg-slate-100 text-slate-500 cursor-not-allowed opacity-60"
+                  : keyboardOpen && activeKeyboardField === "nogodReturn"
                   ? "border-indigo-600 ring-2 ring-indigo-500 bg-amber-100 text-slate-950 scale-[1.02]"
                   : "border-rose-300 bg-rose-50 text-rose-900"
               }`}
@@ -1056,7 +1057,12 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
                       <td className="border border-[#d4a373] px-1 py-1 text-center whitespace-nowrap">
                         <button
                           type="button"
+                          disabled={dayClosed}
                           onClick={() => {
+                            if (dayClosed) {
+                              alert("⚠️ দিন সমাপ্ত (Day Closed) থাকায় এই রিপোর্টটি এডিট করা যাবে না। ক্যাশবুক থেকে দিনটি Re-open করুন।");
+                              return;
+                            }
                             setOriginalEditReport({ ...r });
                             setEdit({
                               ...r,
@@ -1072,18 +1078,33 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
                             setActiveKeyboardField("loan");
                             setKeyboardOpen(true);
                           }}
-                          className="mr-1 rounded bg-blue-600 hover:bg-blue-700 px-2.5 py-1 text-xs font-bold text-white shadow-xs cursor-pointer transition active:scale-95"
-                          title="এই স্টাফের রিপোর্ট এডিট করুন"
+                          className={`mr-1 rounded px-2.5 py-1 text-xs font-bold text-white shadow-xs transition ${
+                            dayClosed
+                              ? "bg-slate-400 cursor-not-allowed opacity-50"
+                              : "bg-blue-600 hover:bg-blue-700 cursor-pointer active:scale-95"
+                          }`}
+                          title={dayClosed ? "দিন সমাপ্ত (Locked) - ক্যাশবুক থেকে Re-open করুন" : "এই স্টাফের রিপোর্ট এডিট করুন"}
                         >
-                          ✏️ Edit
+                          {dayClosed ? "🔒 Edit" : "✏️ Edit"}
                         </button>
                         <button
                           type="button"
-                          onClick={() => handleDelete(r.id)}
-                          className="rounded bg-rose-600 hover:bg-rose-700 px-2 py-1 text-xs font-bold text-white shadow-xs cursor-pointer transition active:scale-95"
-                          title="এই রিপোর্ট মুছুন"
+                          disabled={dayClosed}
+                          onClick={() => {
+                            if (dayClosed) {
+                              alert("⚠️ দিন সমাপ্ত (Day Closed) থাকায় এই রিপোর্টটি মুছে ফেলা যাবে না। ক্যাশবুক থেকে দিনটি Re-open করুন।");
+                              return;
+                            }
+                            handleDelete(r.id);
+                          }}
+                          className={`rounded px-2 py-1 text-xs font-bold text-white shadow-xs transition ${
+                            dayClosed
+                              ? "bg-slate-400 cursor-not-allowed opacity-50"
+                              : "bg-rose-600 hover:bg-rose-700 cursor-pointer active:scale-95"
+                          }`}
+                          title={dayClosed ? "দিন সমাপ্ত (Locked) - ক্যাশবুক থেকে Re-open করুন" : "এই রিপোর্ট মুছুন"}
                         >
-                          Del
+                          {dayClosed ? "🔒 Del" : "Del"}
                         </button>
                       </td>
                     </tr>
