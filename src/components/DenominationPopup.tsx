@@ -135,19 +135,21 @@ export default function DenominationPopup({
             <h3 className="text-sm sm:text-base font-bold">Denomination</h3>
           </div>
           <div className="flex items-center gap-1.5">
-            <button
-              type="button"
-              onClick={() => {
-                setShowKeypad((k) => !k);
-                setTimeout(() => inputRefs.current[active]?.focus(), 0);
-              }}
-              title="Toggle keypad"
-              className={`rounded-lg px-2 py-0.5 text-xs font-semibold cursor-pointer ${
-                showKeypad ? "bg-blue-600 text-white" : "text-slate-300 hover:bg-slate-800"
-              }`}
-            >
-              ⌨ Keypad
-            </button>
+            {detectMobile() && (
+              <button
+                type="button"
+                onClick={() => {
+                  setShowKeypad((k) => !k);
+                  setTimeout(() => inputRefs.current[active]?.focus(), 0);
+                }}
+                title="Toggle keypad"
+                className={`rounded-lg px-2 py-0.5 text-xs font-semibold cursor-pointer ${
+                  showKeypad ? "bg-blue-600 text-white" : "text-slate-300 hover:bg-slate-800"
+                }`}
+              >
+                ⌨ Keypad
+              </button>
+            )}
             <button
               type="button"
               onClick={onClose}

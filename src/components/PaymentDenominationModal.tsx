@@ -205,20 +205,22 @@ export default function PaymentDenominationModal({
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => {
-              setShowKeypad((k) => !k);
-              setTimeout(() => {
-                inputRefs.current[`${activeCell.row}-${activeCell.col}`]?.focus();
-              }, 0);
-            }}
-            className={`rounded-lg px-2.5 py-1 text-sm font-bold transition flex items-center gap-1 ${
-              showKeypad ? "bg-blue-600 text-white" : "bg-slate-800 text-slate-300 hover:bg-slate-700"
-            }`}
-          >
-            ⌨ Keypad
-          </button>
+          {detectMobile() && (
+            <button
+              type="button"
+              onClick={() => {
+                setShowKeypad((k) => !k);
+                setTimeout(() => {
+                  inputRefs.current[`${activeCell.row}-${activeCell.col}`]?.focus();
+                }, 0);
+              }}
+              className={`rounded-lg px-2.5 py-1 text-sm font-bold transition flex items-center gap-1 ${
+                showKeypad ? "bg-blue-600 text-white" : "bg-slate-800 text-slate-300 hover:bg-slate-700"
+              }`}
+            >
+              ⌨ Keypad
+            </button>
+          )}
           <button
             type="button"
             onClick={onClose}
