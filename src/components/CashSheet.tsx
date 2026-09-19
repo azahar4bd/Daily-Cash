@@ -148,6 +148,14 @@ export default function CashSheet({
   const trackerRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
   const dragStart = useRef({ x: 0, y: 0, elemX: 0, elemY: 0, w: 50, h: 50, hasMoved: false });
+  const lastToggleTime = useRef(0);
+
+  const toggleCollapse = () => {
+    const now = Date.now();
+    if (now - lastToggleTime.current < 250) return;
+    lastToggleTime.current = now;
+    setIsCollapsed((prev) => !prev);
+  };
 
   const handlePointerDown = (e: React.PointerEvent) => {
     if (e.button !== 0 && e.pointerType === "mouse") return;
@@ -173,8 +181,9 @@ export default function CashSheet({
     if (!isDragging.current) return;
     const dx = e.clientX - dragStart.current.x;
     const dy = e.clientY - dragStart.current.y;
+    const dist = Math.hypot(dx, dy);
 
-    if (!dragStart.current.hasMoved && (Math.abs(dx) > 3 || Math.abs(dy) > 3)) {
+    if (!dragStart.current.hasMoved && dist > 6) {
       dragStart.current.hasMoved = true;
     }
 
@@ -202,6 +211,8 @@ export default function CashSheet({
           localStorage.setItem("gobra_floating_pos_cashbook", JSON.stringify(finalPos));
         } catch {}
       }
+    } else {
+      toggleCollapse();
     }
   };
 
@@ -211,7 +222,7 @@ export default function CashSheet({
       dragStart.current.hasMoved = false;
       return;
     }
-    setIsCollapsed((prev) => !prev);
+    toggleCollapse();
   };
 
   const loadData = () => {
@@ -983,6 +994,7 @@ export default function CashSheet({
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
           onPointerCancel={handlePointerUp}
+          onClick={handleTrackerClick}
           style={
             position
               ? {
@@ -1048,6 +1060,10 @@ export default function CashSheet({
                 </span>
                 <span
                   onPointerDown={(e) => e.stopPropagation()}
+                  onPointerUp={(e) => {
+                    e.stopPropagation();
+                    setIsCollapsed(true);
+                  }}
                   onClick={(e) => {
                     e.stopPropagation();
                     setIsCollapsed(true);

@@ -96,12 +96,22 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
     } catch {}
   };
 
+  const lastToggleTime = useRef(0);
+  const togglePopup = () => {
+    const now = Date.now();
+    if (now - lastToggleTime.current < 250) return;
+    lastToggleTime.current = now;
+    setStaffPopupOpen((prev) => !prev);
+    setStaffPopupMinimized(false);
+  };
+
   const handleFloatingPointerMove = (e: React.PointerEvent) => {
     if (!isDragging.current) return;
     const dx = e.clientX - dragStart.current.x;
     const dy = e.clientY - dragStart.current.y;
+    const dist = Math.hypot(dx, dy);
 
-    if (!dragStart.current.hasMoved && (Math.abs(dx) > 3 || Math.abs(dy) > 3)) {
+    if (!dragStart.current.hasMoved && dist > 6) {
       dragStart.current.hasMoved = true;
     }
 
@@ -129,6 +139,8 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
           localStorage.setItem("gobra_floating_pos_report", JSON.stringify(finalPos));
         } catch {}
       }
+    } else {
+      togglePopup();
     }
   };
 
@@ -138,8 +150,7 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
       dragStart.current.hasMoved = false;
       return;
     }
-    setStaffPopupOpen((prev) => !prev);
-    setStaffPopupMinimized(false);
+    togglePopup();
   };
 
   const [isMobile, setIsMobile] = useState(detectIsMobile);
@@ -487,6 +498,7 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
           onPointerMove={handleFloatingPointerMove}
           onPointerUp={handleFloatingPointerUp}
           onPointerCancel={handleFloatingPointerUp}
+          onClick={handleFloatingClick}
           style={
             floatingPos
               ? {
@@ -521,6 +533,10 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
                   <button
                     type="button"
                     onPointerDown={(e) => e.stopPropagation()}
+                    onPointerUp={(e) => {
+                      e.stopPropagation();
+                      setStaffPopupOpen(false);
+                    }}
                     onClick={(e) => {
                       e.stopPropagation();
                       setStaffPopupOpen(false);
