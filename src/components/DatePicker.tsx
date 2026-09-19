@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 
 const pad = (n: number) => String(n).padStart(2, "0");
 const toISO = (y: number, m: number, d: number) => `${y}-${pad(m + 1)}-${pad(d)}`;
@@ -29,10 +29,65 @@ export default function DatePicker({
   dropUp?: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const [popupStyle, setPopupStyle] = useState<React.CSSProperties>({});
   const init = value && value.includes("-") ? value : todayISO();
   const [vy, setVy] = useState(Number(init.slice(0, 4)) || new Date().getFullYear());
   const [vm, setVm] = useState((Number(init.slice(5, 7)) || new Date().getMonth() + 1) - 1);
   const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open || !ref.current) return;
+    const updatePosition = () => {
+      if (!ref.current) return;
+      const rect = ref.current.getBoundingClientRect();
+      const screenWidth = window.innerWidth;
+      const calWidth = Math.min(288, screenWidth - 16);
+
+      if (dropUp) {
+        if (screenWidth < 640) {
+          // On mobile: calculate exact left offset relative to container so it stays fully inside viewport [8px, screenWidth - 8px]
+          let targetLeft = rect.left;
+          if (targetLeft + calWidth > screenWidth - 8) {
+            targetLeft = screenWidth - 8 - calWidth;
+          }
+          if (targetLeft < 8) {
+            targetLeft = 8;
+          }
+          const relLeft = targetLeft - rect.left;
+          setPopupStyle({
+            left: `${relLeft}px`,
+            right: "auto",
+            width: `${calWidth}px`,
+          });
+        } else {
+          // On PC: align to right or left cleanly as before
+          setPopupStyle({
+            right: 0,
+            left: "auto",
+            width: "18rem",
+          });
+        }
+      } else {
+        // Standard dropdown: ensure it doesn't overflow right
+        if (rect.left + calWidth > screenWidth - 8) {
+          const shift = screenWidth - 8 - (rect.left + calWidth);
+          setPopupStyle({
+            left: `${shift}px`,
+            width: `${calWidth}px`,
+          });
+        } else {
+          setPopupStyle({
+            left: 0,
+            width: `${calWidth}px`,
+          });
+        }
+      }
+    };
+
+    updatePosition();
+    window.addEventListener("resize", updatePosition);
+    return () => window.removeEventListener("resize", updatePosition);
+  }, [open, dropUp]);
 
   useEffect(() => {
     if (open && value && value.includes("-")) {
@@ -91,8 +146,9 @@ export default function DatePicker({
       </button>
       {open && (
         <div
-          className={`absolute z-50 w-72 rounded-xl border border-slate-300 bg-white p-3 shadow-2xl text-slate-900 ${
-            dropUp ? "bottom-full mb-2 right-0 sm:left-auto" : "left-0 mt-1"
+          style={popupStyle}
+          className={`absolute z-50 rounded-xl border border-slate-300 bg-white p-2.5 sm:p-3 shadow-2xl text-slate-900 ${
+            dropUp ? "bottom-full mb-2" : "mt-1"
           }`}
         >
           <div className="mb-2 flex items-center justify-between">
@@ -128,8 +184,8 @@ export default function DatePicker({
             </button>
           </div>
           <div className="grid grid-cols-7 text-center text-xs font-semibold text-slate-500">
-            {DAYS.map((d) => (
-              <div key={d} className="py-1">
+            {DAYS.map((d, idx) => (
+              <div key={d} className={`py-1 ${idx === 0 ? "text-rose-600 font-bold" : ""}`}>
                 {d}
               </div>
             ))}
@@ -140,6 +196,7 @@ export default function DatePicker({
               const iso = toISO(vy, vm, d);
               const sel = iso === value;
               const isT = iso === t;
+              const isSunday = i % 7 === 0;
               return (
                 <button
                   key={i}
@@ -150,6 +207,8 @@ export default function DatePicker({
                       ? "bg-blue-600 font-bold text-white shadow-sm"
                       : isT
                       ? "border border-blue-500 font-semibold text-blue-700 hover:bg-blue-50"
+                      : isSunday
+                      ? "hover:bg-rose-50 text-rose-600 font-bold"
                       : "hover:bg-slate-100 text-slate-800"
                   }`}
                 >
