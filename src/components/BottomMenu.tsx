@@ -97,17 +97,6 @@ export default function BottomMenu({
               <span>📊</span>
               <span>Google Sheet</span>
             </button>
-
-            {/* Install App / APK Button */}
-            <button
-              type="button"
-              onClick={() => setApkModalOpen(true)}
-              className="hidden md:flex items-center gap-1 rounded-lg bg-indigo-800/80 hover:bg-indigo-700 px-2.5 py-1 text-[11px] font-bold text-indigo-100 transition shadow-xs whitespace-nowrap cursor-pointer"
-              title="Install App on Phone / APK"
-            >
-              <span>📱</span>
-              <span>App / APK</span>
-            </button>
           </div>
 
           {/* Center: Master Date Filter */}
