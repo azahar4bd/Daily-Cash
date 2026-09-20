@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { getAllDatesActivity } from "@/lib/storage";
+import { getAllDatesActivity, isIntermediateBlockedDate } from "@/lib/storage";
 import { formatDisplay } from "./DatePicker";
 import type { DateActivity } from "@/types";
 
@@ -165,6 +165,11 @@ export default function DateAuditTrackerModal({
                             <div className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-bold text-emerald-800">
                               <span className="h-2 w-2 rounded-full bg-emerald-600"></span>
                               <span>সমাপ্ত (Closed)</span>
+                            </div>
+                          ) : isIntermediateBlockedDate(act.date).blocked ? (
+                            <div className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2.5 py-1 text-[11px] font-bold text-rose-900 border border-rose-300">
+                              <span className="h-2 w-2 rounded-full bg-rose-600"></span>
+                              <span>🚫 ব্লকড / অবৈধ দিন</span>
                             </div>
                           ) : isUnclosedWarning ? (
                             <div className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-bold text-amber-900 border border-amber-300">

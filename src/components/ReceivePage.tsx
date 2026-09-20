@@ -12,6 +12,7 @@ import {
   getCategories,
   getSummary,
   isDayClosed,
+  isIntermediateBlockedDate,
 } from "@/lib/storage";
 import type { Tx, Cat, Denom } from "@/types";
 
@@ -89,6 +90,11 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
       alert(`⚠️ এই তারিখের (${form.txDate}) দিন সমাপ্ত (Day Closed) রয়েছে। কোনো নতুন এন্ট্রি করা যাবে না। পরিবর্তন করতে চাইলে ক্যাশবুক পেজ থেকে দিনটি Re-open করুন।`);
       return;
     }
+    const blockCheck = isIntermediateBlockedDate(form.txDate, selectedDate);
+    if (blockCheck.blocked) {
+      alert(`⚠️ ${blockCheck.reason || "দুটি কর্মদিবসের মধ্যবর্তী বন্ধের দিনে কোনো নতুন এন্ট্রি করা যাবে না।"}`);
+      return;
+    }
     if (!form.category.trim()) return setMsg("Category required");
     if (!form.amount || form.amount <= 0) return setMsg("Amount must be greater than 0");
 
@@ -118,6 +124,11 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
     if (!edit || !edit.id) return;
     if (isDayClosed(edit.txDate)) {
       alert(`⚠️ এই তারিখের (${edit.txDate}) দিন সমাপ্ত (Day Closed) রয়েছে। কোনো পরিবর্তন করা যাবে না। ক্যাশবুক পেজ থেকে দিনটি Re-open করুন।`);
+      return;
+    }
+    const blockCheck = isIntermediateBlockedDate(edit.txDate, selectedDate);
+    if (blockCheck.blocked) {
+      alert(`⚠️ ${blockCheck.reason || "দুটি কর্মদিবসের মধ্যবর্তী বন্ধের দিনে কোনো পরিবর্তন করা যাবে না।"}`);
       return;
     }
     if (!edit.category.trim()) return alert("Category required");
@@ -188,6 +199,18 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
               <span>এই তারিখের ({form.txDate}) দিন সমাপ্ত (Day Closed) রয়েছে। হিসাবটি লক করা আছে।</span>
             </span>
             <span className="text-xs text-rose-600 font-semibold">ক্যাশবুকে Re-open করুন</span>
+          </div>
+        )}
+
+        {!isDayClosed(form.txDate) && isIntermediateBlockedDate(form.txDate, selectedDate).blocked && (
+          <div className="mb-4 rounded-xl border border-rose-400 bg-rose-50 p-3 text-xs sm:text-sm font-bold text-rose-900 flex items-start gap-2 shadow-xs">
+            <span className="text-base shrink-0">🚫</span>
+            <div>
+              <span className="block font-black text-rose-950">এই তারিখটি ব্লক (কর্মদিবসের মধ্যবর্তী বন্ধের দিন)</span>
+              <span className="text-xs text-rose-800 font-normal mt-0.5 block">
+                {isIntermediateBlockedDate(form.txDate, selectedDate).reason}
+              </span>
+            </div>
           </div>
         )}
 
@@ -275,10 +298,14 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
           <div className="flex gap-2.5 md:col-span-2 pt-1">
             <button
               onClick={handleSave}
-              disabled={isDayClosed(form.txDate)}
-              className="min-h-[44px] rounded-xl bg-green-600 px-6 py-2.5 font-bold text-sm text-white shadow hover:bg-green-700 active:scale-98 transition cursor-pointer disabled:opacity-50"
+              disabled={isDayClosed(form.txDate) || isIntermediateBlockedDate(form.txDate, selectedDate).blocked}
+              className="min-h-[44px] rounded-xl bg-green-600 px-6 py-2.5 font-bold text-sm text-white shadow hover:bg-green-700 active:scale-98 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Save Receive
+              {isDayClosed(form.txDate)
+                ? "🔒 দিন সমাপ্ত (লকড)"
+                : isIntermediateBlockedDate(form.txDate, selectedDate).blocked
+                ? "🚫 তারিখ ব্লকড"
+                : "Save Receive"}
             </button>
             <button
               onClick={() => {
@@ -292,7 +319,7 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
                 });
                 setMsg("");
               }}
-              disabled={isDayClosed(form.txDate)}
+              disabled={isDayClosed(form.txDate) || isIntermediateBlockedDate(form.txDate, selectedDate).blocked}
               className="min-h-[44px] rounded-xl bg-slate-500 px-6 py-2.5 font-bold text-sm text-white hover:bg-slate-600 active:scale-98 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Reset

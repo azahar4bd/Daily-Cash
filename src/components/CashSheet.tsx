@@ -13,6 +13,7 @@ import {
   getDayClosure,
   saveDayClosure,
   reopenDay,
+  isIntermediateBlockedDate,
 } from "@/lib/storage";
 import type { Tx, DayClosure } from "@/types";
 
@@ -940,11 +941,20 @@ export default function CashSheet({
             <button
               type="button"
               onClick={handleInitiateDayClose}
-              className="rounded-lg bg-emerald-600 hover:bg-emerald-700 px-3.5 py-1.5 text-xs font-bold text-white shadow cursor-pointer transition flex items-center gap-1.5 ring-2 ring-emerald-400/40"
-              title="এই তারিখের হিসাব চূড়ান্তভাবে বন্ধ করুন"
+              disabled={isIntermediateBlockedDate(selectedDate).blocked}
+              className="rounded-lg bg-emerald-600 hover:bg-emerald-700 px-3.5 py-1.5 text-xs font-bold text-white shadow cursor-pointer transition flex items-center gap-1.5 ring-2 ring-emerald-400/40 disabled:opacity-50 disabled:cursor-not-allowed"
+              title={
+                isIntermediateBlockedDate(selectedDate).blocked
+                  ? "মধ্যবর্তী বন্ধের দিন (Day Close করা যাবে না)"
+                  : "এই তারিখের হিসাব চূড়ান্তভাবে বন্ধ করুন"
+              }
             >
-              <span>🔒</span>
-              <span>Day Close করুন</span>
+              <span>{isIntermediateBlockedDate(selectedDate).blocked ? "🚫" : "🔒"}</span>
+              <span>
+                {isIntermediateBlockedDate(selectedDate).blocked
+                  ? "তারিখ ব্লকড"
+                  : "Day Close করুন"}
+              </span>
             </button>
           )}
 
@@ -989,6 +999,16 @@ export default function CashSheet({
           >
             🔓 Re-open Day
           </button>
+        </div>
+      )}
+
+      {/* Intermediate Blocked Notice Banner */}
+      {!dayClosed && isIntermediateBlockedDate(selectedDate).blocked && (
+        <div className="rounded-2xl border border-rose-400 bg-rose-50 p-3.5 text-xs sm:text-sm font-bold text-rose-950 shadow-xs flex items-center justify-between print:hidden">
+          <div className="flex items-center gap-2">
+            <span className="text-base">🚫</span>
+            <span>{isIntermediateBlockedDate(selectedDate).reason}</span>
+          </div>
         </div>
       )}
 

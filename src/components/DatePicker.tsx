@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { getAllDatesActivity } from "@/lib/storage";
+import { getAllDatesActivity, isIntermediateBlockedDate } from "@/lib/storage";
 
 const pad = (n: number) => String(n).padStart(2, "0");
 const toISO = (y: number, m: number, d: number) => `${y}-${pad(m + 1)}-${pad(d)}`;
@@ -33,7 +33,7 @@ export default function DatePicker({
 }) {
   const [open, setOpen] = useState(false);
   const [popupStyle, setPopupStyle] = useState<React.CSSProperties>({});
-  const [dateStatusMap, setDateStatusMap] = useState<Record<string, "closed" | "unclosed">>({});
+  const [dateStatusMap, setDateStatusMap] = useState<Record<string, "closed" | "unclosed" | "blocked">>({});
   const init = value && value.includes("-") ? value : todayISO();
   const [vy, setVy] = useState(Number(init.slice(0, 4)) || new Date().getFullYear());
   const [vm, setVm] = useState((Number(init.slice(5, 7)) || new Date().getMonth() + 1) - 1);
@@ -43,7 +43,7 @@ export default function DatePicker({
     if (!open) return;
     try {
       const all = getAllDatesActivity();
-      const map: Record<string, "closed" | "unclosed"> = {};
+      const map: Record<string, "closed" | "unclosed" | "blocked"> = {};
       all.forEach((a) => {
         if (a.isClosed) {
           map[a.date] = "closed";
@@ -51,11 +51,24 @@ export default function DatePicker({
           map[a.date] = "unclosed";
         }
       });
+
+      // Scan days in current month view to find intermediate blocked days
+      const daysCount = new Date(vy, vm + 1, 0).getDate();
+      for (let dayNum = 1; dayNum <= daysCount; dayNum++) {
+        const iso = toISO(vy, vm, dayNum);
+        if (!map[iso]) {
+          const check = isIntermediateBlockedDate(iso);
+          if (check.blocked) {
+            map[iso] = "blocked";
+          }
+        }
+      }
+
       setDateStatusMap(map);
     } catch {
       setDateStatusMap({});
     }
-  }, [open]);
+  }, [open, vy, vm]);
 
   useEffect(() => {
     if (!open || !ref.current) return;
@@ -244,14 +257,20 @@ export default function DatePicker({
                           ? sel
                             ? "bg-emerald-300"
                             : "bg-emerald-500"
+                          : status === "unclosed"
+                          ? sel
+                            ? "bg-amber-300 animate-pulse"
+                            : "bg-amber-500 animate-pulse"
                           : sel
-                          ? "bg-amber-300 animate-pulse"
-                          : "bg-amber-500 animate-pulse"
+                          ? "bg-rose-300"
+                          : "bg-rose-500"
                       }`}
                       title={
                         status === "closed"
                           ? "দিন সমাপ্ত (Day Closed)"
-                          : "অসমাপ্ত লেনদেন (Unclosed)"
+                          : status === "unclosed"
+                          ? "অসমাপ্ত লেনদেন (Unclosed)"
+                          : "মধ্যবর্তী বন্ধের দিন (এন্ট্রি ব্লকড)"
                       }
                     />
                   )}
@@ -283,18 +302,22 @@ export default function DatePicker({
           </div>
 
           {/* Mini Legend */}
-          <div className="mt-2 pt-1.5 border-t border-slate-100 flex items-center justify-around text-[10px] text-slate-500 font-medium">
+          <div className="mt-2 pt-1.5 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-500 font-medium px-1">
             <span className="flex items-center gap-1">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
-              দিন সমাপ্ত
+              সমাপ্ত
             </span>
             <span className="flex items-center gap-1">
               <span className="h-1.5 w-1.5 rounded-full bg-amber-500"></span>
               অসমাপ্ত
             </span>
             <span className="flex items-center gap-1">
+              <span className="h-1.5 w-1.5 rounded-full bg-rose-500"></span>
+              ব্লকড
+            </span>
+            <span className="flex items-center gap-1">
               <span className="h-1.5 w-1.5 rounded-full bg-blue-500"></span>
-              আজকের দিন
+              আজ
             </span>
           </div>
         </div>

@@ -15,6 +15,7 @@ import {
   getCategories,
   isDayClosed,
   evaluateMathExpression,
+  isIntermediateBlockedDate,
 } from "@/lib/storage";
 import type { StaffReportItem, Tx } from "@/types";
 
@@ -251,6 +252,11 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
       alert("⚠️ এই তারিখের দিন সমাপ্ত (Day Closed) রয়েছে। কোনো নতুন এন্ট্রি করা যাবে না। পরিবর্তন করতে চাইলে ক্যাশবুক পেজ থেকে দিনটি Re-open করুন।");
       return;
     }
+    const blockCheck = isIntermediateBlockedDate(selectedDate);
+    if (blockCheck.blocked) {
+      alert(`⚠️ ${blockCheck.reason || "দুটি কর্মদিবসের মধ্যবর্তী বন্ধের দিনে কোনো নতুন রিপোর্ট এন্ট্রি করা যাবে না।"}`);
+      return;
+    }
     if (!form.staffName.trim()) {
       alert("দয়া করে স্টাফ নির্বাচন করুন");
       setActiveKeyboardField("staffName");
@@ -311,6 +317,11 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
     if (!edit || !edit.id) return;
     if (dayClosed) {
       alert("⚠️ দিন ক্লোজ থাকায় এই রিপোর্টটি এডিট করা যাবে না। ক্যাশবুক থেকে Re-open করুন।");
+      return;
+    }
+    const blockCheck = isIntermediateBlockedDate(selectedDate);
+    if (blockCheck.blocked) {
+      alert(`⚠️ ${blockCheck.reason || "দুটি কর্মদিবসের মধ্যবর্তী বন্ধের দিনে কোনো রিপোর্ট পরিবর্তন করা যাবে না।"}`);
       return;
     }
     updateStaffReport({
@@ -628,6 +639,18 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
             <span className="text-xs text-rose-600 font-semibold">ক্যাশবুকে Re-open করুন</span>
           </div>
         )}
+
+        {!dayClosed && isIntermediateBlockedDate(selectedDate).blocked && (
+          <div className="mb-4 rounded-xl border border-rose-400 bg-rose-50 p-3 text-xs sm:text-sm font-bold text-rose-900 flex items-start gap-2 shadow-xs">
+            <span className="text-base shrink-0">🚫</span>
+            <div>
+              <span className="block font-black text-rose-950">এই তারিখটি ব্লক (কর্মদিবসের মধ্যবর্তী বন্ধের দিন)</span>
+              <span className="text-xs text-rose-800 font-normal mt-0.5 block">
+                {isIntermediateBlockedDate(selectedDate).reason}
+              </span>
+            </div>
+          </div>
+        )}
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b pb-3">
           <h2 className="text-xl font-bold text-slate-900">Staff Collection Report Entry</h2>
           <div className="flex items-center gap-2">
@@ -792,15 +815,19 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
           <button
             type="button"
             onClick={handleSave}
-            disabled={dayClosed}
-            className="rounded-lg bg-green-600 px-6 py-2 text-sm font-bold text-white shadow hover:bg-green-700 cursor-pointer disabled:opacity-50"
+            disabled={dayClosed || isIntermediateBlockedDate(selectedDate).blocked}
+            className="rounded-lg bg-green-600 px-6 py-2 text-sm font-bold text-white shadow hover:bg-green-700 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Save Report
+            {dayClosed
+              ? "🔒 দিন সমাপ্ত (লকড)"
+              : isIntermediateBlockedDate(selectedDate).blocked
+              ? "🚫 তারিখ ব্লকড"
+              : "Save Report"}
           </button>
           <button
             type="button"
             onClick={handleReset}
-            disabled={dayClosed}
+            disabled={dayClosed || isIntermediateBlockedDate(selectedDate).blocked}
             className="rounded-lg bg-slate-500 px-6 py-2 text-sm font-bold text-white hover:bg-slate-600 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Reset

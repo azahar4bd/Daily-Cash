@@ -118,6 +118,13 @@ export function getLocalTxs(): Tx[] {
 }
 
 export function saveTx(payload: Omit<Tx, "id"> & { id?: number }): Tx {
+  const blockCheck = isIntermediateBlockedDate(payload.txDate);
+  if (blockCheck.blocked && !isDayClosed(payload.txDate)) {
+    throw new Error(
+      blockCheck.reason ||
+        "দুটি কর্মদিবসের মধ্যবর্তী বন্ধের দিনে কোনো এন্ট্রি করা যাবে না।"
+    );
+  }
   const list = getLocalTxs();
   const newTx: Tx = {
     ...payload,
@@ -161,6 +168,13 @@ export function getLocalStaffReports(date?: string): StaffReportItem[] {
 }
 
 export function saveStaffReport(item: Omit<StaffReportItem, "id"> & { id?: number }): StaffReportItem {
+  const blockCheck = isIntermediateBlockedDate(item.reportDate);
+  if (blockCheck.blocked && !isDayClosed(item.reportDate)) {
+    throw new Error(
+      blockCheck.reason ||
+        "দুটি কর্মদিবসের মধ্যবর্তী বন্ধের দিনে কোনো এন্ট্রি করা যাবে না।"
+    );
+  }
   const list = getLocalStaffReports();
   const newSr: StaffReportItem = {
     ...item,
@@ -941,6 +955,79 @@ export function getReceivePaymentCashInHand(targetDate: string): {
     allPayment: sum.todayPayment ?? 0,
     prevCash: sum.prevCash,
   };
+}
+
+export function isIntermediateBlockedDate(
+  targetDate: string,
+  activeDate?: string
+): {
+  blocked: boolean;
+  prevWorkingDate?: string;
+  nextWorkingDate?: string;
+  reason?: string;
+} {
+  if (!targetDate || !targetDate.includes("-")) return { blocked: false };
+
+  const allTx = getLocalTxs();
+  const allSr = getLocalStaffReports();
+  const closures = getLocalDayClosures();
+
+  // Find all working days (days with closure, or txs, or staff reports)
+  const workingDaysSet = new Set<string>();
+  closures.forEach((c) => {
+    if (c.closeDate && c.status === "closed") workingDaysSet.add(c.closeDate);
+  });
+  allTx.forEach((t) => {
+    if (t.txDate && t.txDate.includes("-")) workingDaysSet.add(t.txDate);
+  });
+  allSr.forEach((s) => {
+    if (s.reportDate && s.reportDate.includes("-")) workingDaysSet.add(s.reportDate);
+  });
+
+  // If activeDate is supplied and is valid, treat activeDate as a reference working day
+  if (activeDate && activeDate.includes("-")) {
+    workingDaysSet.add(activeDate);
+  }
+
+  // If targetDate itself was a closed day, day-closure lock handles it
+  const isClosed = closures.some(
+    (c) => c.closeDate === targetDate && c.status === "closed"
+  );
+  if (isClosed) {
+    return {
+      blocked: true,
+      reason: "এই তারিখের দিন সমাপ্ত (Day Closed) রয়েছে। হিসাব লক ও সুরক্ষিত আছে।",
+    };
+  }
+
+  // Find the closest previous working day before targetDate
+  const prevWorkingDays = Array.from(workingDaysSet)
+    .filter((d) => d < targetDate)
+    .sort();
+  const prevWorkingDate =
+    prevWorkingDays.length > 0
+      ? prevWorkingDays[prevWorkingDays.length - 1]
+      : undefined;
+
+  // Find the closest next working day after targetDate
+  const nextWorkingDays = Array.from(workingDaysSet)
+    .filter((d) => d > targetDate)
+    .sort();
+  const nextWorkingDate =
+    nextWorkingDays.length > 0 ? nextWorkingDays[0] : undefined;
+
+  // If there is both a previous working day and a next working day,
+  // then targetDate lies strictly between two working days!
+  if (prevWorkingDate && nextWorkingDate) {
+    return {
+      blocked: true,
+      prevWorkingDate,
+      nextWorkingDate,
+      reason: `এই তারিখটি (${targetDate}) দুটি কর্মদিবস [${prevWorkingDate} ও ${nextWorkingDate}]-এর মধ্যবর্তী বন্ধের দিন। এই তারিখে কোনো লেনদেন এন্ট্রি করা সম্পূর্ণভাবে ব্লক ও নিষিদ্ধ।`,
+    };
+  }
+
+  return { blocked: false };
 }
 
 export function getAllDatesActivity(): DateActivity[] {
