@@ -8,6 +8,7 @@ import type {
   Summary,
   KallyanRule,
   DayClosure,
+  DateActivity,
 } from "@/types";
 import { DEFAULT_CATEGORIES, DEFAULT_SUBCAT_RULES, DEFAULT_KALLYAN_RULE } from "./categories";
 import { DEFAULT_REBATE_RATES } from "./defaultRebateRates";
@@ -941,3 +942,64 @@ export function getReceivePaymentCashInHand(targetDate: string): {
     prevCash: sum.prevCash,
   };
 }
+
+export function getAllDatesActivity(): DateActivity[] {
+  const allTx = getLocalTxs();
+  const allSr = getLocalStaffReports();
+  const closures = getLocalDayClosures();
+
+  const datesSet = new Set<string>();
+  allTx.forEach((t) => {
+    if (t.txDate && t.txDate.includes("-")) datesSet.add(t.txDate);
+  });
+  allSr.forEach((s) => {
+    if (s.reportDate && s.reportDate.includes("-")) datesSet.add(s.reportDate);
+  });
+  closures.forEach((c) => {
+    if (c.closeDate && c.closeDate.includes("-")) datesSet.add(c.closeDate);
+  });
+
+  const dates = Array.from(datesSet).sort().reverse();
+  const dayNames = [
+    "রবিবার",
+    "সোমবার",
+    "মঙ্গলবার",
+    "বুধবার",
+    "বৃহস্পতিবার",
+    "শুক্রবার",
+    "শনিবার",
+  ];
+
+  return dates.map((d) => {
+    const dayTxs = allTx.filter((t) => t.txDate === d);
+    const daySrs = allSr.filter((s) => s.reportDate === d);
+    const closure = closures.find(
+      (c) => c.closeDate === d && c.status === "closed"
+    );
+
+    const recTxs = dayTxs.filter((t) => t.type === "receive");
+    const payTxs = dayTxs.filter((t) => t.type === "payment");
+
+    const recTotal = recTxs.reduce((s, t) => s + (Number(t.amount) || 0), 0);
+    const payTotal = payTxs.reduce((s, t) => s + (Number(t.amount) || 0), 0);
+
+    const [y, m, day] = d.split("-").map(Number);
+    const dayObj = new Date(y, m - 1, day);
+    const dayName = !isNaN(dayObj.getDay()) ? dayNames[dayObj.getDay()] : "";
+
+    return {
+      date: d,
+      dayName,
+      txCount: dayTxs.length,
+      receiveCount: recTxs.length,
+      paymentCount: payTxs.length,
+      receiveTotal: recTotal,
+      paymentTotal: payTotal,
+      srCount: daySrs.length,
+      isClosed: Boolean(closure),
+      closingCash: closure ? Number(closure.closingCash) : undefined,
+      closingBank: closure ? Number(closure.closingBank) : undefined,
+    };
+  });
+}
+

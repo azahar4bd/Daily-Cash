@@ -18,11 +18,13 @@ export default function BottomMenu({
   onTabChange,
   selectedDate,
   onDateChange,
+  onOpenTracker,
 }: {
   currentTab: string;
   onTabChange: (tab: string) => void;
   selectedDate: string;
   onDateChange: (date: string) => void;
+  onOpenTracker?: () => void;
 }) {
   const [sheetModalOpen, setSheetModalOpen] = useState(false);
   const [neonModalOpen, setNeonModalOpen] = useState(false);
@@ -110,6 +112,7 @@ export default function BottomMenu({
                 onChange={(v) => onDateChange(v || today)}
                 className="py-1 px-2 text-xs font-bold bg-white"
                 dropUp={true}
+                onOpenTracker={onOpenTracker}
               />
             </div>
             {selectedDate !== today && (
@@ -121,6 +124,15 @@ export default function BottomMenu({
                 Today
               </button>
             )}
+            <button
+              type="button"
+              onClick={onOpenTracker}
+              className="rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 px-1.5 py-1 text-xs text-amber-400 font-bold transition cursor-pointer hidden sm:flex items-center gap-1"
+              title="সকল তারিখের অডিট ট্র্যাকার খুলুন"
+            >
+              <span>📅</span>
+              <span className="text-[10px]">অডিট</span>
+            </button>
           </div>
 
           {/* Right: Navigation Controls */}
@@ -244,6 +256,19 @@ export default function BottomMenu({
                 টুলস ও ক্লাউড ডাটাবেজ
               </span>
               <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setThreeLineMenuOpen(false);
+                    if (onOpenTracker) onOpenTracker();
+                    else window.dispatchEvent(new CustomEvent("open-date-tracker"));
+                  }}
+                  className="col-span-2 flex items-center justify-center gap-2 rounded-xl bg-amber-900/60 hover:bg-amber-800/80 border border-amber-700/50 p-2.5 text-xs font-bold text-amber-200 transition cursor-pointer"
+                >
+                  <span className="text-base">📅</span>
+                  <span>কর্মদিবস ও লেনদেন অডিট ট্র্যাকার</span>
+                </button>
+
                 <button
                   type="button"
                   onClick={() => {

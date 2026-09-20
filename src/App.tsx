@@ -7,11 +7,14 @@ import StaffReportManager from "./components/StaffReportManager";
 import CashSheet from "./components/CashSheet";
 import BottomMenu from "./components/BottomMenu";
 import NetworkStatusBanner from "./components/NetworkStatusBanner";
+import UnclosedDateAlert from "./components/UnclosedDateAlert";
+import DateAuditTrackerModal from "./components/DateAuditTrackerModal";
 import { todayISO } from "./components/DatePicker";
 import { initNeonSync } from "./lib/neonSync";
 
 export default function App() {
   const [currentTab, setCurrentTab] = useState<string>("receive");
+  const [trackerOpen, setTrackerOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string>(() => {
     try {
       const saved = localStorage.getItem("app_master_date");
@@ -38,6 +41,10 @@ export default function App() {
         setSelectedDate(saved);
       }
     } catch {}
+
+    const handleOpenTracker = () => setTrackerOpen(true);
+    window.addEventListener("open-date-tracker", handleOpenTracker);
+    return () => window.removeEventListener("open-date-tracker", handleOpenTracker);
   }, []);
 
   return (
@@ -46,6 +53,15 @@ export default function App() {
       <main className="mx-auto max-w-6xl px-3 sm:px-4 pt-3 sm:pt-5 print:p-0 print:max-w-none">
         {/* Real-time Network & Offline/Online Sync Status Banner */}
         <NetworkStatusBanner />
+
+        {/* Smart Alert for Unclosed prior working dates / accidental entries */}
+        <div className="print:hidden">
+          <UnclosedDateAlert
+            selectedDate={selectedDate}
+            onSelectDate={handleDateChange}
+            onOpenTracker={() => setTrackerOpen(true)}
+          />
+        </div>
 
         {/* Conditional Top Dashboard: visible only on Receive and Payment pages */}
         {(currentTab === "receive" || currentTab === "payment") && (
@@ -64,6 +80,14 @@ export default function App() {
         )}
       </main>
 
+      {/* Date Audit Tracker Modal */}
+      <DateAuditTrackerModal
+        isOpen={trackerOpen}
+        onClose={() => setTrackerOpen(false)}
+        selectedDate={selectedDate}
+        onSelectDate={handleDateChange}
+      />
+
       {/* Bottom Menu Navigation */}
       <div className="print:hidden">
         <BottomMenu
@@ -71,6 +95,7 @@ export default function App() {
           onTabChange={setCurrentTab}
           selectedDate={selectedDate}
           onDateChange={handleDateChange}
+          onOpenTracker={() => setTrackerOpen(true)}
         />
       </div>
     </div>

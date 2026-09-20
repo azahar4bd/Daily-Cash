@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { getAllDatesActivity } from "@/lib/storage";
 
 const pad = (n: number) => String(n).padStart(2, "0");
 const toISO = (y: number, m: number, d: number) => `${y}-${pad(m + 1)}-${pad(d)}`;
@@ -22,18 +23,39 @@ export default function DatePicker({
   onChange,
   className = "",
   dropUp = false,
+  onOpenTracker,
 }: {
   value: string;
   onChange: (iso: string) => void;
   className?: string;
   dropUp?: boolean;
+  onOpenTracker?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [popupStyle, setPopupStyle] = useState<React.CSSProperties>({});
+  const [dateStatusMap, setDateStatusMap] = useState<Record<string, "closed" | "unclosed">>({});
   const init = value && value.includes("-") ? value : todayISO();
   const [vy, setVy] = useState(Number(init.slice(0, 4)) || new Date().getFullYear());
   const [vm, setVm] = useState((Number(init.slice(5, 7)) || new Date().getMonth() + 1) - 1);
   const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    try {
+      const all = getAllDatesActivity();
+      const map: Record<string, "closed" | "unclosed"> = {};
+      all.forEach((a) => {
+        if (a.isClosed) {
+          map[a.date] = "closed";
+        } else if (a.txCount > 0 || a.srCount > 0) {
+          map[a.date] = "unclosed";
+        }
+      });
+      setDateStatusMap(map);
+    } catch {
+      setDateStatusMap({});
+    }
+  }, [open]);
 
   useEffect(() => {
     if (!open || !ref.current) return;
@@ -152,7 +174,7 @@ export default function DatePicker({
           }`}
         >
           <div className="mb-2 flex items-center justify-between">
-            <button type="button" onClick={prevMonth} className="h-8 w-8 rounded-full text-lg hover:bg-slate-100">
+            <button type="button" onClick={prevMonth} className="h-8 w-8 rounded-full text-lg hover:bg-slate-100 cursor-pointer">
               ‹
             </button>
             <div className="flex items-center gap-1 font-semibold">
@@ -179,7 +201,7 @@ export default function DatePicker({
                 ))}
               </select>
             </div>
-            <button type="button" onClick={nextMonth} className="h-8 w-8 rounded-full text-lg hover:bg-slate-100">
+            <button type="button" onClick={nextMonth} className="h-8 w-8 rounded-full text-lg hover:bg-slate-100 cursor-pointer">
               ›
             </button>
           </div>
@@ -197,12 +219,14 @@ export default function DatePicker({
               const sel = iso === value;
               const isT = iso === t;
               const isSunday = i % 7 === 0;
+              const status = dateStatusMap[iso];
+
               return (
                 <button
                   key={i}
                   type="button"
                   onClick={() => pick(iso)}
-                  className={`h-9 rounded-lg transition ${
+                  className={`h-9.5 rounded-lg transition relative flex flex-col items-center justify-center cursor-pointer ${
                     sel
                       ? "bg-blue-600 font-bold text-white shadow-sm"
                       : isT
@@ -212,20 +236,70 @@ export default function DatePicker({
                       : "hover:bg-slate-100 text-slate-800"
                   }`}
                 >
-                  {d}
+                  <span className="leading-none text-xs sm:text-sm">{d}</span>
+                  {status && (
+                    <span
+                      className={`h-1.5 w-1.5 rounded-full mt-0.5 ${
+                        status === "closed"
+                          ? sel
+                            ? "bg-emerald-300"
+                            : "bg-emerald-500"
+                          : sel
+                          ? "bg-amber-300 animate-pulse"
+                          : "bg-amber-500 animate-pulse"
+                      }`}
+                      title={
+                        status === "closed"
+                          ? "দিন সমাপ্ত (Day Closed)"
+                          : "অসমাপ্ত লেনদেন (Unclosed)"
+                      }
+                    />
+                  )}
                 </button>
               );
             })}
           </div>
-          <button
-            type="button"
-            onClick={() => pick(t)}
-            className="mt-2 w-full rounded-lg bg-slate-100 py-1.5 text-xs font-semibold hover:bg-slate-200"
-          >
-            Today
-          </button>
+
+          <div className="mt-2 flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => pick(t)}
+              className="flex-1 rounded-lg bg-slate-100 py-1.5 text-xs font-semibold hover:bg-slate-200 cursor-pointer text-slate-700"
+            >
+              Today
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setOpen(false);
+                if (onOpenTracker) onOpenTracker();
+                else window.dispatchEvent(new CustomEvent("open-date-tracker"));
+              }}
+              className="rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 px-2 py-1.5 text-xs font-bold transition cursor-pointer"
+              title="সকল তারিখের অডিট ট্র্যাকার"
+            >
+              📋 ট্র্যাকার
+            </button>
+          </div>
+
+          {/* Mini Legend */}
+          <div className="mt-2 pt-1.5 border-t border-slate-100 flex items-center justify-around text-[10px] text-slate-500 font-medium">
+            <span className="flex items-center gap-1">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+              দিন সমাপ্ত
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="h-1.5 w-1.5 rounded-full bg-amber-500"></span>
+              অসমাপ্ত
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="h-1.5 w-1.5 rounded-full bg-blue-500"></span>
+              আজকের দিন
+            </span>
+          </div>
         </div>
       )}
     </div>
   );
 }
+
