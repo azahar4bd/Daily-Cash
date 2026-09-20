@@ -92,6 +92,8 @@ export type Summary = {
   expense: number;
   todayReceiveOnly?: number;
   todayPayment?: number;
+  todayKallayan?: number;
+  todayLoanForm?: number;
   totalReceiveWithOpening?: number;
   todayBankDeposit?: number;
   todayBankWithdraw?: number;

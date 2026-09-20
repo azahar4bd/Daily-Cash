@@ -576,6 +576,8 @@ export function getSummary(targetDate: string): Summary {
   let todayBankDeposit = 0;
   let todayBankWithdraw = 0;
   let todayFundReceive = 0;
+  let todayKallayan = 0;
+  let todayLoanForm = 0;
   const persons: Record<string, number> = Object.fromEntries(
     allStaffNames.map((p) => [p, 0])
   );
@@ -686,29 +688,11 @@ export function getSummary(targetDate: string): Summary {
 
     // Report page Today Cash & Today Bank formulas for day d:
     // Report page Today Cash and Today Bank will become next day's opening balances:
-    let dayClosingCash = runningCash;
-    if (daySr.length > 0 || disburseLoans.length > 0) {
-      const incomeAday =
-        srGrantTotalNoRebate > 0
-          ? srGrantTotalNoRebate
-          : targetReceives
-              .filter((t) =>
-                allStaffNames.some((st) => t.category.toLowerCase().includes(st))
-              )
-              .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
-      const totalDayIncome =
-        runningCash +
-        incomeAday +
-        dayBankWithdraw +
-        dayKallayan +
-        dayLoanForm +
-        dayOthersIncome;
-      const totalDayExpenditure =
-        expDisburse + dayBankDeposit + expSavingsReturn + expOthers;
-      dayClosingCash = Math.round(totalDayIncome - totalDayExpenditure);
-    } else {
-      dayClosingCash = Math.round(runningCash + dayTxCashReceive - dayTxPayment);
-    }
+    // User exact rule:
+    // Cash in Hand = receive page all receive (with previous cash in hand, without fund receive) + report page today all report এর kallyan + loan form - payment page এর all payment
+    const dayClosingCash = Math.round(
+      runningCash + dayTxCashReceive + dayKallayan + dayLoanForm - dayTxPayment
+    );
 
     const dayClosingBank = Math.round(
       runningBank - dayBankWithdraw + dayBankDeposit + dayFundReceive
@@ -723,6 +707,8 @@ export function getSummary(targetDate: string): Summary {
       todayBankDeposit = dayBankDeposit;
       todayBankWithdraw = dayBankWithdraw;
       todayFundReceive = dayFundReceive;
+      todayKallayan = dayKallayan;
+      todayLoanForm = dayLoanForm;
 
       dayTx.forEach((t) => {
         if (t.type === "receive") {
@@ -739,8 +725,10 @@ export function getSummary(targetDate: string): Summary {
   }
 
   // Exact formulas specified by user:
-  // 1. ক্যাশ ইন হ্যান্ড = গত দিনের হাতে নগদ + আজ রিসিভ কৃত টাকা - আজ পেমেন্ট কৃত টাকা (Fund receive বাদ)
-  todayCash = Math.round(prevCash + todayReceive - todayPayment);
+  // 1. ক্যাশ ইন হ্যান্ড = receive page all receive(with previous cash in hand, without fund receive) + report page today all report এর kallyan+loan form - payment page এর all payment
+  todayCash = Math.round(
+    prevCash + todayReceive + todayKallayan + todayLoanForm - todayPayment
+  );
 
   // 2. ব্যাংক ব্যালেন্স = গতদিনের ব্যাংক ব্যালেন্স + আজকে ব্যাংকে জমা - আজকে ব্যাংক থেকে উত্তোলন + Fund Receive
   todayBank = Math.round(
@@ -770,6 +758,8 @@ export function getSummary(targetDate: string): Summary {
     expense: totalPayment,
     todayReceiveOnly: todayReceive,
     todayPayment: totalPayment,
+    todayKallayan,
+    todayLoanForm,
     totalReceiveWithOpening,
     todayBankDeposit,
     todayBankWithdraw,
@@ -915,58 +905,15 @@ export function getReceivePaymentCashInHand(targetDate: string): {
   kallyan: number;
   loanForm: number;
   allPayment: number;
+  prevCash: number;
 } {
-  const allTx = getLocalTxs();
-  const dayTx = allTx.filter((t) => t.txDate === targetDate);
-  const targetReceives = dayTx.filter((t) => t.type === "receive");
-  const targetPayments = dayTx.filter((t) => t.type === "payment");
-
-  // 1. receive page all receive (without fund receive)
-  const allReceiveWithoutFund = targetReceives
-    .filter((t) => {
-      const c = t.category.toLowerCase().trim();
-      return !c.includes("fund receive");
-    })
-    .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
-
-  // 2. disburse loans to calculate kallyan + loan form
-  const disburseLoans = targetPayments.filter((t) => {
-    const cat = t.category.toLowerCase().trim();
-    return (
-      ["jagoron", "agrossor", "buni", "sufolon", "mfce"].some((k) =>
-        cat.includes(k)
-      ) || Boolean(t.subCategory && t.subCategory.trim().length > 0)
-    );
-  });
-
-  let buniyadDisburseSum = 0;
-  let otherDisburseSum = 0;
-  for (const t of disburseLoans) {
-    const amt = Number(t.amount) || 0;
-    const cat = t.category.toLowerCase().trim();
-    if (cat.includes("buni")) buniyadDisburseSum += amt;
-    else otherDisburseSum += amt;
-  }
-  const kallyan = Math.round(otherDisburseSum * 0.01 + buniyadDisburseSum * 0.005);
-  const loanForm = disburseLoans.length * 5;
-
-  // 3. payment page all payment
-  const allPayment = targetPayments.reduce(
-    (sum, t) => sum + (Number(t.amount) || 0),
-    0
-  );
-
-  // Formula:
-  // cash in hand = receive page all receive(without fund receive) + report page today all report এর kallyan+loan form - payment page এর all payment
-  const cashInHand = Math.round(
-    allReceiveWithoutFund + kallyan + loanForm - allPayment
-  );
-
+  const sum = getSummary(targetDate);
   return {
-    cashInHand,
-    allReceiveWithoutFund,
-    kallyan,
-    loanForm,
-    allPayment,
+    cashInHand: sum.cash,
+    allReceiveWithoutFund: sum.todayReceiveOnly ?? 0,
+    kallyan: sum.todayKallayan ?? 0,
+    loanForm: sum.todayLoanForm ?? 0,
+    allPayment: sum.todayPayment ?? 0,
+    prevCash: sum.prevCash,
   };
 }
