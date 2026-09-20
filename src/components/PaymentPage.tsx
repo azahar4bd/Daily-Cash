@@ -96,7 +96,7 @@ export default function PaymentPage({ selectedDate }: { selectedDate: string }) 
   const curKallyanCfg = getKallyanForCategory(form.category, kallyanRule);
   const kallyanAmount = isCurrentDisburse ? calcKallyan(form.amount, form.category, kallyanRule) : 0;
   const totalAmount = form.amount + scAmount;
-  const nInstallments = getInstallments(form.subCategory, subCatRules);
+  const nInstallments = getInstallments(form.subCategory, subCatRules, form.category);
   const kistiAmount = isCurrentDisburse && nInstallments ? Math.round(totalAmount / nInstallments) : 0;
 
   const rateRow = rates.find(
@@ -381,7 +381,17 @@ export default function PaymentPage({ selectedDate }: { selectedDate: string }) 
                 <div className="mt-1 font-mono text-base sm:text-lg font-bold text-right">{fmt(scAmount)}</div>
               </div>
               <div className="rounded-xl bg-violet-600 p-2.5 text-white shadow-xs">
-                <div className="text-xs font-semibold">Kisti {nInstallments ? `(${nInstallments})` : ""}</div>
+                <div className="flex items-center justify-between text-xs font-semibold">
+                  <span>Kisti {nInstallments ? `(${nInstallments})` : ""}</span>
+                  <button
+                    type="button"
+                    onClick={() => setRulesModalOpen(true)}
+                    className="flex h-5 w-5 items-center justify-center rounded-full bg-white/30 text-xs cursor-pointer hover:bg-white/40 active:scale-95 transition"
+                    title="কিস্তি রুল সেটিংস (Kisti / Installment Rules)"
+                  >
+                    ⚙
+                  </button>
+                </div>
                 <div className="mt-1 font-mono text-base sm:text-lg font-bold text-right">{fmt(kistiAmount)}</div>
               </div>
               <div className="rounded-xl bg-gradient-to-br from-teal-600 to-emerald-700 p-2.5 text-white shadow-sm ring-1 ring-teal-400/40">
@@ -688,6 +698,8 @@ export default function PaymentPage({ selectedDate }: { selectedDate: string }) 
           rules={subCatRules}
           disburseCategories={disburseCats.map((c) => c.name)}
           onRulesChanged={loadData}
+          currentCategory={form.category}
+          currentLoanAmount={form.amount}
         />
       )}
 

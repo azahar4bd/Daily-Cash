@@ -101,9 +101,21 @@ export const filterAllowedSubCategories = (
   return allSubCats.filter((sub) => isSubCategoryAllowed(sub, category, rules));
 };
 
-export const getInstallments = (sub: string, rules?: SubCategoryRule[]): number => {
+export const getInstallments = (
+  sub: string,
+  rules?: SubCategoryRule[],
+  category?: string
+): number => {
   const norm = sub.trim().toLowerCase();
+  const normCat = category ? category.trim().toLowerCase() : "";
   if (rules && rules.length > 0) {
+    if (normCat) {
+      const foundForCat = rules.find((r) => {
+        if (r.subCategory.trim().toLowerCase() !== norm) return false;
+        return isSubCategoryAllowed(r.subCategory, normCat, rules);
+      });
+      if (foundForCat && foundForCat.installments) return foundForCat.installments;
+    }
     const found = rules.find((r) => r.subCategory.trim().toLowerCase() === norm);
     if (found && found.installments) return found.installments;
   }

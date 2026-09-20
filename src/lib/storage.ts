@@ -309,6 +309,13 @@ export function deleteSubCategoryRule(id: number): void {
   enqueueNeonAction({ type: "subcat_del", payload: id });
 }
 
+export function resetSubCategoryRules(): void {
+  localStorage.setItem(SUBCAT_RULE_KEY, JSON.stringify(DEFAULT_SUBCAT_RULES));
+  DEFAULT_SUBCAT_RULES.forEach((r) => {
+    enqueueNeonAction({ type: "subcat", payload: r });
+  });
+}
+
 export const REBATE_VERSION_KEY = "gobra_rebate_db_v6";
 
 export function getRebateRates(): RebateRateItem[] {
