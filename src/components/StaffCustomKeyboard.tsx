@@ -208,64 +208,8 @@ export default function StaffCustomKeyboard({
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 bg-slate-950/95 text-white shadow-2xl border-t-4 border-indigo-600 backdrop-blur-md animate-in slide-in-from-bottom duration-200">
       <div className="mx-auto max-w-xl px-2 sm:px-3 pt-2 pb-3">
-        {/* Top Control Bar: Active Field Info + Live Calculation Preview */}
-        <div className="flex items-center justify-between pb-1.5 border-b border-slate-800 gap-2">
-          <div className="flex items-center gap-2 overflow-hidden">
-            <span className="text-xs sm:text-sm font-black text-amber-400 bg-amber-400/20 px-2 py-0.5 rounded border border-amber-400/30 whitespace-nowrap">
-              ⌨️ {isEdit ? "এডিট: " : ""}{currentDef.label} ({currentDef.bn})
-            </span>
-            <div className="text-sm sm:text-base font-mono font-black text-emerald-400 truncate">
-              {currentDef.isNumeric ? (
-                currentValue ? (
-                  /[+\-*/]/.test(currentValue) ? (
-                    <span className="flex items-center gap-1.5">
-                      <span className="text-amber-300 font-bold">{currentValue}</span>
-                      <span className="text-white">=</span>
-                      <span className="text-emerald-300 underline font-black">
-                        {fmt(Number(evaluateMathExpression(currentValue)) || 0)}
-                      </span>
-                    </span>
-                  ) : (
-                    fmt(Number(currentValue) || 0)
-                  )
-                ) : (
-                  "0"
-                )
-              ) : (
-                currentValue || "(None)"
-              )}
-            </div>
-          </div>
-          <div className="flex items-center gap-1.5 shrink-0">
-            <button
-              type="button"
-              onClick={handlePrev}
-              className="rounded-lg bg-slate-800 hover:bg-slate-700 active:scale-95 px-2 py-1 text-xs font-bold text-slate-200 border border-slate-700 flex items-center gap-1 cursor-pointer transition"
-              title="পূর্বের ঘরে যান"
-            >
-              ◀ Prev
-            </button>
-            <button
-              type="button"
-              onClick={handleNext}
-              className="rounded-lg bg-indigo-600 hover:bg-indigo-500 active:scale-95 px-2 py-1 text-xs font-bold text-white shadow flex items-center gap-1 cursor-pointer transition"
-              title="পরের ঘরে যান"
-            >
-              Next ▶
-            </button>
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-lg bg-red-600 hover:bg-red-700 active:bg-red-800 active:scale-95 px-2.5 py-1 text-xs font-black text-white shadow-md flex items-center gap-1 cursor-pointer transition border border-red-500 ring-1 ring-red-400/50"
-              title="কিবোর্ড বন্ধ বা কোলাপ্স করুন"
-            >
-              ▼ কলাপ্স
-            </button>
-          </div>
-        </div>
-
         {/* Field Switcher Bar */}
-        <div className="py-1.5 overflow-x-auto no-scrollbar flex items-center gap-1">
+        <div className="pb-1.5 overflow-x-auto no-scrollbar flex items-center gap-1">
           {STAFF_FIELDS.map((f) => {
             const isActive = f.key === activeField;
             const val = values[f.key];
@@ -419,16 +363,6 @@ export default function StaffCustomKeyboard({
                 className="rounded-xl bg-slate-800 hover:bg-slate-700 active:bg-slate-600 active:scale-95 py-2 text-xs sm:text-sm font-bold font-mono text-slate-200 shadow border border-slate-700 transition cursor-pointer"
               >
                 000
-              </button>
-
-              {/* Row 5: Clear button */}
-              <button
-                type="button"
-                onClick={handleClear}
-                className="col-span-3 rounded-xl bg-slate-800/90 hover:bg-slate-700 active:bg-slate-600 active:scale-95 py-1.5 text-xs sm:text-sm font-bold text-amber-300 shadow border border-slate-700 transition cursor-pointer"
-                title="সম্পূর্ণ ফিল্ড ক্লিয়ার করুন"
-              >
-                C (সম্পূর্ণ ক্লিয়ার)
               </button>
             </div>
 
