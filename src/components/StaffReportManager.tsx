@@ -445,11 +445,37 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
 
   const expDisburse = disburseLoans.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
   const expBankDeposit = targetPayments
-    .filter((t) => t.category.toLowerCase().includes("bank deposit"))
+    .filter(
+      (t) =>
+        t.category.toLowerCase().includes("bank deposit") ||
+        t.category.toLowerCase().includes("bank deposite")
+    )
     .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
   const expSavingsReturn = totalReturnCombined;
+  const expFundPayment = targetPayments
+    .filter((t) => {
+      const c = t.category.toLowerCase().trim();
+      return (
+        c.includes("fund payment") ||
+        c.includes("fund transfer") ||
+        (c.includes("fund") && !c.includes("receive"))
+      );
+    })
+    .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
   const expOthers = targetPayments
-    .filter((t) => t.category.toLowerCase().includes("others expense"))
+    .filter((t) => {
+      const c = t.category.toLowerCase().trim();
+      if (disburseLoans.some((d) => d.id === t.id)) return false;
+      if (c.includes("bank deposit") || c.includes("bank deposite")) return false;
+      if (
+        c.includes("fund payment") ||
+        c.includes("fund transfer") ||
+        (c.includes("fund") && !c.includes("receive"))
+      ) {
+        return false;
+      }
+      return true;
+    })
     .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
 
   const incomeList = [
@@ -465,6 +491,7 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
     { label: "Disburse", amount: expDisburse },
     { label: "Bank Deposit", amount: expBankDeposit },
     { label: "Savings Return", amount: expSavingsReturn },
+    { label: "Fund Payment", amount: expFundPayment },
     { label: "Others Expense", amount: expOthers },
   ].filter((x) => x.amount > 0);
 

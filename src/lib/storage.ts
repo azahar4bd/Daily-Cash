@@ -850,13 +850,35 @@ export function getReportPageFigures(selectedDate: string): {
     (s, r) => s + (Number(r.savingsAdjust) || 0) + (Number(r.nogodReturn) || 0),
     0
   );
+  const expFundPayment = targetPayments
+    .filter((t) => {
+      const c = t.category.toLowerCase().trim();
+      return (
+        c.includes("fund payment") ||
+        c.includes("fund transfer") ||
+        (c.includes("fund") && !c.includes("receive"))
+      );
+    })
+    .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
   const expOthers = targetPayments
-    .filter(
-      (t) =>
-        !["jagoron", "agrossor", "buni", "sufolon", "mfce", "bank deposit", "bank deposite"].some(
-          (k) => t.category.toLowerCase().includes(k)
+    .filter((t) => {
+      const c = t.category.toLowerCase().trim();
+      if (
+        ["jagoron", "agrossor", "buni", "sufolon", "mfce", "bank deposit", "bank deposite"].some(
+          (k) => c.includes(k)
         )
-    )
+      ) {
+        return false;
+      }
+      if (
+        c.includes("fund payment") ||
+        c.includes("fund transfer") ||
+        (c.includes("fund") && !c.includes("receive"))
+      ) {
+        return false;
+      }
+      return true;
+    })
     .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
 
   const totalIncome =
@@ -866,7 +888,8 @@ export function getReportPageFigures(selectedDate: string): {
     incomeKallayan +
     incomeLoanForm +
     incomeOthers;
-  const totalExpenditure = expDisburse + expBankDeposit + expSavingsReturn + expOthers;
+  const totalExpenditure =
+    expDisburse + expBankDeposit + expSavingsReturn + expFundPayment + expOthers;
 
   const reportCashInHand = Math.round(totalIncome - totalExpenditure);
   const fundReceiveToday = targetReceives
