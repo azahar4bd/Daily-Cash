@@ -37,6 +37,11 @@ const prevDay = (iso: string) => {
 
 export default function ReceivePage({ selectedDate }: { selectedDate: string }) {
   const [rows, setRows] = useState<Tx[]>([]);
+  const [lockPulse, setLockPulse] = useState(false);
+  const flashLock = () => {
+    setLockPulse(true);
+    window.setTimeout(() => setLockPulse(false), 900);
+  };
   const [cats, setCats] = useState<Cat[]>([]);
   const [manage, setManage] = useState(false);
   const [filterCategory, setFilterCategory] = useState<string>("all");
@@ -89,7 +94,7 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
 
   const handleSave = () => {
     if (isDayClosed(form.txDate)) {
-      alert(`⚠️ এই তারিখের (${form.txDate}) দিন সমাপ্ত (Day Closed) রয়েছে। কোনো নতুন এন্ট্রি করা যাবে না। পরিবর্তন করতে চাইলে উপরের Working-Day বার থেকে দিনটি Re-open করুন।`);
+      flashLock();
       return;
     }
     if (!isDayOpen(form.txDate)) {
@@ -130,7 +135,7 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
   const handleUpdate = () => {
     if (!edit || !edit.id) return;
     if (isDayClosed(edit.txDate)) {
-      alert(`⚠️ এই তারিখের (${edit.txDate}) দিন সমাপ্ত (Day Closed) রয়েছে। কোনো পরিবর্তন করা যাবে না। উপরের Working-Day বার থেকে দিনটি Re-open করুন।`);
+      flashLock();
       return;
     }
     const blockCheck = isIntermediateBlockedDate(edit.txDate, selectedDate);
@@ -160,7 +165,7 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
     if (deleteTargetId !== null) {
       const target = rows.find((r) => r.id === deleteTargetId);
       if (target && isDayClosed(target.txDate)) {
-        alert("⚠️ দিন ক্লোজ থাকায় এই লেনদেনটি ডিলিট করা যাবে না। উপরের Working-Day বার থেকে Re-open করুন।");
+        flashLock();
         setDeleteTargetId(null);
         return;
       }
@@ -190,42 +195,24 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
         className="rounded-2xl border-t-4 border-green-500 bg-white p-5 sm:p-6 shadow-sm border border-slate-200 transition-all"
       >
         <div className="flex items-center justify-between mb-4">
-          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 flex items-center gap-2">
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 flex flex-wrap items-center gap-2">
             <span>📥</span>
             <span>Receive Entry</span>
+            {isDayClosed(form.txDate) && (
+              <span
+                className={`shrink-0 rounded-lg border border-rose-300 bg-rose-100 px-2 py-0.5 text-[10px] font-black text-rose-700 ${
+                  lockPulse ? "lock-pulse" : ""
+                }`}
+                title="দিন সমাপ্ত (Day Closed) — হিসাব লক করা আছে"
+              >
+                🔒 Day Closed
+              </span>
+            )}
           </h1>
           <span className="text-xs font-mono font-bold text-slate-600 bg-slate-100 px-2.5 py-1 rounded border border-slate-200">
             {form.txDate}
           </span>
         </div>
-
-        {isDayClosed(form.txDate) && (
-          <div className="mb-4 rounded-xl border border-rose-300 bg-rose-50 p-3 sm:p-3.5 text-rose-800 shadow-xs">
-            <div className="flex items-start gap-2">
-              <span className="shrink-0 text-base leading-5">🔒</span>
-              <div className="locked-notice-text flex-1">
-                <div className="text-xs sm:text-sm font-black text-rose-950">
-                  দিন সমাপ্ত (Day Closed)
-                </div>
-                <div className="mt-0.5 text-[11px] sm:text-xs font-medium leading-relaxed">
-                  এই তারিখের (<span className="font-mono font-bold">{form.txDate}</span>) হিসাব লক করা
-                  আছে — কোনো এন্ট্রি বা পরিবর্তন করা যাবে না।
-                </div>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                window.dispatchEvent(new CustomEvent("scroll-to-day-bar"));
-              }}
-              className="mt-2.5 w-full sm:w-auto rounded-lg bg-amber-600 hover:bg-amber-700 active:scale-[.98] text-white px-3 py-2 text-[11px] sm:text-xs font-black shadow-xs transition cursor-pointer flex items-center justify-center gap-1.5"
-              title="উপরের Working-Day বার থেকে দিনটি Re-open করুন"
-            >
-              <span>🔓</span>
-              <span>Re-open করতে উপরে যান (Working-Day বার)</span>
-            </button>
-          </div>
-        )}
 
         {!isDayClosed(form.txDate) && isIntermediateBlockedDate(form.txDate, selectedDate).blocked && (
           <div className="mb-4 rounded-xl border border-rose-400 bg-rose-50 p-3 text-xs sm:text-sm font-bold text-rose-900 flex items-start gap-2 shadow-xs">
@@ -281,14 +268,14 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
               placeholder=""
               onClick={() => {
                 if (isDayClosed(form.txDate)) {
-                  alert(`⚠️ এই তারিখের (${form.txDate}) দিন সমাপ্ত (Day Closed) রয়েছে। কোনো নতুন এন্ট্রি করা যাবে না। পরিবর্তন করতে চাইলে উপরের Working-Day বার থেকে দিনটি Re-open করুন।`);
+                  flashLock();
                   return;
                 }
                 setDenomOpen(true);
               }}
               onFocus={() => {
                 if (isDayClosed(form.txDate)) {
-                  alert(`⚠️ এই তারিখের (${form.txDate}) দিন সমাপ্ত (Day Closed) রয়েছে। কোনো নতুন এন্ট্রি করা যাবে না। পরিবর্তন করতে চাইলে উপরের Working-Day বার থেকে দিনটি Re-open করুন।`);
+                  flashLock();
                   return;
                 }
                 setDenomOpen(true);
@@ -457,7 +444,7 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
                           disabled={isDayClosed(r.txDate)}
                           onClick={() => {
                             if (isDayClosed(r.txDate)) {
-                              alert(`⚠️ এই তারিখের (${r.txDate}) দিন সমাপ্ত (Day Closed) রয়েছে। কোনো পরিবর্তন করা যাবে না। উপরের Working-Day বার থেকে দিনটি Re-open করুন।`);
+                              flashLock();
                               return;
                             }
                             setEdit({
@@ -484,7 +471,7 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
                           disabled={isDayClosed(r.txDate)}
                           onClick={() => {
                             if (isDayClosed(r.txDate)) {
-                              alert(`⚠️ এই তারিখের (${r.txDate}) দিন সমাপ্ত (Day Closed) রয়েছে। কোনো কিছু মুছে ফেলা যাবে না। উপরের Working-Day বার থেকে দিনটি Re-open করুন।`);
+                              flashLock();
                               return;
                             }
                             setDeleteTargetId(r.id);

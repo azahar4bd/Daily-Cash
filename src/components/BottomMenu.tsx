@@ -102,12 +102,12 @@ export default function BottomMenu({
             </button>
           </div>
 
-          {/* Center: Master Date Filter — horizontally scrollable so ☰ never goes off-screen */}
-          <div className="no-scrollbar flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto sm:flex-none sm:overflow-visible">
+          {/* Center: Master Date Filter — compact so nothing overflows & the date dropdown is never clipped */}
+          <div className="flex min-w-0 flex-1 items-center justify-center gap-1.5">
             <span className="text-[11px] font-bold text-slate-300 hidden sm:inline whitespace-nowrap">
               Date:
             </span>
-            <div className="w-[104px] shrink-0 sm:w-36 text-slate-900">
+            <div className="w-[88px] shrink-0 xs:w-[104px] sm:w-36 text-slate-900">
               <DatePicker
                 value={selectedDate}
                 onChange={(v) => onDateChange(v || today)}
@@ -120,9 +120,11 @@ export default function BottomMenu({
               <button
                 type="button"
                 onClick={() => onDateChange(today)}
-                className="shrink-0 rounded-lg bg-blue-600 hover:bg-blue-500 px-2 py-1 text-[10px] sm:text-xs font-bold text-white transition cursor-pointer whitespace-nowrap"
+                className="shrink-0 rounded-lg bg-blue-600 hover:bg-blue-500 active:bg-blue-700 px-1.5 py-1 text-[10px] sm:px-2 sm:text-xs font-bold text-white transition cursor-pointer whitespace-nowrap"
+                title="আজকের তারিখে ফিরে যান"
               >
-                Today
+                <span className="hidden xs:inline">Today</span>
+                <span className="xs:hidden">📆</span>
               </button>
             )}
 

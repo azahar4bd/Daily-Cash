@@ -238,9 +238,16 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
     return () => clearTimeout(timer);
   }, [activeKeyboardField, keyboardOpen, edit, isMobile]);
 
+  // 🔒 দিন সমাপ্ত অবস্থায় কোনো পপআপ নয় — শুধু লক চিপটা একবার জ্বলে ওঠে
+  const [lockPulse, setLockPulse] = useState(false);
+  const flashLock = () => {
+    setLockPulse(true);
+    window.setTimeout(() => setLockPulse(false), 900);
+  };
+
   const handleFieldClick = (field: StaffFieldKey) => {
     if (dayClosed) {
-      alert("⚠️ এই তারিখের দিন সমাপ্ত (Day Closed) রয়েছে। হিসাবটি লক করা আছে। পরিবর্তন করতে চাইলে উপরের Working-Day বার থেকে দিনটি Re-open করুন।");
+      flashLock();
       return;
     }
     setActiveKeyboardField(field);
@@ -251,7 +258,7 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
 
   const handleSave = () => {
     if (dayClosed) {
-      alert("⚠️ এই তারিখের দিন সমাপ্ত (Day Closed) রয়েছে। কোনো নতুন এন্ট্রি করা যাবে না। পরিবর্তন করতে চাইলে উপরের Working-Day বার থেকে দিনটি Re-open করুন।");
+      flashLock();
       return;
     }
     if (!isDayOpen(selectedDate)) {
@@ -303,7 +310,7 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
 
   const handleReset = () => {
     if (dayClosed) {
-      alert(`⚠️ এই তারিখের (${selectedDate}) দিন সমাপ্ত (Day Closed) রয়েছে। কোনো পরিবর্তন করা যাবে না।`);
+      flashLock();
       return;
     }
     setForm({
@@ -323,7 +330,7 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
   const handleUpdate = () => {
     if (!edit || !edit.id) return;
     if (dayClosed) {
-      alert("⚠️ দিন ক্লোজ থাকায় এই রিপোর্টটি এডিট করা যাবে না। উপরের Working-Day বার থেকে Re-open করুন।");
+      flashLock();
       return;
     }
     const blockCheck = isIntermediateBlockedDate(selectedDate);
@@ -350,7 +357,7 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
 
   const handleDelete = (id: number) => {
     if (dayClosed) {
-      alert("⚠️ দিন ক্লোজ থাকায় এই রিপোর্টটি মুছে ফেলা যাবে না। উপরের Working-Day বার থেকে Re-open করুন।");
+      flashLock();
       return;
     }
     if (!confirm("Delete this staff report?")) return;
@@ -637,34 +644,6 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
 
       {/* Entry Form */}
       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        {dayClosed && (
-          <div className="mb-4 rounded-xl border border-rose-300 bg-rose-50 p-3 sm:p-3.5 text-rose-800 shadow-xs">
-            <div className="flex items-start gap-2">
-              <span className="shrink-0 text-base leading-5">🔒</span>
-              <div className="locked-notice-text flex-1">
-                <div className="text-xs sm:text-sm font-black text-rose-950">
-                  দিন সমাপ্ত (Day Closed)
-                </div>
-                <div className="mt-0.5 text-[11px] sm:text-xs font-medium leading-relaxed">
-                  এই তারিখের (<span className="font-mono font-bold">{selectedDate}</span>) হিসাব লক করা
-                  আছে — কোনো এন্ট্রি বা পরিবর্তন করা যাবে না।
-                </div>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                window.dispatchEvent(new CustomEvent("scroll-to-day-bar"));
-              }}
-              className="mt-2.5 w-full sm:w-auto rounded-lg bg-amber-600 hover:bg-amber-700 active:scale-[.98] text-white px-3 py-2 text-[11px] sm:text-xs font-black shadow-xs transition cursor-pointer flex items-center justify-center gap-1.5"
-              title="উপরের Working-Day বার থেকে দিনটি Re-open করুন"
-            >
-              <span>🔓</span>
-              <span>Re-open করতে উপরে যান (Working-Day বার)</span>
-            </button>
-          </div>
-        )}
-
         {!dayClosed && isIntermediateBlockedDate(selectedDate).blocked && (
           <div className="mb-4 rounded-xl border border-rose-400 bg-rose-50 p-3 text-xs sm:text-sm font-bold text-rose-900 flex items-start gap-2 shadow-xs">
             <span className="text-base shrink-0">🚫</span>
@@ -677,7 +656,19 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
           </div>
         )}
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b pb-3">
-          <h2 className="text-xl font-bold text-slate-900">Staff Collection Report Entry</h2>
+          <div className="flex items-center gap-2">
+            <h2 className="text-xl font-bold text-slate-900">Staff Collection Report Entry</h2>
+            {dayClosed && (
+              <span
+                className={`inline-flex shrink-0 items-center gap-1 rounded-lg border border-rose-300 bg-rose-100 px-2 py-0.5 text-[10px] font-black text-rose-700 ${
+                  lockPulse ? "lock-pulse" : ""
+                }`}
+                title="দিন সমাপ্ত (Day Closed) — হিসাব লক করা আছে"
+              >
+                🔒 Day Closed
+              </span>
+            )}
+          </div>
           <div className="flex items-center gap-2">
             {isMobile && (
               <button
@@ -685,7 +676,7 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
                 disabled={dayClosed}
                 onClick={() => {
                   if (dayClosed) {
-                    alert("⚠️ এই তারিখের দিন সমাপ্ত (Day Closed) রয়েছে। হিসাবটি লক করা আছে। উপরের Working-Day বার থেকে দিনটি Re-open করুন।");
+                    flashLock();
                     return;
                   }
                   setKeyboardOpen(!keyboardOpen);
@@ -998,7 +989,7 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
                           disabled={dayClosed}
                           onClick={() => {
                             if (dayClosed) {
-                              alert("⚠️ দিন সমাপ্ত (Day Closed) থাকায় এই রিপোর্টটি এডিট করা যাবে না। উপরের Working-Day বার থেকে দিনটি Re-open করুন।");
+                              flashLock();
                               return;
                             }
                             setOriginalEditReport({ ...r });
@@ -1032,7 +1023,7 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
                           disabled={dayClosed}
                           onClick={() => {
                             if (dayClosed) {
-                              alert("⚠️ দিন সমাপ্ত (Day Closed) থাকায় এই রিপোর্টটি মুছে ফেলা যাবে না। উপরের Working-Day বার থেকে দিনটি Re-open করুন।");
+                              flashLock();
                               return;
                             }
                             handleDelete(r.id);

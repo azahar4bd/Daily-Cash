@@ -94,3 +94,12 @@ div[class*="netlify-hud"] {
 
 /* Locked-notice responsive stacking */
 .locked-notice-text { min-width: 0; overflow-wrap: anywhere; word-break: break-word; }
+
+/* Locked-field feedback: no popup, just a short red pulse on the Day Closed chip */
+@keyframes lockPulse {
+  0%   { transform: scale(1);    background-color: #ffe4e6; box-shadow: 0 0 0 0 rgba(225,29,72,.45); }
+  35%  { transform: scale(1.08); background-color: #fecdd3; box-shadow: 0 0 0 6px rgba(225,29,72,0); }
+  60%  { transform: scale(1);    background-color: #fecdd3; }
+  100% { transform: scale(1);    background-color: #ffe4e6; box-shadow: 0 0 0 0 rgba(225,29,72,0); }
+}
+.lock-pulse { animation: lockPulse .85s ease-in-out; }

@@ -133,6 +133,11 @@ export default function CashSheet({
   const [pdfModalOpen, setPdfModalOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(true);
   const [dayClosed, setDayClosed] = useState(false);
+  const [lockPulse, setLockPulse] = useState(false);
+  const flashLock = () => {
+    setLockPulse(true);
+    window.setTimeout(() => setLockPulse(false), 900);
+  };
   const [position, setPosition] = useState<{ x: number; y: number } | null>(() => {
     try {
       const saved = localStorage.getItem("gobra_floating_pos_cashbook");
@@ -320,7 +325,7 @@ export default function CashSheet({
 
   const handleQtyChange = (key: string, rawVal: string) => {
     if (dayClosed) {
-      alert("⚠️ এই তারিখের দিন সমাপ্ত (Day Closed) রয়েছে। হিসাবটি লক করা আছে। পরিবর্তন করতে চাইলে উপরের Working-Day বার থেকে দিনটি Re-open করুন।");
+      flashLock();
       return;
     }
     const val = normalizeDigits(rawVal);
@@ -335,7 +340,7 @@ export default function CashSheet({
 
   const handleClearQuantities = () => {
     if (dayClosed) {
-      alert("⚠️ এই তারিখের দিন সমাপ্ত (Day Closed) রয়েছে। হিসাবটি লক করা আছে। পরিবর্তন করতে চাইলে উপরের Working-Day বার থেকে দিনটি Re-open করুন।");
+      flashLock();
       return;
     }
     const empty: Record<string, string> = {
@@ -881,6 +886,16 @@ export default function CashSheet({
               className="px-3 py-1.5 text-xs sm:text-sm"
             />
           </div>
+          {dayClosed && (
+            <span
+              className={`shrink-0 rounded-lg border border-rose-300 bg-rose-100 px-2 py-1 text-[10px] font-black text-rose-700 ${
+                lockPulse ? "lock-pulse" : ""
+              }`}
+              title="দিন সমাপ্ত (Day Closed) — হিসাব লক করা আছে"
+            >
+              🔒 Day Closed
+            </span>
+          )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {/* ℹ️ Day Open / Day Close কন্ট্রোল একটিই জায়গায় (উপরের Working-Day বার) — ক্যাশবুকে কোনো বাটন নেই */}
@@ -909,27 +924,6 @@ export default function CashSheet({
           </button>
         </div>
       </div>
-
-      {/* Day Closed — read-only lock notice (এই পেজে কোনো Open/Close বাটন নেই) */}
-      {dayClosed && (
-        <div className="rounded-2xl border border-emerald-300 bg-emerald-50 p-3.5 text-xs sm:text-sm font-bold text-emerald-950 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2 print:hidden">
-          <span className="flex items-center gap-2">
-            <span className="text-base">🔒</span>
-            <span>
-              এই তারিখের ({selectedDate}) দিন সমাপ্ত (Day Closed) রয়েছে। হিসাব লক ও সুরক্ষিত আছে।
-            </span>
-          </span>
-          <button
-            type="button"
-            onClick={() => window.dispatchEvent(new CustomEvent("navigate-tab", { detail: "receive" }))}
-            className="shrink-0 self-end sm:self-center rounded-xl bg-amber-600 hover:bg-amber-700 text-white px-3 py-1.5 text-xs font-black shadow-xs transition cursor-pointer flex items-center gap-1.5"
-            title="Open / Close কন্ট্রোল একটিই জায়গায় — Working-Day বারে যান"
-          >
-            <span>🔓</span>
-            <span>Working-Day কন্ট্রোল ➔</span>
-          </button>
-        </div>
-      )}
 
       {/* Intermediate Blocked Notice Banner */}
       {!dayClosed && isIntermediateBlockedDate(selectedDate).blocked && (
