@@ -427,16 +427,21 @@ export default function ReportDenominationModal({
               <Key label="0" onClick={() => press("0")} className="bg-white" />
               <Key label="00" onClick={() => press("00")} className="bg-white" />
               <Key label="Reset" onClick={handleReset} className="bg-slate-500 !text-xs sm:!text-sm text-white hover:bg-slate-600" />
-              <Key label="Close" onClick={onClose} className="bg-slate-900 !text-xs sm:!text-sm text-white hover:bg-slate-800" />
+              <Key label="⏎" onClick={() => move("down")} className="bg-blue-600 !text-xs sm:!text-sm text-white hover:bg-blue-700 font-bold" />
             </div>
+            {/* Close Button on Top Right + Arrow Navigation Below */}
             <div className="grid grid-cols-1 grid-rows-4 gap-1.5 sm:gap-2">
+              <Key
+                label="✕ Close"
+                onClick={onClose}
+                className="bg-rose-600 hover:bg-rose-700 text-white !text-xs sm:!text-sm font-black shadow-xs ring-1 ring-rose-400"
+              />
               <Key label="▲" onClick={() => move("up")} className="bg-blue-100 text-blue-800 hover:bg-blue-200" />
               <div className="grid grid-cols-2 gap-1">
                 <Key label="◄" onClick={() => move("left")} className="bg-blue-100 text-blue-800 !text-sm hover:bg-blue-200" />
                 <Key label="►" onClick={() => move("right")} className="bg-blue-100 text-blue-800 !text-sm hover:bg-blue-200" />
               </div>
               <Key label="▼" onClick={() => move("down")} className="bg-blue-100 text-blue-800 hover:bg-blue-200" />
-              <Key label="⏎" onClick={() => move("down")} className="bg-blue-600 text-white hover:bg-blue-700" />
             </div>
           </div>
         </div>

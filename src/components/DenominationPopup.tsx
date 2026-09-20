@@ -333,20 +333,20 @@ export default function DenominationPopup({
                 <Key label="Save" onClick={save} className="bg-emerald-600 !text-xs text-white hover:bg-emerald-700 font-black" />
               </div>
 
-              {/* Navigation + CLOSE Button Column */}
+              {/* Close Button at TOP RIGHT + Navigation Arrows BELOW */}
               <div className="grid grid-cols-1 grid-rows-4 gap-1">
+                {/* Close Button on Top Right Corner of Keyboard */}
+                <Key
+                  label="✕ Close"
+                  onClick={onClose}
+                  className="bg-rose-600 hover:bg-rose-700 text-white !text-xs font-black shadow-xs ring-1 ring-rose-400"
+                />
                 <Key label="▲" onClick={() => focusIdx(active - 1)} className="bg-blue-100 text-blue-900 hover:bg-blue-200" />
                 <div className="grid grid-cols-2 gap-0.5">
                   <Key label="◄" onClick={() => focusIdx(active - 1)} className="bg-blue-100 text-blue-900 !text-xs" />
                   <Key label="►" onClick={() => focusIdx(active + 1)} className="bg-blue-100 text-blue-900 !text-xs" />
                 </div>
                 <Key label="▼" onClick={() => focusIdx(active + 1)} className="bg-blue-100 text-blue-900 hover:bg-blue-200" />
-                {/* Dedicated Close Button on the Keyboard */}
-                <Key
-                  label="✕ Close"
-                  onClick={onClose}
-                  className="bg-rose-600 hover:bg-rose-700 text-white !text-xs font-black shadow-xs ring-1 ring-rose-400"
-                />
               </div>
             </div>
           </div>
