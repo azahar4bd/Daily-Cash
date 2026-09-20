@@ -4,28 +4,19 @@ import { fmt } from "./DenominationPopup";
 import { formatDisplay } from "./DatePicker";
 import {
   getSummary,
-  getReportPageFigures,
-  isDayClosed,
   isDayOpen,
   saveDayClosure,
   isIntermediateBlockedDate,
 } from "@/lib/storage";
 import type { DayClosure } from "@/types";
 
-const NOTES_LIST = [1000, 500, 200, 100, 50, 20, 10, 5, 2, 1] as const;
-const CASH_SHEET_DENOM_PREFIX = "cash_sheet_denom_";
-
-const readQuantities = (date: string): Record<string, string> => {
-  try {
-    const raw = localStorage.getItem(`${CASH_SHEET_DENOM_PREFIX}${date}`);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (parsed && typeof parsed === "object") return parsed;
-    }
-  } catch {}
-  return {};
-};
-
+/**
+ * 🔒 Day Close Modal
+ * -----------------------------------------------------------
+ * ⚠️ ক্যাশবুক / ডিনোমিনেশন / টাকা মেলানোর সাথে এর কোনো সম্পর্ক নেই।
+ * ক্যাশবুক শুধু ফর্মালিটি ও প্রিন্টের জন্য — ক্যাশ সবসময় ১০০% মেলে।
+ * এখানে শুধু কর্মদিবসটি বন্ধ (লক) করা হয়।
+ */
 export default function DayCloseModal({
   isOpen,
   onClose,
@@ -37,28 +28,16 @@ export default function DayCloseModal({
   selectedDate: string;
   onDayClosed?: () => void;
 }) {
-  const [closingCash, setClosingCash] = useState(0);
-  const [closingBank, setClosingBank] = useState(0);
-  const [denomTotal, setDenomTotal] = useState(0);
+  const [totalReceive, setTotalReceive] = useState(0);
+  const [totalPayment, setTotalPayment] = useState(0);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!isOpen || !selectedDate) return;
     try {
-      const rep = getReportPageFigures(selectedDate);
-      setClosingCash(rep.reportCashInHand);
-      setClosingBank(rep.reportBankBalance);
-
-      const q = readQuantities(selectedDate);
-      let total = 0;
-      for (const n of NOTES_LIST) {
-        const qty = parseInt(String(q[String(n)] || "0"), 10) || 0;
-        total += qty * n;
-      }
-      total += Math.round(Number(q.coins || 0));
-      total += Math.round(Number(q.revenueStamp || 0));
-      total += Math.round(Number(q.pendingSlip || 0));
-      setDenomTotal(total);
+      const sum = getSummary(selectedDate);
+      setTotalReceive(sum.receive || 0);
+      setTotalPayment(sum.expense || 0);
     } catch (e) {
       console.error(e);
     }
@@ -66,7 +45,6 @@ export default function DayCloseModal({
 
   if (!isOpen) return null;
 
-  const diff = denomTotal - closingCash;
   const blockedCheck = isIntermediateBlockedDate(selectedDate);
 
   const handleConfirm = () => {
@@ -88,21 +66,20 @@ export default function DayCloseModal({
         closeDate: selectedDate,
         openingCash: sum.prevCash,
         openingBank: sum.prevBank,
-        closingCash,
-        closingBank,
+        closingCash: sum.cash,
+        closingBank: sum.bank,
         totalReceive: sum.receive,
         totalPayment: sum.expense,
-        denomination: readQuantities(selectedDate) as any,
         status: "closed",
         closedAt: new Date().toISOString(),
         closedBy: "Cashier",
-        notes: diff === 0 ? "Matched" : `Difference: ${diff}`,
+        notes: "Day closed from Working-Day control",
       };
       saveDayClosure(closure);
       if (onDayClosed) onDayClosed();
       onClose();
     } catch (err: any) {
-      alert(err.message || "দিন ক্লোজ করতে সমস্যা হয়েছে।");
+      alert(err.message || "দিন ক্লোজ করতে সমস্যা হয়েছে।");
     } finally {
       setSaving(false);
     }
@@ -110,7 +87,7 @@ export default function DayCloseModal({
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-xs animate-in fade-in duration-150">
-      <div className="relative w-full max-w-lg rounded-2xl bg-white shadow-2xl border border-slate-200 overflow-hidden">
+      <div className="relative w-full max-w-md rounded-2xl bg-white shadow-2xl border border-slate-200 overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between border-b border-emerald-200 bg-linear-to-r from-emerald-600 to-teal-600 px-5 py-3.5 text-white">
           <div className="flex items-center gap-2.5">
@@ -119,9 +96,7 @@ export default function DayCloseModal({
             </span>
             <div>
               <h3 className="text-base font-black tracking-tight">Day Close (দিন সমাপ্তি)</h3>
-              <p className="text-[11px] text-emerald-100">
-                কর্মদিবসের হিসাব চূড়ান্তভাবে বন্ধ ও লক করা হবে
-              </p>
+              <p className="text-[11px] text-emerald-100">কর্মদিবসটি বন্ধ ও লক করা হবে</p>
             </div>
           </div>
           <button
@@ -151,46 +126,23 @@ export default function DayCloseModal({
 
           <div className="rounded-xl bg-slate-50 border border-slate-200 p-3 space-y-1.5 text-xs sm:text-sm">
             <div className="flex justify-between">
-              <span className="text-slate-600 font-semibold">হাতে নগদ (Cash in Hand):</span>
-              <span className="font-mono font-black text-emerald-700">{fmt(closingCash)}</span>
+              <span className="text-slate-600 font-semibold">মোট রিসিভ:</span>
+              <span className="font-mono font-black text-emerald-700">{fmt(totalReceive)}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-600 font-semibold">ব্যাংক স্থিতি (Bank):</span>
-              <span className="font-mono font-black text-indigo-700">{fmt(closingBank)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-slate-600 font-semibold">নোট গণনা (Denomination):</span>
-              <span className="font-mono font-black text-cyan-800">{fmt(denomTotal)}</span>
-            </div>
-            <div className="flex justify-between border-t border-slate-200 pt-1.5 font-bold">
-              <span className="text-slate-700">পার্থক্য (Difference):</span>
-              <span
-                className={`font-mono font-black ${
-                  diff === 0 ? "text-emerald-600" : "text-rose-600"
-                }`}
-              >
-                {diff === 0 ? "0 (মিল আছে ✓)" : `${diff > 0 ? "+" : ""}${fmt(diff)}`}
-              </span>
+              <span className="text-slate-600 font-semibold">মোট পেমেন্ট:</span>
+              <span className="font-mono font-black text-rose-700">{fmt(totalPayment)}</span>
             </div>
           </div>
 
-          {diff !== 0 ? (
-            <div className="rounded-xl border border-rose-300 bg-rose-50 p-3 text-xs text-rose-900">
-              <div className="font-bold flex items-center gap-1.5 mb-1 text-rose-800">
-                <span>⚠️</span>
-                <span>সতর্কতা: ক্যাশ ও নোটের মধ্যে অমিল রয়েছে!</span>
-              </div>
-              <div>
-                হাতে নগদ ও নোটের মোট গণনায় ৳{fmt(Math.abs(diff))} অমিল রয়েছে। আপনি কি নিশ্চিত যে এই
-                অমিল রেখেই দিনটি ক্লোজ করতে চান?
-              </div>
-            </div>
-          ) : (
-            <div className="rounded-xl border border-emerald-300 bg-emerald-50 p-3 text-xs text-emerald-900 font-medium">
-              ✓ ক্যাশ ইন হ্যান্ড এবং ডেনোমিনেশন হিসাব শতভাগ মিলেছে। দিন ক্লোজ করার পর এই তারিখের
-              হিসাব সম্পূর্ণ লক থাকবে।
-            </div>
-          )}
+          <div className="rounded-xl border border-emerald-300 bg-emerald-50 p-3 text-xs text-emerald-900 font-medium leading-relaxed">
+            ✓ নিশ্চিত করলে এই তারিখের কর্মদিবসটি বন্ধ (Day Closed) হয়ে যাবে এবং এই তারিখের
+            রিসিভ, পেমেন্ট ও স্টাফ কালেকশন — সব এন্ট্রি সম্পূর্ণ লক হয়ে যাবে।
+            <span className="block mt-1 text-emerald-800">
+              পুনরায় কাজ করার প্রয়োজন হলে <strong>Working-Day বার</strong> থেকে{" "}
+              <strong>Re-open Day</strong> করবেন।
+            </span>
+          </div>
         </div>
 
         {/* Footer */}
