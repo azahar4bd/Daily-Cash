@@ -714,7 +714,7 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
               >
                 <div className="flex items-center justify-between mb-1">
                   <label className="text-xs font-bold text-slate-700">
-                    {f.label} <span className="text-[10px] text-slate-500 font-normal">({f.bn})</span>
+                    {f.label}
                   </label>
                   {hasFormula && (
                     <span className="text-[10px] font-mono font-bold text-emerald-700 bg-emerald-100 px-1 py-0.2 rounded border border-emerald-300">
@@ -1281,7 +1281,7 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
                   >
                     <div className="flex items-center justify-between mb-1">
                       <label className="text-xs font-bold text-slate-700 truncate">
-                        {f.label} <span className="text-[10px] text-slate-500 font-normal">({f.bn})</span>
+                        {f.label}
                       </label>
                       {hasFormula && (
                         <span className="text-[10px] font-mono font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.2 rounded border border-emerald-300">

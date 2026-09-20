@@ -92,7 +92,6 @@ export default function Dashboard({ selectedDate }: { selectedDate: string }) {
         {/* Box 2: Cash in Hand */}
         <Card
           label="Cash in Hand"
-          bengaliLabel="হাতে নগদ"
           value={s?.cash ?? 0}
           cls="bg-emerald-600"
           subText={`Prev: ${fmt(s?.prevCash ?? 0)}`}
@@ -101,7 +100,6 @@ export default function Dashboard({ selectedDate }: { selectedDate: string }) {
         {/* Box 3: Bank Balance */}
         <Card
           label="Bank Balance"
-          bengaliLabel="ব্যাংক ব্যালেন্স"
           value={s?.bank ?? 0}
           cls="bg-indigo-600"
           subText={`Prev: ${fmt(s?.prevBank ?? 0)}`}
@@ -110,7 +108,6 @@ export default function Dashboard({ selectedDate }: { selectedDate: string }) {
         {/* Box 4: Total Receive */}
         <Card
           label="Total Receive"
-          bengaliLabel="মোট রিসিভ"
           value={s?.receive ?? 0}
           cls="bg-green-700"
           subText={`Today: ${fmt(s?.todayReceiveOnly ?? 0)}`}
@@ -119,21 +116,17 @@ export default function Dashboard({ selectedDate }: { selectedDate: string }) {
         {/* Box 5: Total Payment */}
         <Card
           label="Total Payment"
-          bengaliLabel="মোট পেমেন্ট"
           value={s?.expense ?? 0}
           cls="bg-rose-600"
           subText={`Today: ${fmt(s?.todayPayment ?? 0)}`}
         />
       </div>
 
-      {/* Staff wise row: আজকের রিসিভ কৃত মোট টাকা */}
+      {/* Staff wise row */}
       <div className="mt-2 pt-1.5 border-t border-slate-100">
         <div className="mb-1 flex items-center justify-between px-1">
           <div className="text-[11px] font-bold text-slate-700 flex items-center gap-1.5">
             <span>👥 Staff Wise</span>
-            <span className="text-[10px] font-normal text-slate-500 hidden sm:inline">
-              (আজকের রিসিভকৃত মোট টাকা)
-            </span>
           </div>
           <div className="text-[11px] font-mono font-black text-sky-800 bg-sky-50 px-2 py-0.2 rounded border border-sky-200">
             Total: {fmt(totalStaffReceive)}
