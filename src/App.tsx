@@ -14,12 +14,14 @@ import DayOpenModal from "./components/DayOpenModal";
 import DayCloseModal from "./components/DayCloseModal";
 import { todayISO } from "./components/DatePicker";
 import { initNeonSync } from "./lib/neonSync";
+import { forceFreshReload, APP_VERSION } from "./lib/version";
 
 export default function App() {
   const [currentTab, setCurrentTab] = useState<string>("receive");
   const [trackerOpen, setTrackerOpen] = useState(false);
   const [dayOpenModalOpen, setDayOpenModalOpen] = useState(false);
   const [dayCloseModalOpen, setDayCloseModalOpen] = useState(false);
+  const [updateReady, setUpdateReady] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string>(() => {
     try {
       const saved = localStorage.getItem("app_master_date");
@@ -63,11 +65,15 @@ export default function App() {
     window.addEventListener("open-day-close-modal", handleOpenDayCloseModal);
     window.addEventListener("navigate-tab", handleNavigateTab as EventListener);
 
+    const handleUpdate = () => setUpdateReady(true);
+    window.addEventListener("app-update-available", handleUpdate);
+
     return () => {
       window.removeEventListener("open-date-tracker", handleOpenTracker);
       window.removeEventListener("open-day-open-modal", handleOpenDayModal);
       window.removeEventListener("open-day-close-modal", handleOpenDayCloseModal);
       window.removeEventListener("navigate-tab", handleNavigateTab as EventListener);
+      window.removeEventListener("app-update-available", handleUpdate);
     };
   }, []);
 
@@ -114,6 +120,35 @@ export default function App() {
           <CashSheet selectedDate={selectedDate} setSelectedDate={handleDateChange} />
         )}
       </main>
+
+      {/* 🔄 New-version available toast (hard cache-busting) */}
+      {updateReady && (
+        <div className="fixed bottom-20 left-1/2 z-[60] -translate-x-1/2 print:hidden">
+          <div className="flex items-center gap-2.5 rounded-2xl bg-slate-900 px-4 py-2.5 text-white shadow-2xl border border-slate-700">
+            <span className="text-lg">🔄</span>
+            <div className="text-[11px] leading-tight">
+              <div className="font-black">নতুন ভার্সন এসেছে</div>
+              <div className="text-slate-300">
+                সবচেয়ে নতুন আপডেট দেখতে রিফ্রেশ করুন (v{APP_VERSION})
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => forceFreshReload()}
+              className="rounded-xl bg-emerald-600 hover:bg-emerald-500 px-3 py-1.5 text-[11px] font-black transition cursor-pointer"
+            >
+              এখনই রিফ্রেশ
+            </button>
+            <button
+              type="button"
+              onClick={() => setUpdateReady(false)}
+              className="text-slate-400 hover:text-white text-sm font-bold px-1 cursor-pointer"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Date Audit Tracker Modal */}
       <DateAuditTrackerModal

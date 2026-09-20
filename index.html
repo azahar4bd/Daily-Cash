@@ -26,27 +26,12 @@
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
 
-    <!-- Service Worker Registration for Offline First PWA -->
+    <!-- Service Worker: always revalidate (no stale cache) -->
     <script>
       if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js')
-            .then((reg) => {
-              console.log('Service Worker active:', reg.scope);
-              // Check for SW updates
-              reg.onupdatefound = () => {
-                const installingWorker = reg.installing;
-                if (installingWorker) {
-                  installingWorker.onstatechange = () => {
-                    if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                      console.log('New content available; will update on next refresh.');
-                    }
-                  };
-                }
-              };
-            })
-            .catch((err) => console.warn('Service Worker registration skipped:', err));
-        });
+        navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' })
+          .then(function (reg) { reg.update(); })
+          .catch(function (err) { console.warn('Service Worker skipped:', err); });
       }
     </script>
   </body>
