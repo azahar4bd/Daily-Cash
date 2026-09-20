@@ -116,7 +116,7 @@ export default function PaymentPage({ selectedDate }: { selectedDate: string }) 
 
   const handleSave = () => {
     if (isDayClosed(form.txDate)) {
-      alert(`⚠️ এই তারিখের (${form.txDate}) দিন সমাপ্ত (Day Closed) রয়েছে। কোনো নতুন এন্ট্রি করা যাবে না। পরিবর্তন করতে চাইলে ক্যাশবুক পেজ থেকে দিনটি Re-open করুন।`);
+      alert(`⚠️ এই তারিখের (${form.txDate}) দিন সমাপ্ত (Day Closed) রয়েছে। কোনো নতুন এন্ট্রি করা যাবে না। পরিবর্তন করতে চাইলে উপরের Working-Day বার থেকে দিনটি Re-open করুন।`);
       return;
     }
     if (!isDayOpen(form.txDate)) {
@@ -157,7 +157,7 @@ export default function PaymentPage({ selectedDate }: { selectedDate: string }) 
   const handleUpdate = () => {
     if (!edit || !edit.id) return;
     if (isDayClosed(edit.txDate)) {
-      alert(`⚠️ এই তারিখের (${edit.txDate}) দিন সমাপ্ত (Day Closed) রয়েছে। কোনো পরিবর্তন করা যাবে না। ক্যাশবুক পেজ থেকে দিনটি Re-open করুন।`);
+      alert(`⚠️ এই তারিখের (${edit.txDate}) দিন সমাপ্ত (Day Closed) রয়েছে। কোনো পরিবর্তন করা যাবে না। উপরের Working-Day বার থেকে দিনটি Re-open করুন।`);
       return;
     }
     const blockCheck = isIntermediateBlockedDate(edit.txDate, selectedDate);
@@ -189,7 +189,7 @@ export default function PaymentPage({ selectedDate }: { selectedDate: string }) 
     if (deleteTargetId !== null) {
       const target = rows.find((r) => r.id === deleteTargetId);
       if (target && isDayClosed(target.txDate)) {
-        alert("⚠️ দিন ক্লোজ থাকায় এই লেনদেনটি ডিলিট করা যাবে না। ক্যাশবুক থেকে Re-open করুন।");
+        alert("⚠️ দিন ক্লোজ থাকায় এই লেনদেনটি ডিলিট করা যাবে না। উপরের Working-Day বার থেকে Re-open করুন।");
         setDeleteTargetId(null);
         return;
       }
@@ -234,7 +234,17 @@ export default function PaymentPage({ selectedDate }: { selectedDate: string }) 
               <span>🔒</span>
               <span>এই তারিখের ({form.txDate}) দিন সমাপ্ত (Day Closed) রয়েছে। হিসাবটি লক করা আছে।</span>
             </span>
-            <span className="text-xs text-rose-600 font-semibold">ক্যাশবুকে Re-open করুন</span>
+            <button
+              type="button"
+              onClick={() => {
+                window.dispatchEvent(new CustomEvent("open-date-tracker"));
+                window.scrollTo({ top: 0, behavior: "smooth" });
+              }}
+              className="text-xs text-rose-700 hover:text-rose-900 underline font-black cursor-pointer whitespace-nowrap ml-2"
+              title="উপরের Working-Day বার থেকে দিনটি Re-open করুন"
+            >
+              🔓 Working-Day বার থেকে Re-open করুন
+            </button>
           </div>
         )}
 
@@ -327,7 +337,7 @@ export default function PaymentPage({ selectedDate }: { selectedDate: string }) 
                 disabled={isDayClosed(form.txDate)}
                 onClick={() => {
                   if (isDayClosed(form.txDate)) {
-                    alert(`⚠️ এই তারিখের (${form.txDate}) দিন সমাপ্ত (Day Closed) রয়েছে। কোনো নতুন এন্ট্রি করা যাবে না। পরিবর্তন করতে চাইলে ক্যাশবুক পেজ থেকে দিনটি Re-open করুন।`);
+                    alert(`⚠️ এই তারিখের (${form.txDate}) দিন সমাপ্ত (Day Closed) রয়েছে। কোনো নতুন এন্ট্রি করা যাবে না। পরিবর্তন করতে চাইলে উপরের Working-Day বার থেকে দিনটি Re-open করুন।`);
                     return;
                   }
                   setPaymentDenomOpen(true);
@@ -540,7 +550,7 @@ export default function PaymentPage({ selectedDate }: { selectedDate: string }) 
                           disabled={isDayClosed(r.txDate)}
                           onClick={() => {
                             if (isDayClosed(r.txDate)) {
-                              alert(`⚠️ এই তারিখের (${r.txDate}) দিন সমাপ্ত (Day Closed) রয়েছে। কোনো পরিবর্তন করা যাবে না। ক্যাশবুক পেজ থেকে দিনটি Re-open করুন।`);
+                              alert(`⚠️ এই তারিখের (${r.txDate}) দিন সমাপ্ত (Day Closed) রয়েছে। কোনো পরিবর্তন করা যাবে না। উপরের Working-Day বার থেকে দিনটি Re-open করুন।`);
                               return;
                             }
                             setEdit({
@@ -558,7 +568,7 @@ export default function PaymentPage({ selectedDate }: { selectedDate: string }) 
                               ? "bg-slate-400 cursor-not-allowed opacity-50"
                               : "bg-blue-600 hover:bg-blue-700 cursor-pointer"
                           }`}
-                          title={isDayClosed(r.txDate) ? "দিন সমাপ্ত (Locked) - ক্যাশবুক থেকে Re-open করুন" : "Edit"}
+                          title={isDayClosed(r.txDate) ? "দিন সমাপ্ত (Locked) - উপরের Working-Day বার থেকে Re-open করুন" : "Edit"}
                         >
                           {isDayClosed(r.txDate) ? "🔒 Edit" : "Edit"}
                         </button>
@@ -567,7 +577,7 @@ export default function PaymentPage({ selectedDate }: { selectedDate: string }) 
                           disabled={isDayClosed(r.txDate)}
                           onClick={() => {
                             if (isDayClosed(r.txDate)) {
-                              alert(`⚠️ এই তারিখের (${r.txDate}) দিন সমাপ্ত (Day Closed) রয়েছে। কোনো কিছু মুছে ফেলা যাবে না। ক্যাশবুক পেজ থেকে দিনটি Re-open করুন।`);
+                              alert(`⚠️ এই তারিখের (${r.txDate}) দিন সমাপ্ত (Day Closed) রয়েছে। কোনো কিছু মুছে ফেলা যাবে না। উপরের Working-Day বার থেকে দিনটি Re-open করুন।`);
                               return;
                             }
                             setDeleteTargetId(r.id);
@@ -577,7 +587,7 @@ export default function PaymentPage({ selectedDate }: { selectedDate: string }) 
                               ? "bg-slate-400 cursor-not-allowed opacity-50"
                               : "bg-rose-600 hover:bg-rose-700 cursor-pointer"
                           }`}
-                          title={isDayClosed(r.txDate) ? "দিন সমাপ্ত (Locked) - ক্যাশবুক থেকে Re-open করুন" : "Delete"}
+                          title={isDayClosed(r.txDate) ? "দিন সমাপ্ত (Locked) - উপরের Working-Day বার থেকে Re-open করুন" : "Delete"}
                         >
                           {isDayClosed(r.txDate) ? "🔒 Del" : "Delete"}
                         </button>

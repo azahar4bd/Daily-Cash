@@ -92,14 +92,9 @@ export default function Dashboard({ selectedDate }: { selectedDate: string }) {
                 ☀️ Open
               </span>
             ) : (
-              <button
-                type="button"
-                onClick={() => window.dispatchEvent(new CustomEvent("open-day-open-modal"))}
-                className="rounded bg-amber-500 hover:bg-amber-600 active:scale-95 px-1.5 py-0.5 text-[9px] font-black text-white shadow-xs animate-pulse cursor-pointer transition"
-                title="কর্মদিবস শুরু (Day Open) করুন"
-              >
-                ☀️ Day Open
-              </button>
+              <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[9px] font-black text-amber-800 border border-amber-300">
+                ⏳ Not Opened
+              </span>
             )}
           </div>
           <div className="truncate font-mono text-xs font-black text-slate-900">

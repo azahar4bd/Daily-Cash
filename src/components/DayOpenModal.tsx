@@ -147,7 +147,7 @@ export default function DayOpenModal({
             <span className="text-base shrink-0">ℹ️</span>
             <p className="leading-relaxed font-medium text-[11px] sm:text-xs">
               দিন শুরু (Day Open) করার পর এই তারিখে স্বাভাবিকভাবে সকল রিসিভ, পেমেন্ট ও স্টাফ কালেকশন
-              এন্ট্রি করা যাবে। কাজ শেষে ক্যাশবুক পেজ থেকে যথারীতি <strong>Day Close</strong> করবেন।
+              এন্ট্রি করা যাবে। কাজ শেষে উপরের <strong>Working-Day বার</strong> থেকে যথারীতি <strong>Day Close</strong> করবেন।
             </p>
           </div>
         </div>

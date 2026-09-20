@@ -5,18 +5,13 @@ import { fmt } from "./DenominationPopup";
 import { BKF_LOGO } from "@/assets/logoBase64";
 import { CASH_BANK_BANNER } from "@/assets/bannerBase64";
 import {
-  getSummary,
   getLocalTxs,
   getCategories,
   getReportPageFigures,
   isDayClosed,
-  isDayOpen,
-  getDayClosure,
-  saveDayClosure,
-  reopenDay,
   isIntermediateBlockedDate,
 } from "@/lib/storage";
-import type { Tx, DayClosure } from "@/types";
+import type { Tx } from "@/types";
 
 const NOTES_LIST = [1000, 500, 200, 100, 50, 20, 10, 5, 2, 1] as const;
 const CASH_SHEET_DENOM_PREFIX = "cash_sheet_denom_";
@@ -138,7 +133,6 @@ export default function CashSheet({
   const [pdfModalOpen, setPdfModalOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(true);
   const [dayClosed, setDayClosed] = useState(false);
-  const [dayCloseModalOpen, setDayCloseModalOpen] = useState(false);
   const [position, setPosition] = useState<{ x: number; y: number } | null>(() => {
     try {
       const saved = localStorage.getItem("gobra_floating_pos_cashbook");
@@ -326,7 +320,7 @@ export default function CashSheet({
 
   const handleQtyChange = (key: string, rawVal: string) => {
     if (dayClosed) {
-      alert("⚠️ এই তারিখের দিন সমাপ্ত (Day Closed) রয়েছে। হিসাবটি লক করা আছে। পরিবর্তন করতে চাইলে দিনটি Re-open করুন।");
+      alert("⚠️ এই তারিখের দিন সমাপ্ত (Day Closed) রয়েছে। হিসাবটি লক করা আছে। পরিবর্তন করতে চাইলে উপরের Working-Day বার থেকে দিনটি Re-open করুন।");
       return;
     }
     const val = normalizeDigits(rawVal);
@@ -341,7 +335,7 @@ export default function CashSheet({
 
   const handleClearQuantities = () => {
     if (dayClosed) {
-      alert("⚠️ এই তারিখের দিন সমাপ্ত (Day Closed) রয়েছে। হিসাবটি লক করা আছে। পরিবর্তন করতে চাইলে দিনটি Re-open করুন।");
+      alert("⚠️ এই তারিখের দিন সমাপ্ত (Day Closed) রয়েছে। হিসাবটি লক করা আছে। পরিবর্তন করতে চাইলে উপরের Working-Day বার থেকে দিনটি Re-open করুন।");
       return;
     }
     const empty: Record<string, string> = {
@@ -363,38 +357,6 @@ export default function CashSheet({
     try {
       localStorage.setItem(`${CASH_SHEET_DENOM_PREFIX}${selectedDate}`, JSON.stringify(empty));
     } catch {}
-  };
-
-  const handleInitiateDayClose = () => {
-    setDayCloseModalOpen(true);
-  };
-
-  const handleConfirmDayClose = () => {
-    const sum = getSummary(selectedDate);
-    const closure: DayClosure = {
-      closeDate: selectedDate,
-      openingCash: sum.prevCash,
-      openingBank: sum.prevBank,
-      closingCash: closingCash,
-      closingBank: closingBank,
-      totalReceive: sum.receive,
-      totalPayment: sum.expense,
-      denomination: quantities,
-      status: "closed",
-      closedAt: new Date().toISOString(),
-      closedBy: "Cashier",
-      notes: diffDenomVsCash === 0 ? "Matched" : `Difference: ${diffDenomVsCash}`,
-    };
-    saveDayClosure(closure);
-    setDayCloseModalOpen(false);
-    setDayClosed(true);
-  };
-
-  const handleReopen = () => {
-    if (confirm(`আপনি কি নিশ্চিত যে ${selectedDate} তারিখের হিসাবটি পুনরায় আনলক/ওপেন (Re-open) করতে চান?`)) {
-      reopenDay(selectedDate);
-      setDayClosed(false);
-    }
   };
 
   const handlePrint = () => {
@@ -514,7 +476,7 @@ export default function CashSheet({
                     ? "bg-slate-400 cursor-not-allowed opacity-50"
                     : "bg-slate-500 hover:bg-slate-600 cursor-pointer"
                 }`}
-                title={dayClosed ? "দিন সমাপ্ত (Locked) - ক্যাশবুক থেকে Re-open করুন" : "সকল নোট খালি করুন"}
+                title={dayClosed ? "দিন সমাপ্ত (Locked) — উপরের Working-Day বার থেকে Re-open করুন" : "সকল নোট খালি করুন"}
               >
                 Reset
               </button>
@@ -921,54 +883,7 @@ export default function CashSheet({
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {/* Day Close Button / Status */}
-          {dayClosed ? (
-            <div className="flex items-center gap-1.5">
-              <span className="rounded-lg bg-emerald-700 px-3.5 py-1.5 text-xs font-bold text-white shadow flex items-center gap-1.5 ring-2 ring-emerald-500/40">
-                <span>🔒</span>
-                <span>Day Closed (দিন সমাপ্ত)</span>
-              </span>
-              <button
-                type="button"
-                onClick={handleReopen}
-                className="rounded-lg bg-amber-600 hover:bg-amber-700 px-3 py-1.5 text-xs font-bold text-white shadow cursor-pointer transition flex items-center gap-1"
-                title="দিন পুনরায় খুলুন"
-              >
-                <span>🔓</span>
-                <span>Re-open</span>
-              </button>
-            </div>
-          ) : isDayOpen(selectedDate) ? (
-            <button
-              type="button"
-              onClick={handleInitiateDayClose}
-              disabled={isIntermediateBlockedDate(selectedDate).blocked}
-              className="rounded-lg bg-emerald-600 hover:bg-emerald-700 px-3.5 py-1.5 text-xs font-bold text-white shadow cursor-pointer transition flex items-center gap-1.5 ring-2 ring-emerald-400/40 disabled:opacity-50 disabled:cursor-not-allowed"
-              title={
-                isIntermediateBlockedDate(selectedDate).blocked
-                  ? "মধ্যবর্তী বন্ধের দিন (Day Close করা যাবে না)"
-                  : "এই তারিখের হিসাব চূড়ান্তভাবে বন্ধ করুন"
-              }
-            >
-              <span>{isIntermediateBlockedDate(selectedDate).blocked ? "🚫" : "🔒"}</span>
-              <span>
-                {isIntermediateBlockedDate(selectedDate).blocked
-                  ? "তারিখ ব্লকড"
-                  : "Day Close করুন"}
-              </span>
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={() => window.dispatchEvent(new CustomEvent("open-day-open-modal"))}
-              disabled={isIntermediateBlockedDate(selectedDate).blocked}
-              className="rounded-lg bg-amber-500 hover:bg-amber-600 active:scale-95 px-3.5 py-1.5 text-xs font-black text-white shadow cursor-pointer transition flex items-center gap-1.5 ring-2 ring-amber-400/40 animate-pulse disabled:opacity-50 disabled:cursor-not-allowed"
-              title="কর্মদিবস শুরু (Day Open) করুন"
-            >
-              <span>☀️</span>
-              <span>Day Open করুন</span>
-            </button>
-          )}
+          {/* ℹ️ Day Open / Day Close কন্ট্রোল একটিই জায়গায় (উপরের Working-Day বার) — ক্যাশবুকে কোনো বাটন নেই */}
 
           <button
             type="button"
@@ -995,21 +910,23 @@ export default function CashSheet({
         </div>
       </div>
 
-      {/* Day Closed Notice Banner */}
+      {/* Day Closed — read-only lock notice (এই পেজে কোনো Open/Close বাটন নেই) */}
       {dayClosed && (
-        <div className="rounded-2xl border border-emerald-300 bg-emerald-50 p-3.5 text-xs sm:text-sm font-bold text-emerald-950 shadow-xs flex items-center justify-between print:hidden">
-          <div className="flex items-center gap-2">
+        <div className="rounded-2xl border border-emerald-300 bg-emerald-50 p-3.5 text-xs sm:text-sm font-bold text-emerald-950 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2 print:hidden">
+          <span className="flex items-center gap-2">
             <span className="text-base">🔒</span>
             <span>
               এই তারিখের ({selectedDate}) দিন সমাপ্ত (Day Closed) রয়েছে। হিসাব লক ও সুরক্ষিত আছে।
             </span>
-          </div>
+          </span>
           <button
             type="button"
-            onClick={handleReopen}
-            className="rounded-lg bg-amber-600 hover:bg-amber-700 text-white px-3 py-1 text-xs font-bold transition shadow-xs cursor-pointer"
+            onClick={() => window.dispatchEvent(new CustomEvent("navigate-tab", { detail: "receive" }))}
+            className="shrink-0 self-end sm:self-center rounded-xl bg-amber-600 hover:bg-amber-700 text-white px-3 py-1.5 text-xs font-black shadow-xs transition cursor-pointer flex items-center gap-1.5"
+            title="Open / Close কন্ট্রোল একটিই জায়গায় — Working-Day বারে যান"
           >
-            🔓 Re-open Day
+            <span>🔓</span>
+            <span>Working-Day কন্ট্রোল ➔</span>
           </button>
         </div>
       )}
@@ -1143,92 +1060,6 @@ export default function CashSheet({
           )}
         </div>,
         document.body
-      )}
-
-      {/* Day Close Confirmation Modal */}
-      {dayCloseModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="w-full max-w-md rounded-2xl bg-white p-5 sm:p-6 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95">
-            <div className="flex items-center justify-between border-b pb-3 mb-4">
-              <div className="flex items-center gap-2">
-                <span className="text-2xl">🔒</span>
-                <h3 className="text-base sm:text-lg font-black text-slate-900">
-                  Day Close (দিন সমাপ্তি)
-                </h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => setDayCloseModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 text-lg cursor-pointer"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="space-y-3 text-xs sm:text-sm">
-              <div className="rounded-xl bg-slate-50 border border-slate-200 p-3 space-y-1.5">
-                <div className="flex justify-between">
-                  <span className="text-slate-600 font-semibold">তারিখ:</span>
-                  <span className="font-mono font-black text-slate-900">{selectedDate}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-600 font-semibold">হাতে নগদ (Cash in Hand):</span>
-                  <span className="font-mono font-black text-emerald-700">{fmt(closingCash)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-600 font-semibold">নোট গণনা (Denomination):</span>
-                  <span className="font-mono font-black text-cyan-800">{fmt(totalDenomination)}</span>
-                </div>
-                <div className="flex justify-between border-t border-slate-200 pt-1.5 font-bold">
-                  <span className="text-slate-700">পার্থক্য (Difference):</span>
-                  <span
-                    className={`font-mono font-black ${
-                      diffDenomVsCash === 0
-                        ? "text-emerald-600"
-                        : "text-rose-600"
-                    }`}
-                  >
-                    {diffDenomVsCash === 0 ? "0 (মিল আছে ✓)" : `${diffDenomVsCash > 0 ? "+" : ""}${fmt(diffDenomVsCash)}`}
-                  </span>
-                </div>
-              </div>
-
-              {diffDenomVsCash !== 0 ? (
-                <div className="rounded-xl border border-rose-300 bg-rose-50 p-3 text-xs text-rose-900">
-                  <div className="font-bold flex items-center gap-1.5 mb-1 text-rose-800">
-                    <span>⚠️</span>
-                    <span>সতর্কতা: ক্যাশ ও নোটের মধ্যে অমিল রয়েছে!</span>
-                  </div>
-                  <div>
-                    হাতে নগদ ও নোটের মোট গণনায় ৳{fmt(Math.abs(diffDenomVsCash))} অমিল রয়েছে। আপনি কি নিশ্চিত যে এই অমিল রেখেই আজকের দিনটি ক্লোজ করতে চান?
-                  </div>
-                </div>
-              ) : (
-                <div className="rounded-xl border border-emerald-300 bg-emerald-50 p-3 text-xs text-emerald-900 font-medium">
-                  ✓ ক্যাশ ইন হ্যান্ড এবং ডেনোমিনেশন হিসাব শতভাগ মিলেছে। দিন ক্লোজ করার পর এই তারিখের হিসাব লক থাকবে।
-                </div>
-              )}
-            </div>
-
-            <div className="flex items-center justify-end gap-2.5 mt-5 pt-3 border-t">
-              <button
-                type="button"
-                onClick={() => setDayCloseModalOpen(false)}
-                className="rounded-xl bg-slate-200 px-4 py-2 font-bold text-xs sm:text-sm text-slate-700 hover:bg-slate-300 transition cursor-pointer"
-              >
-                বাতিল
-              </button>
-              <button
-                type="button"
-                onClick={handleConfirmDayClose}
-                className="rounded-xl bg-emerald-600 px-5 py-2 font-bold text-xs sm:text-sm text-white hover:bg-emerald-700 shadow-md transition cursor-pointer flex items-center gap-1.5"
-              >
-                <span>🔒</span>
-                <span>হ্যাঁ, ডে ক্লোজ করুন</span>
-              </button>
-            </div>
-          </div>
-        </div>
       )}
 
       {/* PDF View Modal */}

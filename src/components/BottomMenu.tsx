@@ -126,24 +126,28 @@ export default function BottomMenu({
               </button>
             )}
 
-            {/* Day Open / State Quick Action */}
+            {/* Day State — status only. Open/Close কন্ট্রোল একটিই জায়গায় (Working-Day বার) */}
             {isDayClosed(selectedDate) ? (
-              <span className="rounded-lg bg-rose-950/80 border border-rose-700/80 px-2 py-1 text-[10px] font-bold text-rose-300 whitespace-nowrap">
+              <span
+                className="rounded-lg bg-rose-950/80 border border-rose-700/80 px-2 py-1 text-[10px] font-bold text-rose-300 whitespace-nowrap"
+                title="দিন সমাপ্ত (Day Closed)"
+              >
                 🔒 Closed
               </span>
             ) : isDayOpen(selectedDate) ? (
-              <span className="rounded-lg bg-emerald-950/80 border border-emerald-700/80 px-2 py-1 text-[10px] font-bold text-emerald-300 whitespace-nowrap">
+              <span
+                className="rounded-lg bg-emerald-950/80 border border-emerald-700/80 px-2 py-1 text-[10px] font-bold text-emerald-300 whitespace-nowrap"
+                title="কর্মদিবস চালু (Day Open)"
+              >
                 ☀️ Open
               </span>
             ) : (
-              <button
-                type="button"
-                onClick={() => window.dispatchEvent(new CustomEvent("open-day-open-modal"))}
-                className="rounded-lg bg-amber-500 hover:bg-amber-600 active:scale-95 px-2 py-1 text-[10px] sm:text-xs font-black text-white shadow-xs animate-pulse cursor-pointer transition whitespace-nowrap"
-                title="কর্মদিবস শুরু (Day Open) করুন"
+              <span
+                className="rounded-lg bg-amber-950/80 border border-amber-700/80 px-2 py-1 text-[10px] font-bold text-amber-300 whitespace-nowrap"
+                title="কর্মদিবস এখনও শুরু করা হয়নি"
               >
-                ☀️ Day Open
-              </button>
+                ⏳ Not Opened
+              </span>
             )}
 
             <button

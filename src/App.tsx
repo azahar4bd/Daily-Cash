@@ -11,6 +11,7 @@ import UnclosedDateAlert from "./components/UnclosedDateAlert";
 import DateAuditTrackerModal from "./components/DateAuditTrackerModal";
 import DayStateBanner from "./components/DayStateBanner";
 import DayOpenModal from "./components/DayOpenModal";
+import DayCloseModal from "./components/DayCloseModal";
 import { todayISO } from "./components/DatePicker";
 import { initNeonSync } from "./lib/neonSync";
 
@@ -18,6 +19,7 @@ export default function App() {
   const [currentTab, setCurrentTab] = useState<string>("receive");
   const [trackerOpen, setTrackerOpen] = useState(false);
   const [dayOpenModalOpen, setDayOpenModalOpen] = useState(false);
+  const [dayCloseModalOpen, setDayCloseModalOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string>(() => {
     try {
       const saved = localStorage.getItem("app_master_date");
@@ -47,13 +49,25 @@ export default function App() {
 
     const handleOpenTracker = () => setTrackerOpen(true);
     const handleOpenDayModal = () => setDayOpenModalOpen(true);
+    const handleOpenDayCloseModal = () => setDayCloseModalOpen(true);
+    const handleNavigateTab = (e: Event) => {
+      const tab = (e as CustomEvent).detail;
+      if (typeof tab === "string" && tab) {
+        setCurrentTab(tab);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+    };
 
     window.addEventListener("open-date-tracker", handleOpenTracker);
     window.addEventListener("open-day-open-modal", handleOpenDayModal);
+    window.addEventListener("open-day-close-modal", handleOpenDayCloseModal);
+    window.addEventListener("navigate-tab", handleNavigateTab as EventListener);
 
     return () => {
       window.removeEventListener("open-date-tracker", handleOpenTracker);
       window.removeEventListener("open-day-open-modal", handleOpenDayModal);
+      window.removeEventListener("open-day-close-modal", handleOpenDayCloseModal);
+      window.removeEventListener("navigate-tab", handleNavigateTab as EventListener);
     };
   }, []);
 
@@ -73,14 +87,16 @@ export default function App() {
           />
         </div>
 
-        {/* Day Open / Day Closed State Banner */}
-        <div className="print:hidden">
-          <DayStateBanner
-            selectedDate={selectedDate}
-            onOpenDayModal={() => setDayOpenModalOpen(true)}
-            onNavigateTab={setCurrentTab}
-          />
-        </div>
+        {/* ⭐ SINGLE WORKING-DAY CONTROL PLACE (Day Open + Day Close together)
+            ক্যাশবুক পেজে কোনো Open/Close কন্ট্রোল নেই — শুধু এখানেই। */}
+        {currentTab !== "cashbook" && (
+          <div className="print:hidden">
+            <DayStateBanner
+              selectedDate={selectedDate}
+              onOpenDayModal={() => setDayOpenModalOpen(true)}
+            />
+          </div>
+        )}
 
         {/* Conditional Top Dashboard: visible only on Receive and Payment pages */}
         {(currentTab === "receive" || currentTab === "payment") && (
@@ -111,6 +127,13 @@ export default function App() {
       <DayOpenModal
         isOpen={dayOpenModalOpen}
         onClose={() => setDayOpenModalOpen(false)}
+        selectedDate={selectedDate}
+      />
+
+      {/* Day Close Modal (Single place — open/close together) */}
+      <DayCloseModal
+        isOpen={dayCloseModalOpen}
+        onClose={() => setDayCloseModalOpen(false)}
         selectedDate={selectedDate}
       />
 

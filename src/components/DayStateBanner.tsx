@@ -1,29 +1,41 @@
 import { useState, useEffect } from "react";
-import { getDayState, isIntermediateBlockedDate } from "@/lib/storage";
+import { getDayState, isIntermediateBlockedDate, reopenDay, getSummary } from "@/lib/storage";
 import type { DayState } from "@/types";
 import { formatDisplay } from "./DatePicker";
+import { fmt } from "./DenominationPopup";
 
+/**
+ * ⭐ SINGLE CONTROL POINT for the Working Day (কর্মদিবস)
+ * ----------------------------------------------------
+ * Day Open ➜ Day Close ➜ Re-open — সবকটি কন্ট্রোল একটিই জায়গায়।
+ * ক্যাশবুক পেজে কোনো Open/Close বাটন নেই; শুধু Lock টা কার্যকর থাকে।
+ */
 export default function DayStateBanner({
   selectedDate,
   onOpenDayModal,
-  onNavigateTab,
 }: {
   selectedDate: string;
   onOpenDayModal: () => void;
-  onNavigateTab?: (tab: string) => void;
 }) {
   const [dayState, setDayState] = useState<DayState>("not_opened");
+  const [openingCash, setOpeningCash] = useState(0);
+  const [openingBank, setOpeningBank] = useState(0);
 
-  const checkState = () => {
+  const refresh = () => {
     setDayState(getDayState(selectedDate));
+    try {
+      const sum = getSummary(selectedDate);
+      setOpeningCash(sum.prevCash || 0);
+      setOpeningBank(sum.prevBank || 0);
+    } catch {}
   };
 
   useEffect(() => {
-    checkState();
+    refresh();
   }, [selectedDate]);
 
   useEffect(() => {
-    const handleUpdate = () => checkState();
+    const handleUpdate = () => refresh();
     window.addEventListener("tx-changed", handleUpdate);
     window.addEventListener("day-close-changed", handleUpdate);
     window.addEventListener("day-open-changed", handleUpdate);
@@ -38,6 +50,20 @@ export default function DayStateBanner({
 
   const blockedCheck = isIntermediateBlockedDate(selectedDate);
 
+  const handleReopen = () => {
+    if (
+      confirm(
+        `আপনি কি নিশ্চিত যে ${selectedDate} তারিখের হিসাবটি পুনরায় আনলক/ওপেন (Re-open) করতে চান?`
+      )
+    ) {
+      reopenDay(selectedDate);
+      refresh();
+      window.dispatchEvent(new Event("day-open-changed"));
+      window.dispatchEvent(new Event("day-close-changed"));
+    }
+  };
+
+  /* ───────────────────────── A. NOT OPENED ───────────────────────── */
   if (dayState === "not_opened") {
     return (
       <div className="mb-4 rounded-2xl border-2 border-amber-400 bg-linear-to-r from-amber-50 via-orange-50 to-amber-100/70 p-3.5 sm:p-4 text-amber-950 shadow-sm animate-in fade-in duration-200">
@@ -60,6 +86,9 @@ export default function DayStateBanner({
                 {formatDisplay(selectedDate)})-এ কোনো রিসিভ, পেমেন্ট বা স্টাফ রিপোর্ট এন্ট্রি করার
                 পূর্বে কর্মদিবসটি শুরু (Day Open) করুন।
               </p>
+              <p className="mt-1 text-[10px] sm:text-[11px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-lg px-2 py-0.5 inline-block">
+                প্রারম্ভিক ক্যাশ: ৳ {fmt(openingCash)} • প্রারম্ভিক ব্যাংক: ৳ {fmt(openingBank)}
+              </p>
             </div>
           </div>
 
@@ -67,53 +96,76 @@ export default function DayStateBanner({
             type="button"
             onClick={onOpenDayModal}
             disabled={blockedCheck.blocked}
-            className="self-end sm:self-center shrink-0 rounded-xl bg-linear-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 active:scale-98 text-white px-4 py-2 text-xs font-black shadow-sm transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            className="self-end sm:self-center shrink-0 rounded-xl bg-linear-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 active:scale-98 text-white px-4 py-2 text-xs font-black shadow-sm transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed animate-pulse"
+            title={
+              blockedCheck.blocked
+                ? blockedCheck.reason || "এই তারিখে Day Open করা যাবে না"
+                : "কর্মদিবস শুরু করুন"
+            }
           >
             <span>☀️</span>
-            <span>কর্মদিবস শুরু (Day Open) করুন</span>
+            <span>
+              {blockedCheck.blocked ? "তারিখ ব্লকড" : "কর্মদিবস শুরু (Day Open) করুন"}
+            </span>
           </button>
         </div>
       </div>
     );
   }
 
+  /* ───────────────────────── B. CLOSED ───────────────────────── */
   if (dayState === "closed") {
     return (
-      <div className="mb-4 rounded-2xl border border-rose-300 bg-rose-50 p-3 text-xs sm:text-sm font-bold text-rose-900 shadow-xs flex items-center justify-between">
+      <div className="mb-4 rounded-2xl border border-rose-300 bg-rose-50 p-3 text-xs sm:text-sm font-bold text-rose-900 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5">
         <div className="flex items-center gap-2">
           <span className="text-base">🔒</span>
           <span>
-            এই তারিখের ({selectedDate}) দিন সমাপ্ত (Day Closed) রয়েছে। হিসাব লক ও সুরক্ষিত আছে।
+            এই তারিখের ({selectedDate}) দিন সমাপ্ত (Day Closed) রয়েছে। হিসাব লক ও সুরক্ষিত আছে —
+            কোনো এন্ট্রি বা পরিবর্তন করা যাবে না।
           </span>
         </div>
-        {onNavigateTab && (
-          <button
-            type="button"
-            onClick={() => onNavigateTab("cashbook")}
-            className="text-xs text-rose-700 hover:text-rose-900 hover:underline font-bold cursor-pointer whitespace-nowrap ml-2"
-          >
-            ক্যাশবুকে Re-open করুন ➔
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={handleReopen}
+          className="shrink-0 self-end sm:self-center rounded-xl bg-amber-600 hover:bg-amber-700 text-white px-3.5 py-1.5 text-xs font-black shadow-xs transition cursor-pointer flex items-center gap-1.5"
+          title="দিনটি পুনরায় আনলক/ওপেন করুন"
+        >
+          <span>🔓</span>
+          <span>Re-open Day</span>
+        </button>
       </div>
     );
   }
 
-  // dayState === 'open'
+  /* ───────────────────────── C. OPEN ───────────────────────── */
   return (
-    <div className="mb-4 rounded-xl border border-emerald-300 bg-emerald-50/70 px-3.5 py-1.5 text-xs text-emerald-900 shadow-2xs flex items-center justify-between">
-      <div className="flex items-center gap-1.5">
+    <div className="mb-4 rounded-xl border border-emerald-300 bg-emerald-50/70 px-3.5 py-2 text-xs text-emerald-900 shadow-2xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+      <div className="flex items-center gap-1.5 flex-wrap">
         <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
         <span className="font-bold">
           ☀️ {selectedDate} কর্মদিবস চালু রয়েছে (Day Open)
         </span>
-        <span className="text-slate-500 text-[11px] hidden sm:inline">
-          — সারাদিনের কাজ শেষে ক্যাশবুক পেজ থেকে Day Close করবেন
+        <span className="rounded bg-emerald-600 px-1.5 py-0.5 text-[10px] font-bold text-white uppercase">
+          Open ✓
+        </span>
+        <span className="text-slate-500 text-[11px] hidden md:inline">
+          — দিনের কাজ শেষে এখান থেকেই Day Close করুন
         </span>
       </div>
-      <span className="rounded bg-emerald-600 px-1.5 py-0.5 text-[10px] font-bold text-white uppercase">
-        Open ✓
-      </span>
+      <button
+        type="button"
+        onClick={() => window.dispatchEvent(new CustomEvent("open-day-close-modal"))}
+        disabled={blockedCheck.blocked}
+        className="shrink-0 self-end sm:self-center rounded-xl bg-linear-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white px-3.5 py-1.5 text-xs font-black shadow-sm transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+        title={
+          blockedCheck.blocked
+            ? "মধ্যবর্তী বন্ধের দিন (Day Close করা যাবে না)"
+            : "এই তারিখের হিসাব চূড়ান্তভাবে বন্ধ ও লক করুন"
+        }
+      >
+        <span>{blockedCheck.blocked ? "🚫" : "🔒"}</span>
+        <span>{blockedCheck.blocked ? "তারিখ ব্লকড" : "Day Close করুন"}</span>
+      </button>
     </div>
   );
 }

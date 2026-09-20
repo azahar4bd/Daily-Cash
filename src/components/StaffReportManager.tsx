@@ -240,7 +240,7 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
 
   const handleFieldClick = (field: StaffFieldKey) => {
     if (dayClosed) {
-      alert("⚠️ এই তারিখের দিন সমাপ্ত (Day Closed) রয়েছে। হিসাবটি লক করা আছে। পরিবর্তন করতে চাইলে ক্যাশবুক পেজ থেকে দিনটি Re-open করুন।");
+      alert("⚠️ এই তারিখের দিন সমাপ্ত (Day Closed) রয়েছে। হিসাবটি লক করা আছে। পরিবর্তন করতে চাইলে উপরের Working-Day বার থেকে দিনটি Re-open করুন।");
       return;
     }
     setActiveKeyboardField(field);
@@ -251,7 +251,7 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
 
   const handleSave = () => {
     if (dayClosed) {
-      alert("⚠️ এই তারিখের দিন সমাপ্ত (Day Closed) রয়েছে। কোনো নতুন এন্ট্রি করা যাবে না। পরিবর্তন করতে চাইলে ক্যাশবুক পেজ থেকে দিনটি Re-open করুন।");
+      alert("⚠️ এই তারিখের দিন সমাপ্ত (Day Closed) রয়েছে। কোনো নতুন এন্ট্রি করা যাবে না। পরিবর্তন করতে চাইলে উপরের Working-Day বার থেকে দিনটি Re-open করুন।");
       return;
     }
     if (!isDayOpen(selectedDate)) {
@@ -323,7 +323,7 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
   const handleUpdate = () => {
     if (!edit || !edit.id) return;
     if (dayClosed) {
-      alert("⚠️ দিন ক্লোজ থাকায় এই রিপোর্টটি এডিট করা যাবে না। ক্যাশবুক থেকে Re-open করুন।");
+      alert("⚠️ দিন ক্লোজ থাকায় এই রিপোর্টটি এডিট করা যাবে না। উপরের Working-Day বার থেকে Re-open করুন।");
       return;
     }
     const blockCheck = isIntermediateBlockedDate(selectedDate);
@@ -350,7 +350,7 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
 
   const handleDelete = (id: number) => {
     if (dayClosed) {
-      alert("⚠️ দিন ক্লোজ থাকায় এই রিপোর্টটি মুছে ফেলা যাবে না। ক্যাশবুক থেকে Re-open করুন।");
+      alert("⚠️ দিন ক্লোজ থাকায় এই রিপোর্টটি মুছে ফেলা যাবে না। উপরের Working-Day বার থেকে Re-open করুন।");
       return;
     }
     if (!confirm("Delete this staff report?")) return;
@@ -643,7 +643,17 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
               <span>🔒</span>
               <span>এই তারিখের ({selectedDate}) দিন সমাপ্ত (Day Closed) রয়েছে। হিসাবটি লক করা আছে।</span>
             </span>
-            <span className="text-xs text-rose-600 font-semibold">ক্যাশবুকে Re-open করুন</span>
+            <button
+              type="button"
+              onClick={() => {
+                window.dispatchEvent(new CustomEvent("open-date-tracker"));
+                window.scrollTo({ top: 0, behavior: "smooth" });
+              }}
+              className="text-xs text-rose-700 hover:text-rose-900 underline font-black cursor-pointer whitespace-nowrap ml-2"
+              title="উপরের Working-Day বার থেকে দিনটি Re-open করুন"
+            >
+              🔓 Working-Day বার থেকে Re-open করুন
+            </button>
           </div>
         )}
 
@@ -667,7 +677,7 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
                 disabled={dayClosed}
                 onClick={() => {
                   if (dayClosed) {
-                    alert("⚠️ এই তারিখের দিন সমাপ্ত (Day Closed) রয়েছে। হিসাবটি লক করা আছে। ক্যাশবুক থেকে দিনটি Re-open করুন।");
+                    alert("⚠️ এই তারিখের দিন সমাপ্ত (Day Closed) রয়েছে। হিসাবটি লক করা আছে। উপরের Working-Day বার থেকে দিনটি Re-open করুন।");
                     return;
                   }
                   setKeyboardOpen(!keyboardOpen);
@@ -980,7 +990,7 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
                           disabled={dayClosed}
                           onClick={() => {
                             if (dayClosed) {
-                              alert("⚠️ দিন সমাপ্ত (Day Closed) থাকায় এই রিপোর্টটি এডিট করা যাবে না। ক্যাশবুক থেকে দিনটি Re-open করুন।");
+                              alert("⚠️ দিন সমাপ্ত (Day Closed) থাকায় এই রিপোর্টটি এডিট করা যাবে না। উপরের Working-Day বার থেকে দিনটি Re-open করুন।");
                               return;
                             }
                             setOriginalEditReport({ ...r });
@@ -1005,7 +1015,7 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
                               ? "bg-slate-400 cursor-not-allowed opacity-50"
                               : "bg-blue-600 hover:bg-blue-700 cursor-pointer active:scale-95"
                           }`}
-                          title={dayClosed ? "দিন সমাপ্ত (Locked) - ক্যাশবুক থেকে Re-open করুন" : "এই স্টাফের রিপোর্ট এডিট করুন"}
+                          title={dayClosed ? "দিন সমাপ্ত (Locked) - উপরের Working-Day বার থেকে Re-open করুন" : "এই স্টাফের রিপোর্ট এডিট করুন"}
                         >
                           {dayClosed ? "🔒 Edit" : "✏️ Edit"}
                         </button>
@@ -1014,7 +1024,7 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
                           disabled={dayClosed}
                           onClick={() => {
                             if (dayClosed) {
-                              alert("⚠️ দিন সমাপ্ত (Day Closed) থাকায় এই রিপোর্টটি মুছে ফেলা যাবে না। ক্যাশবুক থেকে দিনটি Re-open করুন।");
+                              alert("⚠️ দিন সমাপ্ত (Day Closed) থাকায় এই রিপোর্টটি মুছে ফেলা যাবে না। উপরের Working-Day বার থেকে দিনটি Re-open করুন।");
                               return;
                             }
                             handleDelete(r.id);
@@ -1024,7 +1034,7 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
                               ? "bg-slate-400 cursor-not-allowed opacity-50"
                               : "bg-rose-600 hover:bg-rose-700 cursor-pointer active:scale-95"
                           }`}
-                          title={dayClosed ? "দিন সমাপ্ত (Locked) - ক্যাশবুক থেকে Re-open করুন" : "এই রিপোর্ট মুছুন"}
+                          title={dayClosed ? "দিন সমাপ্ত (Locked) - উপরের Working-Day বার থেকে Re-open করুন" : "এই রিপোর্ট মুছুন"}
                         >
                           {dayClosed ? "🔒 Del" : "Del"}
                         </button>
