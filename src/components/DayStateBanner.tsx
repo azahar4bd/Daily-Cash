@@ -92,13 +92,8 @@ export default function DayStateBanner({
                   Not Opened
                 </span>
               </div>
-              <p className="mt-0.5 text-[11px] sm:text-xs text-amber-800 font-medium leading-relaxed">
-                <strong className="font-mono text-slate-900">{selectedDate}</strong> (
-                {formatDisplay(selectedDate)})-এ কোনো রিসিভ, পেমেন্ট বা স্টাফ রিপোর্ট এন্ট্রি করার
-                পূর্বে কর্মদিবসটি শুরু (Day Open) করুন।
-              </p>
-              <p className="mt-1 text-[10px] sm:text-[11px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-lg px-2 py-0.5 inline-block">
-                প্রারম্ভিক ক্যাশ: ৳ {fmt(openingCash)} • প্রারম্ভিক ব্যাংক: ৳ {fmt(openingBank)}
+              <p className="mt-1 text-[10px] sm:text-[11px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-lg px-2 py-0.5 inline-block font-mono">
+                {formatDisplay(selectedDate)} • প্রারম্ভিক ক্যাশ: ৳ {fmt(openingCash)} • প্রারম্ভিক ব্যাংক: ৳ {fmt(openingBank)}
               </p>
             </div>
           </div>

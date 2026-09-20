@@ -2,7 +2,7 @@
  * App version + hard cache-busting guard.
  * পুরনো Service Worker ক্যাশে যাতে কখনো পুরনো ভার্সন না দেখায়।
  */
-export const APP_VERSION = "1.3.2";
+export const APP_VERSION = "1.3.3";
 
 async function clearAllCachesAndSW() {
   try {
@@ -68,8 +68,23 @@ export function installVersionGuard(onUpdateFound: () => void) {
     });
   }
 
-  // 2) Periodic + focus check
-  checkVersion();
+  // 2) AUTO-APPLY: প্রথম লোডে ভার্সন মিলছে না মানে পুরনো ক্যাশে — নিজে থেকেই নতুন কোড নিয়ে আসবে
+  const autoApplyOnce = async () => {
+    const FLAG = "gobra_force_reload_done";
+    if (sessionStorage.getItem(FLAG)) return;
+    try {
+      const res = await fetch(`/version.json?t=${Date.now()}`, { cache: "no-store" });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data && data.version && data.version !== APP_VERSION) {
+        sessionStorage.setItem(FLAG, "1");
+        await forceFreshReload();
+      }
+    } catch {}
+  };
+  autoApplyOnce().then(checkVersion).catch(checkVersion);
+
+  // 3) Periodic + focus check
   window.setInterval(checkVersion, 60_000);
   window.addEventListener("focus", checkVersion);
   document.addEventListener("visibilitychange", () => {
