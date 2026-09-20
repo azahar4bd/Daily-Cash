@@ -472,25 +472,27 @@ export default function CashSheet({
         <div className="mb-3 print:mb-1.5">
           <div className="mb-1 print:mb-0.5 flex items-center justify-between text-xs sm:text-sm print:text-xs font-bold text-slate-900">
             <span>A. Cash &amp; Bank Information:</span>
-            <span>Day: {getDayName(selectedDate)}</span>
+            <span className="pr-16 sm:pr-20 print:pr-16">Day: {getDayName(selectedDate)}</span>
           </div>
-          <table className="w-full border-collapse border border-black text-xs sm:text-sm print:text-xs">
+          <table className="w-full border-collapse border-spacing-0 text-xs sm:text-sm print:text-xs">
             <tbody>
               <tr>
-                <td className="w-2/3 sm:w-3/4 border border-black px-3 py-1.5 sm:py-2 print:py-0.5 font-medium">
+                <td className="border border-black px-3 py-1.5 sm:py-2 print:py-0.5 font-medium">
                   Closing Cash in Hand: TK (BDT)
                 </td>
-                <td className="w-1/3 sm:w-1/4 border border-black px-3 py-1.5 sm:py-2 print:py-0.5 text-right font-mono font-bold">
+                <td className="w-48 sm:w-56 print:w-56 border border-black px-3 py-1.5 sm:py-2 print:py-0.5 text-right font-mono font-bold">
                   {fmt(closingCash)}
                 </td>
+                <td className="w-16 sm:w-20 print:w-16 border-0 border-transparent p-0"></td>
               </tr>
               <tr>
-                <td className="w-2/3 sm:w-3/4 border border-black px-3 py-1.5 sm:py-2 print:py-0.5 font-medium">
+                <td className="border border-black px-3 py-1.5 sm:py-2 print:py-0.5 font-medium">
                   Closing Cash at Bank: TK (BDT)
                 </td>
-                <td className="w-1/3 sm:w-1/4 border border-black px-3 py-1.5 sm:py-2 print:py-0.5 text-right font-mono font-bold">
+                <td className="w-48 sm:w-56 print:w-56 border border-black px-3 py-1.5 sm:py-2 print:py-0.5 text-right font-mono font-bold">
                   {fmt(closingBank)}
                 </td>
+                <td className="w-16 sm:w-20 print:w-16 border-0 border-transparent p-0"></td>
               </tr>
             </tbody>
           </table>
@@ -821,14 +823,14 @@ export default function CashSheet({
       </div>
 
       {/* Signatures */}
-      <div className="signatures-block mt-2 print:mt-1 pt-2 print:pt-0.5 pb-0 flex items-center justify-between px-16 print:px-14 text-xs sm:text-sm print:text-xs font-bold font-serif">
+      <div className="signatures-block mt-6 sm:mt-8 print:mt-6 pt-3 print:pt-3 pb-1 flex items-center justify-between px-16 print:px-14 text-xs sm:text-sm print:text-xs font-bold font-serif">
         <div className="text-center">
-          <div className="h-5 print:h-3"></div>
-          <div className="w-28 sm:w-32 border-t border-black pt-0.5">Accountant</div>
+          <div className="h-10 sm:h-12 print:h-10"></div>
+          <div className="w-32 sm:w-36 border-t border-black pt-1">Accountant</div>
         </div>
         <div className="text-center">
-          <div className="h-5 print:h-3"></div>
-          <div className="w-28 sm:w-32 border-t border-black pt-0.5">Manager</div>
+          <div className="h-10 sm:h-12 print:h-10"></div>
+          <div className="w-32 sm:w-36 border-t border-black pt-1">Manager</div>
         </div>
       </div>
     </div>
