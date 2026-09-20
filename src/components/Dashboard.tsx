@@ -1,28 +1,33 @@
 import { useEffect, useState } from "react";
 import { fmt } from "./DenominationPopup";
 import { formatDisplay } from "./DatePicker";
-import { getSummary, isDayClosed } from "@/lib/storage";
+import { getSummary, isDayClosed, isDayOpen, getDayState } from "@/lib/storage";
 import type { Summary } from "@/types";
 
 export default function Dashboard({ selectedDate }: { selectedDate: string }) {
   const [s, setS] = useState<Summary | null>(null);
   const [closed, setClosed] = useState(false);
+  const [dayOpenStatus, setDayOpenStatus] = useState(false);
 
   const load = () => {
     const data = getSummary(selectedDate);
     setS(data);
     setClosed(isDayClosed(selectedDate));
+    setDayOpenStatus(isDayOpen(selectedDate));
   };
 
   useEffect(() => {
     load();
     const onTx = () => load();
     const onDayClose = () => load();
+    const onDayOpen = () => load();
     window.addEventListener("tx-changed", onTx);
     window.addEventListener("day-close-changed", onDayClose);
+    window.addEventListener("day-open-changed", onDayOpen);
     return () => {
       window.removeEventListener("tx-changed", onTx);
       window.removeEventListener("day-close-changed", onDayClose);
+      window.removeEventListener("day-open-changed", onDayOpen);
     };
   }, [selectedDate]);
 
@@ -74,14 +79,27 @@ export default function Dashboard({ selectedDate }: { selectedDate: string }) {
     <div className="mb-3 rounded-2xl bg-white p-2.5 sm:p-3 shadow-sm border border-slate-200">
       {/* Top 5 Compact Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5 sm:gap-2">
-        {/* Box 1: Display Date Only + Day Close Badge */}
+        {/* Box 1: Display Date Only + Day State Badge */}
         <div className="col-span-2 sm:col-span-1 flex items-center justify-between rounded-xl border border-slate-300 bg-slate-50 px-2.5 py-1.5">
           <div className="flex items-center gap-1.5">
             <span className="text-[11px] font-bold text-slate-500">Date</span>
-            {closed && (
-              <span className="rounded bg-rose-100 px-1.5 py-0.2 text-[9px] font-black text-rose-700 border border-rose-300">
+            {closed ? (
+              <span className="rounded bg-rose-100 px-1.5 py-0.5 text-[9px] font-black text-rose-700 border border-rose-300">
                 🔒 Closed
               </span>
+            ) : dayOpenStatus ? (
+              <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-[9px] font-black text-emerald-800 border border-emerald-300">
+                ☀️ Open
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={() => window.dispatchEvent(new CustomEvent("open-day-open-modal"))}
+                className="rounded bg-amber-500 hover:bg-amber-600 active:scale-95 px-1.5 py-0.5 text-[9px] font-black text-white shadow-xs animate-pulse cursor-pointer transition"
+                title="কর্মদিবস শুরু (Day Open) করুন"
+              >
+                ☀️ Day Open
+              </button>
             )}
           </div>
           <div className="truncate font-mono text-xs font-black text-slate-900">

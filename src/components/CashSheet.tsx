@@ -10,6 +10,7 @@ import {
   getCategories,
   getReportPageFigures,
   isDayClosed,
+  isDayOpen,
   getDayClosure,
   saveDayClosure,
   reopenDay,
@@ -937,7 +938,7 @@ export default function CashSheet({
                 <span>Re-open</span>
               </button>
             </div>
-          ) : (
+          ) : isDayOpen(selectedDate) ? (
             <button
               type="button"
               onClick={handleInitiateDayClose}
@@ -955,6 +956,17 @@ export default function CashSheet({
                   ? "তারিখ ব্লকড"
                   : "Day Close করুন"}
               </span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => window.dispatchEvent(new CustomEvent("open-day-open-modal"))}
+              disabled={isIntermediateBlockedDate(selectedDate).blocked}
+              className="rounded-lg bg-amber-500 hover:bg-amber-600 active:scale-95 px-3.5 py-1.5 text-xs font-black text-white shadow cursor-pointer transition flex items-center gap-1.5 ring-2 ring-amber-400/40 animate-pulse disabled:opacity-50 disabled:cursor-not-allowed"
+              title="কর্মদিবস শুরু (Day Open) করুন"
+            >
+              <span>☀️</span>
+              <span>Day Open করুন</span>
             </button>
           )}
 

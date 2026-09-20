@@ -4,6 +4,7 @@ import GoogleSheetSyncModal from "./GoogleSheetSyncModal";
 import NeonSyncModal from "./NeonSyncModal";
 import ApkInstallModal from "./ApkInstallModal";
 import { getStoredSyncState, type NeonSyncState } from "@/lib/neon";
+import { isDayOpen, isDayClosed } from "@/lib/storage";
 
 const pages = [
   { id: "receive", label: "Receive", labelBn: "জমা (Receive)", icon: "📥" },
@@ -124,6 +125,27 @@ export default function BottomMenu({
                 Today
               </button>
             )}
+
+            {/* Day Open / State Quick Action */}
+            {isDayClosed(selectedDate) ? (
+              <span className="rounded-lg bg-rose-950/80 border border-rose-700/80 px-2 py-1 text-[10px] font-bold text-rose-300 whitespace-nowrap">
+                🔒 Closed
+              </span>
+            ) : isDayOpen(selectedDate) ? (
+              <span className="rounded-lg bg-emerald-950/80 border border-emerald-700/80 px-2 py-1 text-[10px] font-bold text-emerald-300 whitespace-nowrap">
+                ☀️ Open
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={() => window.dispatchEvent(new CustomEvent("open-day-open-modal"))}
+                className="rounded-lg bg-amber-500 hover:bg-amber-600 active:scale-95 px-2 py-1 text-[10px] sm:text-xs font-black text-white shadow-xs animate-pulse cursor-pointer transition whitespace-nowrap"
+                title="কর্মদিবস শুরু (Day Open) করুন"
+              >
+                ☀️ Day Open
+              </button>
+            )}
+
             <button
               type="button"
               onClick={onOpenTracker}
