@@ -20,6 +20,8 @@ import {
   fetchDayClosuresFromNeon,
   upsertDayClosureInNeon,
   deleteDayClosureInNeon,
+  fetchDayOpensFromNeon,
+  upsertDayOpenInNeon,
   fetchAppSettingFromNeon,
   upsertAppSettingInNeon,
   updateSyncState,
@@ -34,6 +36,7 @@ import type {
   KallyanRule,
   RebateRateItem,
   DayClosure,
+  DayOpen,
 } from "@/types";
 
 const TX_KEY = "gobra_local_transactions";
@@ -44,11 +47,12 @@ const SUBCAT_RULE_KEY = "gobra_local_subcat_rules";
 const REBATE_KEY = "gobra_local_rebate_rates";
 const KALLYAN_RULE_KEY = "gobra_local_kallyan_rule";
 const DAY_CLOSURES_KEY = "gobra_local_day_closures";
+const DAY_OPENS_KEY = "gobra_local_day_opens";
 const G_SHEET_KEY = "gobra_google_sheet_url";
 const QUEUE_KEY = "gobra_neon_sync_queue";
 
 interface SyncQueueItem {
-  type: "tx" | "tx_del" | "sr" | "sr_del" | "cat" | "cat_del" | "sc" | "sc_del" | "subcat" | "subcat_del" | "kallyan" | "day_close" | "day_reopen" | "setting";
+  type: "tx" | "tx_del" | "sr" | "sr_del" | "cat" | "cat_del" | "sc" | "sc_del" | "subcat" | "subcat_del" | "kallyan" | "day_close" | "day_reopen" | "day_open" | "setting";
   payload: any;
 }
 
@@ -112,6 +116,8 @@ export async function flushNeonQueue(): Promise<void> {
         await upsertDayClosureInNeon(item.payload);
       } else if (item.type === "day_reopen") {
         await deleteDayClosureInNeon(item.payload);
+      } else if (item.type === "day_open") {
+        await upsertDayOpenInNeon(item.payload);
       } else if (item.type === "setting") {
         await upsertAppSettingInNeon(item.payload.key, item.payload.value);
       }
@@ -150,7 +156,7 @@ export async function syncAllWithNeon(): Promise<{ success: boolean; message: st
     await flushNeonQueue();
 
     // 2. Fetch from Neon
-    const [neonTxs, neonSrs, neonCats, neonScRates, neonSubcatRules, neonKallyan, neonRebates, neonDayClosures] =
+    const [neonTxs, neonSrs, neonCats, neonScRates, neonSubcatRules, neonKallyan, neonRebates, neonDayClosures, neonDayOpens] =
       await Promise.all([
         fetchTransactionsFromNeon(),
         fetchStaffReportsFromNeon(),
@@ -160,6 +166,7 @@ export async function syncAllWithNeon(): Promise<{ success: boolean; message: st
         fetchKallyanRuleFromNeon(),
         fetchRebateRatesFromNeon(),
         fetchDayClosuresFromNeon(),
+        fetchDayOpensFromNeon(),
       ]);
 
     // 3. Check for local items that need uploading to Neon
@@ -222,11 +229,27 @@ export async function syncAllWithNeon(): Promise<{ success: boolean; message: st
       }
     }
 
+    // Check for local day opens that need uploading
+    let localOpens: DayOpen[] = [];
+    try {
+      const rawO = localStorage.getItem(DAY_OPENS_KEY);
+      if (rawO) localOpens = JSON.parse(rawO);
+    } catch {}
+
+    const neonOpenDates = new Set(neonDayOpens.map((o) => o.openDate));
+    for (const o of localOpens) {
+      if (!neonOpenDates.has(o.openDate)) {
+        await upsertDayOpenInNeon(o);
+        neonDayOpens.unshift(o);
+      }
+    }
+
     // 4. Update local storage with the cloud truth
     const cleanTxs = neonTxs.filter((t) => t.txDate !== "2026-09-18");
     localStorage.setItem(TX_KEY, JSON.stringify(cleanTxs));
     localStorage.setItem(SR_KEY, JSON.stringify(neonSrs));
     localStorage.setItem(DAY_CLOSURES_KEY, JSON.stringify(neonDayClosures));
+    localStorage.setItem(DAY_OPENS_KEY, JSON.stringify(neonDayOpens));
 
     if (neonCats.length > 0) {
       localStorage.setItem(CAT_KEY, JSON.stringify(neonCats));

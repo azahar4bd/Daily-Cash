@@ -73,10 +73,23 @@ export type DateActivity = {
   receiveTotal: number;
   paymentTotal: number;
   srCount: number;
+  isOpen: boolean;
   isClosed: boolean;
   closingCash?: number;
   closingBank?: number;
 };
+
+export type DayOpen = {
+  id?: number;
+  openDate: string; // 'YYYY-MM-DD'
+  prevCloseDate?: string | null;
+  openingCash: number;
+  openingBank: number;
+  openedAt: string;
+  openedBy?: string;
+};
+
+export type DayState = "not_opened" | "open" | "closed";
 
 export type DayClosure = {
   id?: number;

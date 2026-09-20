@@ -9,12 +9,15 @@ import BottomMenu from "./components/BottomMenu";
 import NetworkStatusBanner from "./components/NetworkStatusBanner";
 import UnclosedDateAlert from "./components/UnclosedDateAlert";
 import DateAuditTrackerModal from "./components/DateAuditTrackerModal";
+import DayStateBanner from "./components/DayStateBanner";
+import DayOpenModal from "./components/DayOpenModal";
 import { todayISO } from "./components/DatePicker";
 import { initNeonSync } from "./lib/neonSync";
 
 export default function App() {
   const [currentTab, setCurrentTab] = useState<string>("receive");
   const [trackerOpen, setTrackerOpen] = useState(false);
+  const [dayOpenModalOpen, setDayOpenModalOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string>(() => {
     try {
       const saved = localStorage.getItem("app_master_date");
@@ -43,8 +46,15 @@ export default function App() {
     } catch {}
 
     const handleOpenTracker = () => setTrackerOpen(true);
+    const handleOpenDayModal = () => setDayOpenModalOpen(true);
+
     window.addEventListener("open-date-tracker", handleOpenTracker);
-    return () => window.removeEventListener("open-date-tracker", handleOpenTracker);
+    window.addEventListener("open-day-open-modal", handleOpenDayModal);
+
+    return () => {
+      window.removeEventListener("open-date-tracker", handleOpenTracker);
+      window.removeEventListener("open-day-open-modal", handleOpenDayModal);
+    };
   }, []);
 
   return (
@@ -60,6 +70,15 @@ export default function App() {
             selectedDate={selectedDate}
             onSelectDate={handleDateChange}
             onOpenTracker={() => setTrackerOpen(true)}
+          />
+        </div>
+
+        {/* Day Open / Day Closed State Banner */}
+        <div className="print:hidden">
+          <DayStateBanner
+            selectedDate={selectedDate}
+            onOpenDayModal={() => setDayOpenModalOpen(true)}
+            onNavigateTab={setCurrentTab}
           />
         </div>
 
@@ -86,6 +105,13 @@ export default function App() {
         onClose={() => setTrackerOpen(false)}
         selectedDate={selectedDate}
         onSelectDate={handleDateChange}
+      />
+
+      {/* Day Open Modal */}
+      <DayOpenModal
+        isOpen={dayOpenModalOpen}
+        onClose={() => setDayOpenModalOpen(false)}
+        selectedDate={selectedDate}
       />
 
       {/* Bottom Menu Navigation */}

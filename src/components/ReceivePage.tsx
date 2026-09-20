@@ -12,6 +12,8 @@ import {
   getCategories,
   getSummary,
   isDayClosed,
+  isDayOpen,
+  getDayState,
   isIntermediateBlockedDate,
 } from "@/lib/storage";
 import type { Tx, Cat, Denom } from "@/types";
@@ -88,6 +90,11 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
   const handleSave = () => {
     if (isDayClosed(form.txDate)) {
       alert(`⚠️ এই তারিখের (${form.txDate}) দিন সমাপ্ত (Day Closed) রয়েছে। কোনো নতুন এন্ট্রি করা যাবে না। পরিবর্তন করতে চাইলে ক্যাশবুক পেজ থেকে দিনটি Re-open করুন।`);
+      return;
+    }
+    if (!isDayOpen(form.txDate)) {
+      alert(`⚠️ এই তারিখের (${form.txDate}) কর্মদিবস এখনও শুরু (Day Open) করা হয়নি। কোনো এন্ট্রি করার পূর্বে দিনটি Day Open করুন।`);
+      window.dispatchEvent(new CustomEvent("open-day-open-modal"));
       return;
     }
     const blockCheck = isIntermediateBlockedDate(form.txDate, selectedDate);
@@ -298,13 +305,15 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
           <div className="flex gap-2.5 md:col-span-2 pt-1">
             <button
               onClick={handleSave}
-              disabled={isDayClosed(form.txDate) || isIntermediateBlockedDate(form.txDate, selectedDate).blocked}
+              disabled={isDayClosed(form.txDate) || !isDayOpen(form.txDate) || isIntermediateBlockedDate(form.txDate, selectedDate).blocked}
               className="min-h-[44px] rounded-xl bg-green-600 px-6 py-2.5 font-bold text-sm text-white shadow hover:bg-green-700 active:scale-98 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isDayClosed(form.txDate)
                 ? "🔒 দিন সমাপ্ত (লকড)"
                 : isIntermediateBlockedDate(form.txDate, selectedDate).blocked
                 ? "🚫 তারিখ ব্লকড"
+                : !isDayOpen(form.txDate)
+                ? "☀️ দিন শুরু (Day Open) করুন"
                 : "Save Receive"}
             </button>
             <button
@@ -319,7 +328,7 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
                 });
                 setMsg("");
               }}
-              disabled={isDayClosed(form.txDate) || isIntermediateBlockedDate(form.txDate, selectedDate).blocked}
+              disabled={isDayClosed(form.txDate) || !isDayOpen(form.txDate) || isIntermediateBlockedDate(form.txDate, selectedDate).blocked}
               className="min-h-[44px] rounded-xl bg-slate-500 px-6 py-2.5 font-bold text-sm text-white hover:bg-slate-600 active:scale-98 transition cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Reset

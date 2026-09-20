@@ -9,6 +9,8 @@ import type {
   KallyanRule,
   DayClosure,
   DateActivity,
+  DayOpen,
+  DayState,
 } from "@/types";
 import { DEFAULT_CATEGORIES, DEFAULT_SUBCAT_RULES, DEFAULT_KALLYAN_RULE } from "./categories";
 import { DEFAULT_REBATE_RATES } from "./defaultRebateRates";
@@ -24,6 +26,7 @@ const REBATE_KEY = "gobra_local_rebate_rates";
 const G_SHEET_KEY = "gobra_google_sheet_script_url";
 const KALLYAN_RULE_KEY = "gobra_local_kallyan_rule";
 const DAY_CLOSURES_KEY = "gobra_local_day_closures";
+const DAY_OPENS_KEY = "gobra_local_day_opens";
 
 /**
  * Safely evaluates math expressions like "1+2+3" or "500+700+300"
@@ -103,9 +106,80 @@ export function saveDayClosure(payload: DayClosure): DayClosure {
 export function reopenDay(date: string): void {
   const list = getLocalDayClosures().filter((c) => c.closeDate !== date);
   localStorage.setItem(DAY_CLOSURES_KEY, JSON.stringify(list));
+  if (!getLocalDayOpens().some((o) => o.openDate === date)) {
+    const sum = getSummary(date);
+    saveDayOpen({
+      openDate: date,
+      prevCloseDate: sum.prevDate || null,
+      openingCash: sum.prevCash,
+      openingBank: sum.prevBank,
+      openedAt: new Date().toISOString(),
+      openedBy: "Cashier",
+    });
+  }
   window.dispatchEvent(new CustomEvent("day-close-changed", { detail: { closeDate: date, status: "reopened" } }));
   window.dispatchEvent(new Event("tx-changed"));
   enqueueNeonAction({ type: "day_reopen", payload: date });
+}
+
+export function getLocalDayOpens(): DayOpen[] {
+  try {
+    const raw = localStorage.getItem(DAY_OPENS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function getDayOpen(date: string): DayOpen | null {
+  const list = getLocalDayOpens();
+  return list.find((o) => o.openDate === date) || null;
+}
+
+export function isDayOpen(date: string): boolean {
+  if (!date || !date.includes("-")) return false;
+  if (isDayClosed(date)) return false;
+
+  const list = getLocalDayOpens();
+  if (list.some((o) => o.openDate === date)) return true;
+
+  const allTx = getLocalTxs();
+  if (allTx.some((t) => t.txDate === date)) return true;
+
+  const allSr = getLocalStaffReports();
+  if (allSr.some((s) => s.reportDate === date)) return true;
+
+  return false;
+}
+
+export function getDayState(date: string): DayState {
+  if (!date || !date.includes("-")) return "not_opened";
+  if (isDayClosed(date)) return "closed";
+  if (isDayOpen(date)) return "open";
+  return "not_opened";
+}
+
+export function saveDayOpen(payload: DayOpen): DayOpen {
+  const list = getLocalDayOpens().filter((o) => o.openDate !== payload.openDate);
+  const updated = [payload, ...list];
+  localStorage.setItem(DAY_OPENS_KEY, JSON.stringify(updated));
+  window.dispatchEvent(new CustomEvent("day-open-changed", { detail: payload }));
+  window.dispatchEvent(new Event("tx-changed"));
+  enqueueNeonAction({ type: "day_open", payload });
+  return payload;
+}
+
+export function openDay(targetDate: string, openedBy: string = "Cashier"): DayOpen {
+  const sum = getSummary(targetDate);
+  const record: DayOpen = {
+    openDate: targetDate,
+    prevCloseDate: sum.prevDate || null,
+    openingCash: sum.prevCash,
+    openingBank: sum.prevBank,
+    openedAt: new Date().toISOString(),
+    openedBy,
+  };
+  return saveDayOpen(record);
 }
 
 export function getLocalTxs(): Tx[] {
@@ -118,8 +192,14 @@ export function getLocalTxs(): Tx[] {
 }
 
 export function saveTx(payload: Omit<Tx, "id"> & { id?: number }): Tx {
+  if (isDayClosed(payload.txDate)) {
+    throw new Error(`⚠️ এই তারিখের (${payload.txDate}) দিন সমাপ্ত (Day Closed) রয়েছে।`);
+  }
+  if (!isDayOpen(payload.txDate)) {
+    throw new Error(`⚠️ এই তারিখের (${payload.txDate}) কর্মদিবস শুরু (Day Open) করা হয়নি। প্রথমে দিনটি Day Open করুন।`);
+  }
   const blockCheck = isIntermediateBlockedDate(payload.txDate);
-  if (blockCheck.blocked && !isDayClosed(payload.txDate)) {
+  if (blockCheck.blocked) {
     throw new Error(
       blockCheck.reason ||
         "দুটি কর্মদিবসের মধ্যবর্তী বন্ধের দিনে কোনো এন্ট্রি করা যাবে না।"
@@ -168,8 +248,14 @@ export function getLocalStaffReports(date?: string): StaffReportItem[] {
 }
 
 export function saveStaffReport(item: Omit<StaffReportItem, "id"> & { id?: number }): StaffReportItem {
+  if (isDayClosed(item.reportDate)) {
+    throw new Error(`⚠️ এই তারিখের (${item.reportDate}) দিন সমাপ্ত (Day Closed) রয়েছে।`);
+  }
+  if (!isDayOpen(item.reportDate)) {
+    throw new Error(`⚠️ এই তারিখের (${item.reportDate}) কর্মদিবস শুরু (Day Open) করা হয়নি। প্রথমে দিনটি Day Open করুন।`);
+  }
   const blockCheck = isIntermediateBlockedDate(item.reportDate);
-  if (blockCheck.blocked && !isDayClosed(item.reportDate)) {
+  if (blockCheck.blocked) {
     throw new Error(
       blockCheck.reason ||
         "দুটি কর্মদিবসের মধ্যবর্তী বন্ধের দিনে কোনো এন্ট্রি করা যাবে না।"
@@ -1034,6 +1120,7 @@ export function getAllDatesActivity(): DateActivity[] {
   const allTx = getLocalTxs();
   const allSr = getLocalStaffReports();
   const closures = getLocalDayClosures();
+  const opens = getLocalDayOpens();
 
   const datesSet = new Set<string>();
   allTx.forEach((t) => {
@@ -1044,6 +1131,9 @@ export function getAllDatesActivity(): DateActivity[] {
   });
   closures.forEach((c) => {
     if (c.closeDate && c.closeDate.includes("-")) datesSet.add(c.closeDate);
+  });
+  opens.forEach((o) => {
+    if (o.openDate && o.openDate.includes("-")) datesSet.add(o.openDate);
   });
 
   const dates = Array.from(datesSet).sort().reverse();
@@ -1063,6 +1153,7 @@ export function getAllDatesActivity(): DateActivity[] {
     const closure = closures.find(
       (c) => c.closeDate === d && c.status === "closed"
     );
+    const openStatus = isDayOpen(d);
 
     const recTxs = dayTxs.filter((t) => t.type === "receive");
     const payTxs = dayTxs.filter((t) => t.type === "payment");
@@ -1083,6 +1174,7 @@ export function getAllDatesActivity(): DateActivity[] {
       receiveTotal: recTotal,
       paymentTotal: payTotal,
       srCount: daySrs.length,
+      isOpen: openStatus,
       isClosed: Boolean(closure),
       closingCash: closure ? Number(closure.closingCash) : undefined,
       closingBank: closure ? Number(closure.closingBank) : undefined,

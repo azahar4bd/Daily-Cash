@@ -166,10 +166,15 @@ export default function DateAuditTrackerModal({
                               <span className="h-2 w-2 rounded-full bg-emerald-600"></span>
                               <span>সমাপ্ত (Closed)</span>
                             </div>
+                          ) : act.isOpen ? (
+                            <div className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2.5 py-1 text-[11px] font-bold text-blue-900 border border-blue-300">
+                              <span className="h-2 w-2 rounded-full bg-blue-600 animate-pulse"></span>
+                              <span>☀️ চলমান (Day Open)</span>
+                            </div>
                           ) : isIntermediateBlockedDate(act.date).blocked ? (
                             <div className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2.5 py-1 text-[11px] font-bold text-rose-900 border border-rose-300">
                               <span className="h-2 w-2 rounded-full bg-rose-600"></span>
-                              <span>🚫 ব্লকড / অবৈধ দিন</span>
+                              <span>🚫 ব্লকড দিন</span>
                             </div>
                           ) : isUnclosedWarning ? (
                             <div className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-bold text-amber-900 border border-amber-300">
@@ -177,7 +182,7 @@ export default function DateAuditTrackerModal({
                               <span>অসমাপ্ত (Unclosed)</span>
                             </div>
                           ) : (
-                            <span className="text-slate-400 text-[11px]">কোনো লেনদেন নেই</span>
+                            <span className="text-slate-400 text-[11px]">শুরু হয়নি (Not Opened)</span>
                           )}
                         </td>
                         <td className="p-2.5 text-center whitespace-nowrap">

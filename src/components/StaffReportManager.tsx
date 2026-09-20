@@ -14,6 +14,8 @@ import {
   getSummary,
   getCategories,
   isDayClosed,
+  isDayOpen,
+  getDayState,
   evaluateMathExpression,
   isIntermediateBlockedDate,
 } from "@/lib/storage";
@@ -250,6 +252,11 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
   const handleSave = () => {
     if (dayClosed) {
       alert("⚠️ এই তারিখের দিন সমাপ্ত (Day Closed) রয়েছে। কোনো নতুন এন্ট্রি করা যাবে না। পরিবর্তন করতে চাইলে ক্যাশবুক পেজ থেকে দিনটি Re-open করুন।");
+      return;
+    }
+    if (!isDayOpen(selectedDate)) {
+      alert(`⚠️ এই তারিখের (${selectedDate}) কর্মদিবস এখনও শুরু (Day Open) করা হয়নি। কোনো রিপোর্ট এন্ট্রি করার পূর্বে দিনটি Day Open করুন।`);
+      window.dispatchEvent(new CustomEvent("open-day-open-modal"));
       return;
     }
     const blockCheck = isIntermediateBlockedDate(selectedDate);
@@ -815,19 +822,21 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
           <button
             type="button"
             onClick={handleSave}
-            disabled={dayClosed || isIntermediateBlockedDate(selectedDate).blocked}
+            disabled={dayClosed || !isDayOpen(selectedDate) || isIntermediateBlockedDate(selectedDate).blocked}
             className="rounded-lg bg-green-600 px-6 py-2 text-sm font-bold text-white shadow hover:bg-green-700 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {dayClosed
               ? "🔒 দিন সমাপ্ত (লকড)"
               : isIntermediateBlockedDate(selectedDate).blocked
               ? "🚫 তারিখ ব্লকড"
+              : !isDayOpen(selectedDate)
+              ? "☀️ দিন শুরু (Day Open) করুন"
               : "Save Report"}
           </button>
           <button
             type="button"
             onClick={handleReset}
-            disabled={dayClosed || isIntermediateBlockedDate(selectedDate).blocked}
+            disabled={dayClosed || !isDayOpen(selectedDate) || isIntermediateBlockedDate(selectedDate).blocked}
             className="rounded-lg bg-slate-500 px-6 py-2 text-sm font-bold text-white hover:bg-slate-600 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Reset

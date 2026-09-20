@@ -8,6 +8,7 @@ import type {
   KallyanRule,
   RebateRateItem,
   DayClosure,
+  DayOpen,
 } from "@/types";
 
 export const NEON_DATABASE_URL =
@@ -453,6 +454,82 @@ export async function ensureAppSettingsTable(): Promise<void> {
     `;
   } catch (e) {
     console.warn("ensureAppSettingsTable failed:", e);
+  }
+}
+
+/**
+ * Ensure day_opens table exists in Neon
+ */
+export async function ensureDayOpensTable(): Promise<void> {
+  try {
+    await sql`
+      CREATE TABLE IF NOT EXISTS day_opens (
+        id SERIAL PRIMARY KEY,
+        open_date VARCHAR(20) UNIQUE NOT NULL,
+        prev_close_date VARCHAR(20),
+        opening_cash NUMERIC DEFAULT 0,
+        opening_bank NUMERIC DEFAULT 0,
+        opened_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        opened_by VARCHAR(100) DEFAULT 'Cashier'
+      );
+    `;
+  } catch (e) {
+    console.warn("ensureDayOpensTable warning:", e);
+  }
+}
+
+/**
+ * Fetch all day opens from Neon
+ */
+export async function fetchDayOpensFromNeon(): Promise<DayOpen[]> {
+  try {
+    await ensureDayOpensTable();
+    const rows = await sql`
+      SELECT id, open_date, prev_close_date, opening_cash, opening_bank, opened_at, opened_by
+      FROM day_opens
+      ORDER BY open_date DESC
+    `;
+    return rows.map((r: any) => ({
+      id: Number(r.id),
+      openDate: r.open_date,
+      prevCloseDate: r.prev_close_date || null,
+      openingCash: Number(r.opening_cash) || 0,
+      openingBank: Number(r.opening_bank) || 0,
+      openedAt: r.opened_at ? new Date(r.opened_at).toISOString() : new Date().toISOString(),
+      openedBy: r.opened_by || "Cashier",
+    }));
+  } catch (e) {
+    console.warn("fetchDayOpensFromNeon error:", e);
+    return [];
+  }
+}
+
+/**
+ * Upsert day open in Neon
+ */
+export async function upsertDayOpenInNeon(o: DayOpen): Promise<void> {
+  try {
+    await ensureDayOpensTable();
+    await sql`
+      INSERT INTO day_opens (open_date, prev_close_date, opening_cash, opening_bank, opened_at, opened_by)
+      VALUES (
+        ${o.openDate},
+        ${o.prevCloseDate || null},
+        ${o.openingCash},
+        ${o.openingBank},
+        ${o.openedAt},
+        ${o.openedBy || "Cashier"}
+      )
+      ON CONFLICT (open_date)
+      DO UPDATE SET
+        prev_close_date = EXCLUDED.prev_close_date,
+        opening_cash = EXCLUDED.opening_cash,
+        opening_bank = EXCLUDED.opening_bank,
+        opened_at = EXCLUDED.opened_at,
+        opened_by = EXCLUDED.opened_by;
+    `;
+  } catch (e) {
+    console.warn("upsertDayOpenInNeon error:", e);
   }
 }
 

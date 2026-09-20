@@ -47,7 +47,7 @@ export default function DatePicker({
       all.forEach((a) => {
         if (a.isClosed) {
           map[a.date] = "closed";
-        } else if (a.txCount > 0 || a.srCount > 0) {
+        } else if (a.isOpen || a.txCount > 0 || a.srCount > 0) {
           map[a.date] = "unclosed";
         }
       });
