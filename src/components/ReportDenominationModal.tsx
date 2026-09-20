@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { fmt } from "./DenominationPopup";
 
 export const NOTES = [1000, 500, 200, 100, 50, 20, 10, 5, 2, 1] as const;
-const FIELD_COUNT = NOTES.length + 1; // 10 notes + 1 other
+const FIELD_COUNT = NOTES.length; // 10 notes
 
 function detectMobile() {
   if (typeof window === "undefined") return false;
@@ -52,12 +52,10 @@ export default function ReportDenominationModal({
 
   if (!open) return null;
 
-  const noteOnlyTotal = NOTES.reduce((acc, note, i) => {
-    const qty = parseInt(qtyVals[i + 1] || "0", 10) || 0;
+  const totalNotesAmount = NOTES.reduce((acc, note, i) => {
+    const qty = parseInt(qtyVals[i] || "0", 10) || 0;
     return acc + qty * note;
   }, 0);
-  const otherAmt = Number(qtyVals[0]) || 0;
-  const totalNotesAmount = noteOnlyTotal + otherAmt;
 
   const totalCredit = creditVals.reduce((acc, v) => acc + (Number(v) || 0), 0);
   const totalDebit = debitVals.reduce((acc, v) => acc + (Number(v) || 0), 0);
@@ -144,7 +142,7 @@ export default function ReportDenominationModal({
     else if (col === "credit") cur = creditVals[row] || "";
     else if (col === "debit") cur = debitVals[row] || "";
 
-    const isDecimalAllowed = col === "credit" || col === "debit" || row === 0;
+    const isDecimalAllowed = col === "credit" || col === "debit";
     let next = cur;
     if (k === "⌫") {
       next = cur.slice(0, -1);
@@ -184,11 +182,10 @@ export default function ReportDenominationModal({
     </button>
   );
 
-  const labelOf = (i: number) => (i === 0 ? "Manual" : String(NOTES[i - 1]));
+  const labelOf = (i: number) => String(NOTES[i]);
   const rowAmountOf = (i: number) => {
-    if (i === 0) return otherAmt;
     const qty = parseInt(qtyVals[i] || "0", 10) || 0;
-    return qty * NOTES[i - 1];
+    return qty * NOTES[i];
   };
 
   return (
@@ -280,13 +277,12 @@ export default function ReportDenominationModal({
             </thead>
             <tbody>
               {Array.from({ length: FIELD_COUNT }, (_, i) => {
-                const isOther = i === 0;
                 const rowAmt = rowAmountOf(i);
                 const isQtyActive = activeCell.row === i && activeCell.col === "qty";
                 const isCreditActive = activeCell.row === i && activeCell.col === "credit";
                 const isDebitActive = activeCell.row === i && activeCell.col === "debit";
                 return (
-                  <tr key={i} className={`border-b hover:bg-slate-50 transition ${isOther ? "bg-amber-50/70 font-bold border-b-2 border-amber-300" : ""}`}>
+                  <tr key={i} className="border-b hover:bg-slate-50 transition">
                     <td className="border border-slate-300 px-2 py-1 text-center font-mono font-bold text-slate-900 sm:text-base">
                       {labelOf(i)}
                     </td>
@@ -296,10 +292,10 @@ export default function ReportDenominationModal({
                           inputRefs.current[`${i}-qty`] = el;
                         }}
                         type="text"
-                        inputMode={showKeypad ? "none" : (isOther ? "decimal" : "numeric")}
+                        inputMode={showKeypad ? "none" : "numeric"}
                         readOnly={showKeypad}
                         value={qtyVals[i]}
-                        placeholder={isOther ? "Any" : "0"}
+                        placeholder="0"
                         onFocus={(e) => {
                           if (showKeypad) e.target.blur();
                           focusCell(i, "qty");
