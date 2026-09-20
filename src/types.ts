@@ -86,6 +86,7 @@ export type Summary = {
   bank: number;
   prevCash: number;
   prevBank: number;
+  prevDate?: string;
   todayCashInHand: number;
   todayBankBalance: number;
   receive: number;

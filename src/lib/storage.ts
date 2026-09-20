@@ -568,10 +568,13 @@ export function getSummary(targetDate: string): Summary {
   dateSet.add(targetDate);
   const sortedDates = Array.from(dateSet).sort();
 
+  const closures = getLocalDayClosures();
   let runningCash = 0;
   let runningBank = 0;
   let prevCash = 0;
   let prevBank = 0;
+  let prevDate = "";
+  let lastActiveDateBeforeTarget = "";
   let todayCash = 0;
   let todayBank = 0;
   let todayReceive = 0;
@@ -589,9 +592,14 @@ export function getSummary(targetDate: string): Summary {
     if (d === targetDate) {
       prevCash = runningCash;
       prevBank = runningBank;
+      prevDate = lastActiveDateBeforeTarget;
     }
     const dayTx = allTx.filter((t) => t.txDate === d);
     const daySr = allSr.filter((s) => s.reportDate === d);
+
+    if (d < targetDate && (dayTx.length > 0 || daySr.length > 0)) {
+      lastActiveDateBeforeTarget = d;
+    }
 
     const targetReceives = dayTx.filter((t) => t.type === "receive");
     const targetPayments = dayTx.filter((t) => t.type === "payment");
@@ -689,20 +697,27 @@ export function getSummary(targetDate: string): Summary {
       )
       .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
 
-    // Report page Today Cash & Today Bank formulas for day d:
-    // Report page Today Cash and Today Bank will become next day's opening balances:
-    // User exact rule:
-    // Cash in Hand = receive page all receive (with previous cash in hand, without fund receive) + report page today all report এর kallyan + loan form - payment page এর all payment
-    const dayClosingCash = Math.round(
-      runningCash + dayTxCashReceive + dayKallayan + dayLoanForm - dayTxPayment
-    );
+    // Check if day d was formally closed
+    const closed = closures.find((c) => c.closeDate === d && c.status === "closed");
+    if (closed) {
+      runningCash = Number(closed.closingCash) || 0;
+      runningBank = Number(closed.closingBank) || 0;
+    } else {
+      // Report page Today Cash & Today Bank formulas for day d:
+      // Report page Today Cash and Today Bank will become next day's opening balances:
+      // User exact rule:
+      // Cash in Hand = receive page all receive (with previous cash in hand, without fund receive) + report page today all report এর kallyan + loan form - payment page এর all payment
+      const dayClosingCash = Math.round(
+        runningCash + dayTxCashReceive + dayKallayan + dayLoanForm - dayTxPayment
+      );
 
-    const dayClosingBank = Math.round(
-      runningBank - dayBankWithdraw + dayBankDeposit + dayFundReceive
-    );
+      const dayClosingBank = Math.round(
+        runningBank - dayBankWithdraw + dayBankDeposit + dayFundReceive
+      );
 
-    runningCash = dayClosingCash;
-    runningBank = dayClosingBank;
+      runningCash = dayClosingCash;
+      runningBank = dayClosingBank;
+    }
 
     if (d === targetDate) {
       todayReceive = dayTxCashReceive;
@@ -755,6 +770,7 @@ export function getSummary(targetDate: string): Summary {
     bank: todayBank,
     prevCash,
     prevBank,
+    prevDate,
     todayCashInHand: todayCash,
     todayBankBalance: todayBank,
     receive: totalReceiveWithOpening,
