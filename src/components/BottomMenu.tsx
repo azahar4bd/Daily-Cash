@@ -61,12 +61,12 @@ export default function BottomMenu({
 
   return (
     <>
-      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-800 bg-slate-900/95 backdrop-blur-md text-white shadow-2xl">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-3 py-2 sm:px-4">
+      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-800 bg-slate-900/95 backdrop-blur-md text-white shadow-2xl pb-[env(safe-area-inset-bottom,0px)]">
+        <div className="mx-auto flex max-w-6xl flex-nowrap items-center justify-between gap-2 px-2.5 py-2 sm:px-4">
           
           {/* Left: Brand & Cloud Tools */}
-          <div className="flex items-center gap-1.5 sm:gap-2">
-            <span className="font-black text-xs sm:text-sm tracking-tight whitespace-nowrap text-amber-400">
+          <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+            <span className="hidden xs:inline font-black text-xs sm:text-sm tracking-tight whitespace-nowrap text-amber-400">
               Cash Gobra
             </span>
 
@@ -102,12 +102,12 @@ export default function BottomMenu({
             </button>
           </div>
 
-          {/* Center: Master Date Filter */}
-          <div className="flex items-center gap-1.5">
+          {/* Center: Master Date Filter — horizontally scrollable so ☰ never goes off-screen */}
+          <div className="no-scrollbar flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto sm:flex-none sm:overflow-visible">
             <span className="text-[11px] font-bold text-slate-300 hidden sm:inline whitespace-nowrap">
               Date:
             </span>
-            <div className="w-28 sm:w-36 text-slate-900">
+            <div className="w-[104px] shrink-0 sm:w-36 text-slate-900">
               <DatePicker
                 value={selectedDate}
                 onChange={(v) => onDateChange(v || today)}
@@ -120,7 +120,7 @@ export default function BottomMenu({
               <button
                 type="button"
                 onClick={() => onDateChange(today)}
-                className="rounded-lg bg-blue-600 hover:bg-blue-500 px-2 py-1 text-[10px] sm:text-xs font-bold text-white transition cursor-pointer"
+                className="shrink-0 rounded-lg bg-blue-600 hover:bg-blue-500 px-2 py-1 text-[10px] sm:text-xs font-bold text-white transition cursor-pointer whitespace-nowrap"
               >
                 Today
               </button>
@@ -129,24 +129,24 @@ export default function BottomMenu({
             {/* Day State — status only. Open/Close কন্ট্রোল একটিই জায়গায় (Working-Day বার) */}
             {isDayClosed(selectedDate) ? (
               <span
-                className="rounded-lg bg-rose-950/80 border border-rose-700/80 px-2 py-1 text-[10px] font-bold text-rose-300 whitespace-nowrap"
+                className="shrink-0 rounded-lg bg-rose-950/80 border border-rose-700/80 px-2 py-1 text-[10px] font-bold text-rose-300 whitespace-nowrap"
                 title="দিন সমাপ্ত (Day Closed)"
               >
-                🔒 Closed
+                🔒 <span className="hidden sm:inline">Closed</span>
               </span>
             ) : isDayOpen(selectedDate) ? (
               <span
-                className="rounded-lg bg-emerald-950/80 border border-emerald-700/80 px-2 py-1 text-[10px] font-bold text-emerald-300 whitespace-nowrap"
+                className="shrink-0 rounded-lg bg-emerald-950/80 border border-emerald-700/80 px-2 py-1 text-[10px] font-bold text-emerald-300 whitespace-nowrap"
                 title="কর্মদিবস চালু (Day Open)"
               >
-                ☀️ Open
+                ☀️ <span className="hidden sm:inline">Open</span>
               </span>
             ) : (
               <span
-                className="rounded-lg bg-amber-950/80 border border-amber-700/80 px-2 py-1 text-[10px] font-bold text-amber-300 whitespace-nowrap"
+                className="shrink-0 rounded-lg bg-amber-950/80 border border-amber-700/80 px-2 py-1 text-[10px] font-bold text-amber-300 whitespace-nowrap"
                 title="কর্মদিবস এখনও শুরু করা হয়নি"
               >
-                ⏳ Not Opened
+                ⏳ <span className="hidden sm:inline">Not Opened</span>
               </span>
             )}
 
@@ -161,8 +161,8 @@ export default function BottomMenu({
             </button>
           </div>
 
-          {/* Right: Navigation Controls */}
-          <div className="flex items-center gap-1.5">
+          {/* Right: Navigation Controls — always pinned visible */}
+          <div className="flex shrink-0 items-center gap-1.5">
             {/* Desktop Tabs */}
             <div className="hidden lg:flex items-center gap-1">
               {pages.map((p) => (
@@ -195,7 +195,7 @@ export default function BottomMenu({
                 <span className="block h-0.5 w-3.5 bg-amber-400 rounded-full"></span>
                 <span className="block h-0.5 w-3.5 bg-amber-400 rounded-full"></span>
               </div>
-              <span className="text-amber-400 font-bold truncate max-w-[70px]">
+              <span className="hidden xs:inline text-amber-400 font-bold truncate max-w-[56px]">
                 {activePage.label}
               </span>
             </button>

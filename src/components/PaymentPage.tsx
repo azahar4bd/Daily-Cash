@@ -229,21 +229,29 @@ export default function PaymentPage({ selectedDate }: { selectedDate: string }) 
         </div>
 
         {isDayClosed(form.txDate) && (
-          <div className="mb-4 rounded-xl border border-rose-300 bg-rose-50 p-3 text-xs sm:text-sm font-bold text-rose-800 flex items-center justify-between">
-            <span className="flex items-center gap-2">
-              <span>🔒</span>
-              <span>এই তারিখের ({form.txDate}) দিন সমাপ্ত (Day Closed) রয়েছে। হিসাবটি লক করা আছে।</span>
-            </span>
+          <div className="mb-4 rounded-xl border border-rose-300 bg-rose-50 p-3 sm:p-3.5 text-rose-800 shadow-xs">
+            <div className="flex items-start gap-2">
+              <span className="shrink-0 text-base leading-5">🔒</span>
+              <div className="locked-notice-text flex-1">
+                <div className="text-xs sm:text-sm font-black text-rose-950">
+                  দিন সমাপ্ত (Day Closed)
+                </div>
+                <div className="mt-0.5 text-[11px] sm:text-xs font-medium leading-relaxed">
+                  এই তারিখের (<span className="font-mono font-bold">{form.txDate}</span>) হিসাব লক করা
+                  আছে — কোনো এন্ট্রি বা পরিবর্তন করা যাবে না।
+                </div>
+              </div>
+            </div>
             <button
               type="button"
               onClick={() => {
-                window.dispatchEvent(new CustomEvent("open-date-tracker"));
-                window.scrollTo({ top: 0, behavior: "smooth" });
+                window.dispatchEvent(new CustomEvent("scroll-to-day-bar"));
               }}
-              className="text-xs text-rose-700 hover:text-rose-900 underline font-black cursor-pointer whitespace-nowrap ml-2"
+              className="mt-2.5 w-full sm:w-auto rounded-lg bg-amber-600 hover:bg-amber-700 active:scale-[.98] text-white px-3 py-2 text-[11px] sm:text-xs font-black shadow-xs transition cursor-pointer flex items-center justify-center gap-1.5"
               title="উপরের Working-Day বার থেকে দিনটি Re-open করুন"
             >
-              🔓 Working-Day বার থেকে Re-open করুন
+              <span>🔓</span>
+              <span>Re-open করতে উপরে যান (Working-Day বার)</span>
             </button>
           </div>
         )}

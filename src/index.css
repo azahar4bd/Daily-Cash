@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+/* Extra-small breakpoint (small phones) */
+@theme {
+  --breakpoint-xs: 400px;
+}
+
 @page {
   size: A4 portrait;
   margin: 8mm 10mm;
@@ -73,3 +78,19 @@ div[class*="netlify-hud"] {
     break-inside: avoid !important;
   }
 }
+
+/* ───────── Bottom bar helpers ───────── */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Working-Day bar highlight pulse (when jumping from a locked notice) */
+@keyframes dayBarFlash {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
+  25%      { box-shadow: 0 0 0 6px rgba(245, 158, 11, 0.45); }
+  50%      { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
+  75%      { box-shadow: 0 0 0 6px rgba(245, 158, 11, 0.45); }
+}
+.day-bar-flash { animation: dayBarFlash 1.1s ease-in-out 2; border-radius: 16px; }
+
+/* Locked-notice responsive stacking */
+.locked-notice-text { min-width: 0; overflow-wrap: anywhere; word-break: break-word; }

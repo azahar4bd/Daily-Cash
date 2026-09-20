@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { getDayState, isIntermediateBlockedDate, reopenDay, getSummary } from "@/lib/storage";
 import type { DayState } from "@/types";
 import { formatDisplay } from "./DatePicker";
@@ -20,6 +20,8 @@ export default function DayStateBanner({
   const [dayState, setDayState] = useState<DayState>("not_opened");
   const [openingCash, setOpeningCash] = useState(0);
   const [openingBank, setOpeningBank] = useState(0);
+  const [flash, setFlash] = useState(false);
+  const barRef = useRef<HTMLDivElement | null>(null);
 
   const refresh = () => {
     setDayState(getDayState(selectedDate));
@@ -40,11 +42,20 @@ export default function DayStateBanner({
     window.addEventListener("day-close-changed", handleUpdate);
     window.addEventListener("day-open-changed", handleUpdate);
     window.addEventListener("storage", handleUpdate);
+
+    const jumpHere = () => {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      setFlash(true);
+      window.setTimeout(() => setFlash(false), 2400);
+    };
+    window.addEventListener("scroll-to-day-bar", jumpHere);
+
     return () => {
       window.removeEventListener("tx-changed", handleUpdate);
       window.removeEventListener("day-close-changed", handleUpdate);
       window.removeEventListener("day-open-changed", handleUpdate);
       window.removeEventListener("storage", handleUpdate);
+      window.removeEventListener("scroll-to-day-bar", jumpHere);
     };
   }, [selectedDate]);
 
@@ -66,7 +77,7 @@ export default function DayStateBanner({
   /* ───────────────────────── A. NOT OPENED ───────────────────────── */
   if (dayState === "not_opened") {
     return (
-      <div className="mb-4 rounded-2xl border-2 border-amber-400 bg-linear-to-r from-amber-50 via-orange-50 to-amber-100/70 p-3.5 sm:p-4 text-amber-950 shadow-sm animate-in fade-in duration-200">
+      <div ref={barRef} className={`mb-4 rounded-2xl border-2 border-amber-400 bg-linear-to-r from-amber-50 via-orange-50 to-amber-100/70 p-3.5 sm:p-4 text-amber-950 shadow-sm animate-in fade-in duration-200 ${flash ? "day-bar-flash" : ""}`}>
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div className="flex items-start gap-2.5">
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-500 text-white text-lg font-black shadow-xs">
@@ -116,7 +127,7 @@ export default function DayStateBanner({
   /* ───────────────────────── B. CLOSED ───────────────────────── */
   if (dayState === "closed") {
     return (
-      <div className="mb-4 rounded-2xl border border-rose-300 bg-rose-50 p-3 text-xs sm:text-sm font-bold text-rose-900 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5">
+      <div ref={barRef} className={`mb-4 rounded-2xl border border-rose-300 bg-rose-50 p-3 text-xs sm:text-sm font-bold text-rose-900 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 ${flash ? "day-bar-flash" : ""}`}>
         <div className="flex items-center gap-2">
           <span className="text-base">🔒</span>
           <span>
@@ -139,7 +150,7 @@ export default function DayStateBanner({
 
   /* ───────────────────────── C. OPEN ───────────────────────── */
   return (
-    <div className="mb-4 rounded-xl border border-emerald-300 bg-emerald-50/70 px-3.5 py-2 text-xs text-emerald-900 shadow-2xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+    <div ref={barRef} className={`mb-4 rounded-xl border border-emerald-300 bg-emerald-50/70 px-3.5 py-2 text-xs text-emerald-900 shadow-2xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 ${flash ? "day-bar-flash" : ""}`}>
       <div className="flex items-center gap-1.5 flex-wrap">
         <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
         <span className="font-bold">
