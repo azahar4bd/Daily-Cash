@@ -908,3 +908,65 @@ export function getReportPageFigures(selectedDate: string): {
 
   return { reportCashInHand, reportBankBalance };
 }
+
+export function getReceivePaymentCashInHand(targetDate: string): {
+  cashInHand: number;
+  allReceiveWithoutFund: number;
+  kallyan: number;
+  loanForm: number;
+  allPayment: number;
+} {
+  const allTx = getLocalTxs();
+  const dayTx = allTx.filter((t) => t.txDate === targetDate);
+  const targetReceives = dayTx.filter((t) => t.type === "receive");
+  const targetPayments = dayTx.filter((t) => t.type === "payment");
+
+  // 1. receive page all receive (without fund receive)
+  const allReceiveWithoutFund = targetReceives
+    .filter((t) => {
+      const c = t.category.toLowerCase().trim();
+      return !c.includes("fund receive");
+    })
+    .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+
+  // 2. disburse loans to calculate kallyan + loan form
+  const disburseLoans = targetPayments.filter((t) => {
+    const cat = t.category.toLowerCase().trim();
+    return (
+      ["jagoron", "agrossor", "buni", "sufolon", "mfce"].some((k) =>
+        cat.includes(k)
+      ) || Boolean(t.subCategory && t.subCategory.trim().length > 0)
+    );
+  });
+
+  let buniyadDisburseSum = 0;
+  let otherDisburseSum = 0;
+  for (const t of disburseLoans) {
+    const amt = Number(t.amount) || 0;
+    const cat = t.category.toLowerCase().trim();
+    if (cat.includes("buni")) buniyadDisburseSum += amt;
+    else otherDisburseSum += amt;
+  }
+  const kallyan = Math.round(otherDisburseSum * 0.01 + buniyadDisburseSum * 0.005);
+  const loanForm = disburseLoans.length * 5;
+
+  // 3. payment page all payment
+  const allPayment = targetPayments.reduce(
+    (sum, t) => sum + (Number(t.amount) || 0),
+    0
+  );
+
+  // Formula:
+  // cash in hand = receive page all receive(without fund receive) + report page today all report এর kallyan+loan form - payment page এর all payment
+  const cashInHand = Math.round(
+    allReceiveWithoutFund + kallyan + loanForm - allPayment
+  );
+
+  return {
+    cashInHand,
+    allReceiveWithoutFund,
+    kallyan,
+    loanForm,
+    allPayment,
+  };
+}

@@ -11,6 +11,7 @@ import {
   deleteTx,
   getCategories,
   getSummary,
+  getReceivePaymentCashInHand,
   isDayClosed,
 } from "@/lib/storage";
 import type { Tx, Cat, Denom } from "@/types";
@@ -148,6 +149,7 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
 
   const displayedSum = displayedRows.reduce((s, r) => s + Number(r.amount), 0);
   const totalReceiveSum = rows.reduce((s, r) => s + Number(r.amount), 0);
+  const cashFigures = getReceivePaymentCashInHand(selectedDate);
 
   const uniqueCategories: string[] = Array.from(
     new Set(rows.map((r) => r.category.toLowerCase().trim()).filter(Boolean))
@@ -168,6 +170,38 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
           <span className="text-xs font-mono font-bold text-slate-600 bg-slate-100 px-2.5 py-1 rounded border border-slate-200">
             {form.txDate}
           </span>
+        </div>
+
+        {/* Live Cash in Hand Stat Card */}
+        <div className="mb-4 rounded-xl border border-emerald-300 bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-100/70 p-3 sm:p-3.5 shadow-2xs">
+          <div className="flex flex-wrap items-center justify-between gap-2.5">
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-600 text-white text-lg shadow-xs shrink-0">
+                💵
+              </div>
+              <div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs sm:text-sm font-black uppercase tracking-wider text-emerald-950">
+                    Cash in Hand (হাতে নগদ)
+                  </span>
+                  <span className="rounded bg-emerald-200/90 px-1.5 py-0.2 text-[10px] font-bold text-emerald-950">
+                    Live
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-600 font-medium">
+                  রিসিভ (ফান্ড বাদ) + কল্যাণ + লোন ফরম − পেমেন্ট
+                </p>
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="font-mono text-xl sm:text-2xl font-black text-emerald-900">
+                {fmt(cashFigures.cashInHand)} ৳
+              </div>
+              <div className="text-[10px] text-slate-500 font-mono">
+                রিসিভ: {fmt(cashFigures.allReceiveWithoutFund)} + কল্যাণ: {fmt(cashFigures.kallyan)} + ফরম: {fmt(cashFigures.loanForm)} − পেমেন্ট: {fmt(cashFigures.allPayment)}
+              </div>
+            </div>
+          </div>
         </div>
 
         {isDayClosed(form.txDate) && (
@@ -451,15 +485,26 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
                   <td />
                 </tr>
                 {filterCategory === "all" && (
-                  <tr className="bg-emerald-50">
-                    <td colSpan={4} className="px-3.5 py-2 text-right font-black text-emerald-900">
-                      Total Receive
-                    </td>
-                    <td className="px-3.5 py-2 text-right font-mono font-black text-emerald-800 text-sm sm:text-base">
-                      {fmt((opening?.prevCash || 0) + totalReceiveSum)}
-                    </td>
-                    <td />
-                  </tr>
+                  <>
+                    <tr className="bg-emerald-50">
+                      <td colSpan={4} className="px-3.5 py-2 text-right font-black text-emerald-900">
+                        Total Receive (Opening সহ)
+                      </td>
+                      <td className="px-3.5 py-2 text-right font-mono font-black text-emerald-800 text-sm sm:text-base">
+                        {fmt((opening?.prevCash || 0) + totalReceiveSum)}
+                      </td>
+                      <td />
+                    </tr>
+                    <tr className="bg-emerald-100/90 border-t-2 border-emerald-400 font-black">
+                      <td colSpan={4} className="px-3.5 py-2.5 text-right font-black text-emerald-950 text-xs sm:text-sm">
+                        Cash in Hand (রিসিভ + কল্যাণ + লোন ফরম − পেমেন্ট)
+                      </td>
+                      <td className="px-3.5 py-2.5 text-right font-mono font-black text-emerald-950 text-sm sm:text-base">
+                        {fmt(cashFigures.cashInHand)}
+                      </td>
+                      <td />
+                    </tr>
+                  </>
                 )}
               </tfoot>
             )}
