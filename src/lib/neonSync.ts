@@ -172,14 +172,6 @@ export async function syncAllWithNeon(): Promise<{ success: boolean; message: st
       if (rawSr) localSrs = JSON.parse(rawSr);
     } catch {}
 
-    // Explicit blacklist of accidental test transactions
-    const PURGED_TX_IDS = new Set([
-      "1789908057089",
-      "1789908071893",
-      "1789908127196",
-      "1789908138436",
-    ]);
-
     // Only push items that are in the pending queue to avoid resurrecting deleted items
     const q = getQueue();
     const queueTxIds = new Set(
@@ -190,9 +182,7 @@ export async function syncAllWithNeon(): Promise<{ success: boolean; message: st
       (t) =>
         queueTxIds.has(String(t.id)) &&
         !neonTxIdSet.has(String(t.id)) &&
-        !PURGED_TX_IDS.has(String(t.id)) &&
-        t.txDate !== "2026-09-18" &&
-        Number(t.amount) !== 200
+        t.txDate !== "2026-09-18"
     );
 
     if (localTxsToPush.length > 0) {
@@ -233,12 +223,7 @@ export async function syncAllWithNeon(): Promise<{ success: boolean; message: st
     }
 
     // 4. Update local storage with the cloud truth
-    const cleanTxs = neonTxs.filter(
-      (t) =>
-        !PURGED_TX_IDS.has(String(t.id)) &&
-        t.txDate !== "2026-09-18" &&
-        Number(t.amount) !== 200
-    );
+    const cleanTxs = neonTxs.filter((t) => t.txDate !== "2026-09-18");
     localStorage.setItem(TX_KEY, JSON.stringify(cleanTxs));
     localStorage.setItem(SR_KEY, JSON.stringify(neonSrs));
     localStorage.setItem(DAY_CLOSURES_KEY, JSON.stringify(neonDayClosures));

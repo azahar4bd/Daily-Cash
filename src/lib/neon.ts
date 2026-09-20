@@ -108,7 +108,9 @@ export async function upsertTxInNeon(t: Tx): Promise<void> {
  * Delete a transaction from Neon
  */
 export async function deleteTxFromNeon(id: number | string): Promise<void> {
-  await sql`DELETE FROM transactions WHERE id = ${String(id)}::bigint`;
+  const numId = Number(id);
+  if (!numId || isNaN(numId)) return;
+  await sql`DELETE FROM transactions WHERE id = ${numId}`;
 }
 
 /**
@@ -172,8 +174,10 @@ export async function upsertStaffReportInNeon(sr: StaffReportItem): Promise<void
 /**
  * Delete a staff report from Neon
  */
-export async function deleteStaffReportFromNeon(id: number): Promise<void> {
-  await sql`DELETE FROM staff_reports WHERE id = ${id}`;
+export async function deleteStaffReportFromNeon(id: number | string): Promise<void> {
+  const numId = Number(id);
+  if (!numId || isNaN(numId)) return;
+  await sql`DELETE FROM staff_reports WHERE id = ${numId}`;
 }
 
 /**
