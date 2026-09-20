@@ -12,6 +12,7 @@ import type {
 import { DEFAULT_CATEGORIES, DEFAULT_SUBCAT_RULES, DEFAULT_KALLYAN_RULE } from "./categories";
 import { DEFAULT_REBATE_RATES } from "./defaultRebateRates";
 import { enqueueNeonAction } from "./neonSync";
+import { deleteTxFromNeon } from "./neon";
 
 const TX_KEY = "gobra_local_transactions";
 const SR_KEY = "gobra_local_staff_reports";
@@ -139,11 +140,13 @@ export function updateTx(item: Tx): Tx {
   return item;
 }
 
-export function deleteTx(id: number): void {
-  const list = getLocalTxs().filter((t) => t.id !== id);
+export function deleteTx(id: number | string): void {
+  const targetIdStr = String(id);
+  const list = getLocalTxs().filter((t) => String(t.id) !== targetIdStr);
   localStorage.setItem(TX_KEY, JSON.stringify(list));
   window.dispatchEvent(new Event("tx-changed"));
   enqueueNeonAction({ type: "tx_del", payload: id });
+  deleteTxFromNeon(id).catch(console.error);
 }
 
 export function getLocalStaffReports(date?: string): StaffReportItem[] {

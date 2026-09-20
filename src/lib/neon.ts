@@ -107,8 +107,8 @@ export async function upsertTxInNeon(t: Tx): Promise<void> {
 /**
  * Delete a transaction from Neon
  */
-export async function deleteTxFromNeon(id: number): Promise<void> {
-  await sql`DELETE FROM transactions WHERE id = ${id}`;
+export async function deleteTxFromNeon(id: number | string): Promise<void> {
+  await sql`DELETE FROM transactions WHERE id = ${String(id)}::bigint`;
 }
 
 /**

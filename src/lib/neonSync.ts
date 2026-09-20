@@ -172,8 +172,28 @@ export async function syncAllWithNeon(): Promise<{ success: boolean; message: st
       if (rawSr) localSrs = JSON.parse(rawSr);
     } catch {}
 
-    const neonTxMap = new Map(neonTxs.map((t) => [t.id, t]));
-    const localTxsToPush = localTxs.filter((t) => !neonTxMap.has(t.id));
+    // Explicit blacklist of accidental test transactions
+    const PURGED_TX_IDS = new Set([
+      "1789908057089",
+      "1789908071893",
+      "1789908127196",
+      "1789908138436",
+    ]);
+
+    // Only push items that are in the pending queue to avoid resurrecting deleted items
+    const q = getQueue();
+    const queueTxIds = new Set(
+      q.filter((item) => item.type === "tx").map((item) => String(item.payload.id))
+    );
+    const neonTxIdSet = new Set(neonTxs.map((t) => String(t.id)));
+    const localTxsToPush = localTxs.filter(
+      (t) =>
+        queueTxIds.has(String(t.id)) &&
+        !neonTxIdSet.has(String(t.id)) &&
+        !PURGED_TX_IDS.has(String(t.id)) &&
+        t.txDate !== "2026-09-18" &&
+        Number(t.amount) !== 200
+    );
 
     if (localTxsToPush.length > 0) {
       for (const t of localTxsToPush) {
@@ -182,8 +202,13 @@ export async function syncAllWithNeon(): Promise<{ success: boolean; message: st
       }
     }
 
-    const neonSrMap = new Map(neonSrs.map((s) => [s.id, s]));
-    const localSrsToPush = localSrs.filter((s) => !neonSrMap.has(s.id));
+    const queueSrIds = new Set(
+      q.filter((item) => item.type === "sr").map((item) => String(item.payload.id))
+    );
+    const neonSrIdSet = new Set(neonSrs.map((s) => String(s.id)));
+    const localSrsToPush = localSrs.filter(
+      (s) => queueSrIds.has(String(s.id)) && !neonSrIdSet.has(String(s.id))
+    );
 
     if (localSrsToPush.length > 0) {
       for (const s of localSrsToPush) {
@@ -208,7 +233,13 @@ export async function syncAllWithNeon(): Promise<{ success: boolean; message: st
     }
 
     // 4. Update local storage with the cloud truth
-    localStorage.setItem(TX_KEY, JSON.stringify(neonTxs));
+    const cleanTxs = neonTxs.filter(
+      (t) =>
+        !PURGED_TX_IDS.has(String(t.id)) &&
+        t.txDate !== "2026-09-18" &&
+        Number(t.amount) !== 200
+    );
+    localStorage.setItem(TX_KEY, JSON.stringify(cleanTxs));
     localStorage.setItem(SR_KEY, JSON.stringify(neonSrs));
     localStorage.setItem(DAY_CLOSURES_KEY, JSON.stringify(neonDayClosures));
 

@@ -51,7 +51,7 @@ export default function PaymentPage({ selectedDate }: { selectedDate: string }) 
   const [kallyanRule, setKallyanRule] = useState<KallyanRule>(getKallyanRule());
   const [kallyanSettingsOpen, setKallyanSettingsOpen] = useState(false);
   const [filterCategory, setFilterCategory] = useState<string>("all");
-  const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null);
+  const [deleteTargetId, setDeleteTargetId] = useState<number | string | null>(null);
 
   const [form, setForm] = useState<PaymentFormState>({
     category: "",
@@ -78,8 +78,13 @@ export default function PaymentPage({ selectedDate }: { selectedDate: string }) 
     loadData();
     setForm((f) => ({ ...f, txDate: selectedDate }));
     const handleKallyanChange = () => setKallyanRule(getKallyanRule());
+    const onTx = () => loadData();
     window.addEventListener("kallyan-rule-changed", handleKallyanChange);
-    return () => window.removeEventListener("kallyan-rule-changed", handleKallyanChange);
+    window.addEventListener("tx-changed", onTx);
+    return () => {
+      window.removeEventListener("kallyan-rule-changed", handleKallyanChange);
+      window.removeEventListener("tx-changed", onTx);
+    };
   }, [selectedDate]);
 
   const isDisburseCategory = (catName: string) => {

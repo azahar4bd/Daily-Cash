@@ -38,7 +38,7 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
   const [cats, setCats] = useState<Cat[]>([]);
   const [manage, setManage] = useState(false);
   const [filterCategory, setFilterCategory] = useState<string>("all");
-  const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null);
+  const [deleteTargetId, setDeleteTargetId] = useState<number | string | null>(null);
 
   const [form, setForm] = useState<FormState>({
     category: "",
