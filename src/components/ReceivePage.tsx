@@ -11,6 +11,7 @@ import {
   deleteTx,
   getCategories,
   getSummary,
+  getReportPageFigures,
   isDayClosed,
 } from "@/lib/storage";
 import type { Tx, Cat, Denom } from "@/types";
@@ -57,8 +58,11 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
     const all = getLocalTxs();
     const filtered = all.filter((t) => t.type === "receive" && t.txDate === selectedDate);
     setRows(filtered);
-    const s = getSummary(selectedDate);
-    setOpening({ prevCash: s.prevCash, prevBank: s.prevBank });
+    const reportFigures = getReportPageFigures(selectedDate);
+    setOpening({
+      prevCash: reportFigures.reportCashInHand,
+      prevBank: reportFigures.reportBankBalance,
+    });
   };
 
   const loadCats = () => {
@@ -69,6 +73,9 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
     load();
     loadCats();
     setForm((f) => ({ ...f, txDate: selectedDate }));
+    const onTx = () => load();
+    window.addEventListener("tx-changed", onTx);
+    return () => window.removeEventListener("tx-changed", onTx);
   }, [selectedDate]);
 
   const categoryNames = cats.map((c) => c.name);
@@ -347,7 +354,7 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
                 <>
                   <tr className="border-b bg-emerald-50 font-semibold text-slate-900">
                     <td className="px-3.5 py-2">-</td>
-                    <td className="px-3.5 py-2 font-mono">{prevDay(selectedDate)}</td>
+                    <td className="px-3.5 py-2 font-mono">{selectedDate}</td>
                     <td className="px-3.5 py-2">Cash in Hand (Opening)</td>
                     <td className="px-3.5 py-2 text-slate-400 font-mono">-</td>
                     <td className="px-3.5 py-2 text-right font-mono text-emerald-800 font-bold">
@@ -357,7 +364,7 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
                   </tr>
                   <tr className="border-b bg-indigo-50 font-semibold text-slate-900">
                     <td className="px-3.5 py-2">-</td>
-                    <td className="px-3.5 py-2 font-mono">{prevDay(selectedDate)}</td>
+                    <td className="px-3.5 py-2 font-mono">{selectedDate}</td>
                     <td className="px-3.5 py-2">Bank Balance (Opening)</td>
                     <td className="px-3.5 py-2 text-slate-400 font-mono">-</td>
                     <td className="px-3.5 py-2 text-right font-mono text-indigo-800 font-bold">

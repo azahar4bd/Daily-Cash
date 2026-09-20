@@ -806,9 +806,11 @@ export function getReportPageFigures(selectedDate: string): {
     .filter((t) => t.category.toLowerCase().includes("bank withdraw"))
     .reduce((s, t) => s + (Number(t.amount) || 0), 0);
 
+  const dCats = getCategories("disburse").map((c) => c.name.toLowerCase().trim());
   const disburseLoans = targetPayments.filter((t) => {
     const cat = t.category.toLowerCase().trim();
     return (
+      dCats.includes(cat) ||
       ["jagoron", "agrossor", "buni", "sufolon", "mfce"].some((k) => cat.includes(k)) ||
       Boolean(t.subCategory && t.subCategory.trim().length > 0)
     );
@@ -860,6 +862,7 @@ export function getReportPageFigures(selectedDate: string): {
   const expOthers = targetPayments
     .filter((t) => {
       const c = t.category.toLowerCase().trim();
+      if (disburseLoans.some((d) => d.id === t.id)) return false;
       if (
         ["jagoron", "agrossor", "buni", "sufolon", "mfce", "bank deposit", "bank deposite"].some(
           (k) => c.includes(k)
