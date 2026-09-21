@@ -14,6 +14,7 @@ import {
   getSummary,
   getCategories,
   isDayClosed,
+  getDayClosure,
   isDayOpen,
   getDayState,
   evaluateMathExpression,
@@ -524,12 +525,19 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
   const todayAllReportTotalExpenditure = expenditureList.reduce((s, x) => s + x.amount, 0);
   const maxRowsCount = Math.max(incomeList.length, expenditureList.length);
 
-  const todayCashInHand = todayAllReportTotalIncome - todayAllReportTotalExpenditure;
+  // 🔒 Day Closed হলে বক্সে ওই দিনের একদম শেষ Closing মান (Day Close স্ন্যাপশট) দেখাবে
+  const closureSnap = getDayClosure(selectedDate);
+  const todayCashInHand =
+    dayClosed && closureSnap
+      ? Math.round(Number(closureSnap.closingCash) || 0)
+      : todayAllReportTotalIncome - todayAllReportTotalExpenditure;
   const fundReceiveToday = targetReceives
     .filter((t) => t.category.toLowerCase().includes("fund receive"))
     .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
   const todayBankBalance =
-    prevBank - incomeBankWithdraw + expBankDeposit + fundReceiveToday;
+    dayClosed && closureSnap
+      ? Math.round(Number(closureSnap.closingBank) || 0)
+      : prevBank - incomeBankWithdraw + expBankDeposit + fundReceiveToday;
 
   const checkExpens = todayAllReportTotalExpenditure - expBankDeposit;
   const checkWithdraw = incomeBankWithdraw;
@@ -857,13 +865,13 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
       <div className="rounded-2xl border border-slate-200 bg-white p-2.5 sm:p-3 shadow-sm">
         <div className="grid grid-cols-3 gap-2">
           <div className="flex flex-col justify-center rounded-xl bg-emerald-50 border border-emerald-300 p-2 sm:p-3 text-center">
-            <span className="text-[10px] sm:text-xs font-bold text-emerald-800">Today Cash</span>
+            <span className="text-[10px] sm:text-xs font-bold text-emerald-800">{dayClosed ? "Closing Cash" : "Today Cash"}</span>
             <span className="font-mono text-sm sm:text-xl font-black text-emerald-950 mt-0.5">
               {fmt(todayCashInHand)}
             </span>
           </div>
           <div className="flex flex-col justify-center rounded-xl bg-indigo-50 border border-indigo-300 p-2 sm:p-3 text-center">
-            <span className="text-[10px] sm:text-xs font-bold text-indigo-800">Today Bank</span>
+            <span className="text-[10px] sm:text-xs font-bold text-indigo-800">{dayClosed ? "Closing Bank" : "Today Bank"}</span>
             <span className="font-mono text-sm sm:text-xl font-black text-indigo-950 mt-0.5">
               {fmt(todayBankBalance)}
             </span>
