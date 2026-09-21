@@ -19,29 +19,8 @@ import {
 import { isDayClosed, isIntermediateBlockedDate, getCategories } from "@/lib/storage";
 import { formatDisplay } from "./DatePicker";
 import type { CheckEntry } from "@/types";
+import BankNameInput from "./BankNameInput";
 
-const BANKS = [
-  "Sonali Bank",
-  "Janata Bank",
-  "Agrani Bank",
-  "Rupali Bank",
-  "BASIC Bank",
-  "IFIC Bank",
-  "BRAC Bank",
-  "Dutch-Bangla Bank",
-  "Islami Bank",
-  "City Bank",
-  "Pubali Bank",
-  "Uttara Bank",
-  "Eastern Bank",
-  "Prime Bank",
-  "Southeast Bank",
-  "Mercantile Bank",
-  "Trust Bank",
-  "One Bank",
-  "Bank Asia",
-  "Others",
-];
 
 const emptyForm = (date: string) => ({
   checkDate: date,
@@ -308,6 +287,14 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
   };
 
   /* ───────── সার্চ ফিল্টার (কোড / সেন্টার কোড / তারিখ / নাম) ───────── */
+  /** আগের চেক-এন্ট্রিতে ব্যবহার করা ব্যাংকের নাম — সাজেশনেও আসবে */
+  const pastBanks = useMemo(() => {
+    const set = new Set<string>();
+    for (const e of entries) if (e.bankName && e.bankName.trim()) set.add(e.bankName.trim());
+    for (const m of getMembers()) if (m.bankName && m.bankName.trim()) set.add(m.bankName.trim());
+    return Array.from(set);
+  }, [entries]);
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return entries;
@@ -441,19 +428,16 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
 
           <div>
             <label className={labelCls}>Bank Name (ব্যাংকের নাম)</label>
-            <input
-              list="check-bank-list"
+            <BankNameInput
               value={form.bankName}
-              onChange={(e) => setForm((f) => ({ ...f, bankName: e.target.value }))}
+              onChange={(v) => setForm((f) => ({ ...f, bankName: v }))}
               placeholder="ব্যাংকের নাম লিখুন বা বেছে নিন"
               className={inputCls}
-              autoComplete="off"
+              extras={pastBanks}
             />
-            <datalist id="check-bank-list">
-              {BANKS.map((b) => (
-                <option key={b} value={b} />
-              ))}
-            </datalist>
+            <p className="mt-1 text-[10px] font-semibold text-slate-500">
+              🇧🇩 বাংলা বা English — যেভাবে লিখবেন, দুই ভাষাতেই সাজেশন আসবে
+            </p>
           </div>
 
           <div>

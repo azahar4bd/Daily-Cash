@@ -57,8 +57,6 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
   });
   const [edit, setEdit] = useState<FormState | null>(null);
   const [denomOpen, setDenomOpen] = useState(false);
-  /** ফেরত মোড — চালু থাকলে এন্ট্রি মাইনাস (ফেরত) হিসেবে সেভ হবে */
-  const [refundMode, setRefundMode] = useState(false);
   const [editDenomOpen, setEditDenomOpen] = useState(false);
   const [msg, setMsg] = useState("");
   const [opening, setOpening] = useState<{
@@ -110,10 +108,10 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
       return;
     }
     if (!form.category.trim()) return setMsg("Category required");
-    // ফেরত মোড চালু থাকলে (বা ডিনোমিনেশনে মাইনাস দিলে) মাইনাস পোস্টিং হবে
+    // ডিনোমিনেশনে মাইনাস (±) দিলে এন্ট্রি মাইনাস (ফেরত) হিসেবে সেভ হবে
     const rawAmount = Number(form.amount) || 0;
-    if (!rawAmount) return setMsg(refundMode ? "ফেরতের পরিমাণ দিন (০ নয়)" : "Amount required");
-    const finalAmount = refundMode ? -Math.abs(rawAmount) : rawAmount;
+    if (!rawAmount) return setMsg("Amount required");
+    const finalAmount = rawAmount;
 
     saveTx({
       type: "receive",
@@ -266,30 +264,12 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
 
           {/* Amount (Click for Denomination) - Placeholder text removed as requested */}
           <div>
-            <div className="mb-1 flex items-center justify-between gap-2">
-              <label className="block text-xs font-bold text-slate-700">Amount</label>
-              <button
-                type="button"
-                onClick={() => setRefundMode((v) => !v)}
-                title="চালু থাকলে এন্ট্রিটি মাইনাস (ফেরত) হিসেবে সেভ হবে"
-                className={`rounded-lg border px-2 py-0.5 text-[11px] font-black transition cursor-pointer ${
-                  refundMode
-                    ? "border-rose-400 bg-rose-600 text-white shadow"
-                    : "border-rose-300 bg-rose-50 text-rose-700 hover:bg-rose-100"
-                }`}
-              >
-                {refundMode ? "↩ ফেরত মোড চালু (−)" : "↩ ফেরত (−)"}
-              </button>
-            </div>
+            <label className="mb-1 block text-xs font-bold text-slate-700">Amount</label>
             <input
               readOnly
               disabled={isDayClosed(form.txDate)}
               value={
-                form.amount
-                  ? refundMode && form.amount > 0
-                    ? `-${fmt(form.amount)}`
-                    : fmt(form.amount)
-                  : ""
+                form.amount ? fmt(form.amount) : ""
               }
               placeholder=""
               onClick={() => {
@@ -309,7 +289,7 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
               className={`w-full rounded-lg border px-3 py-2 text-right font-mono text-lg font-bold transition shadow-2xs ${
                 isDayClosed(form.txDate)
                   ? "border-slate-300 bg-slate-100 text-slate-500 cursor-not-allowed opacity-60"
-                  : refundMode || (form.amount || 0) < 0
+                  : (form.amount || 0) < 0
                   ? "cursor-pointer border-rose-400 bg-rose-50 text-rose-700 focus:border-rose-500 focus:outline-none hover:bg-rose-100"
                   : "cursor-pointer border-slate-300 bg-yellow-50 focus:border-blue-500 focus:outline-none hover:bg-yellow-100/70"
               }`}
@@ -468,11 +448,6 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
                       }`}
                     >
                       {fmt(r.amount)}
-                      {Number(r.amount) < 0 && (
-                        <span className="ml-1.5 rounded bg-rose-100 px-1.5 py-0.5 text-[10px] font-bold text-rose-700">
-                          ↩ ফেরত
-                        </span>
-                      )}
                     </td>
                     <td className="px-3.5 py-2 text-center whitespace-nowrap">
                       <div className="flex items-center justify-center gap-2">
