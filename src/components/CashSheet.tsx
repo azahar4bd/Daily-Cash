@@ -488,7 +488,7 @@ export default function CashSheet({
               </button>
             )}
           </div>
-          <table className="w-full border-collapse border border-black text-xs sm:text-sm print:text-[11px]">
+          <table className="fill-page w-full border-collapse border border-black text-xs sm:text-sm print:text-[11px]">
             <thead>
               <tr className="bg-slate-50 print:bg-transparent">
                 <th colSpan={2} className="border border-black px-2 py-1 print:py-0.5 text-center font-bold">
@@ -701,7 +701,7 @@ export default function CashSheet({
           <div className="mb-1 print:mb-0.5 text-xs sm:text-sm print:text-xs font-bold text-slate-900">
             C. Credit Officer &amp; Others Cash Received Information.
           </div>
-          <table className="w-full border-collapse border border-black text-xs sm:text-sm print:text-[11px]">
+          <table className="fill-page w-full border-collapse border border-black text-xs sm:text-sm print:text-[11px]">
             <thead>
               <tr className="bg-slate-50 print:bg-transparent">
                 <th className="w-10 sm:w-12 print:w-12 border border-black px-2 py-1 print:py-0.5 text-center font-bold">
@@ -848,7 +848,7 @@ export default function CashSheet({
           }
           .cash-sheet-print-container {
             width: 100% !important;
-            height: auto !important;
+            height: 285mm !important;
             max-height: 288mm !important;
             display: flex !important;
             flex-direction: column !important;
@@ -856,6 +856,10 @@ export default function CashSheet({
             box-sizing: border-box !important;
             page-break-inside: avoid !important;
             break-inside: avoid !important;
+          }
+          table.fill-page {
+            flex: 1 1 auto !important;
+            height: 100% !important;
           }
           .signatures-block {
             page-break-before: avoid !important;
