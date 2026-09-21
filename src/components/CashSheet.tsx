@@ -311,7 +311,8 @@ export default function CashSheet({
     return acc + qty * n;
   }, 0);
   const coinsAmt = Math.round(Number(quantities.coins || 0));
-  const revenueStampAmt = Math.round(Number(quantities.revenueStamp || 0));
+  // প্রতি Revenue Stamp = ১০ টাকা → সংখ্যা × ১০ (যেমন 20 → 200)
+  const revenueStampAmt = Math.round(Number(quantities.revenueStamp || 0)) * 10;
   const pendingSlipAmt = Math.round(Number(quantities.pendingSlip || 0));
   const totalDenomination = noteTotal + coinsAmt + revenueStampAmt + pendingSlipAmt;
 
@@ -603,6 +604,7 @@ export default function CashSheet({
               <tr>
                 <td className="border border-black px-2.5 py-0.5 sm:py-1 print:py-0.5 text-center font-medium">
                   Revenue Stamp
+                  <span className="print:hidden ml-1 text-[9px] font-black text-indigo-600">×১০</span>
                 </td>
                 <td className="border border-black px-1.5 py-0.5 print:py-0.5 text-center">
                   {isInteractive ? (
