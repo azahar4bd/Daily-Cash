@@ -16,11 +16,14 @@ import {
   deleteCheckEntry,
   isDuplicateCheck,
 } from "@/lib/checkStore";
-import { isDayClosed, isIntermediateBlockedDate, getCategories } from "@/lib/storage";
+import { isDayClosed, isIntermediateBlockedDate } from "@/lib/storage";
 import { formatDisplay } from "./DatePicker";
 import type { CheckEntry } from "@/types";
 import BankNameInput from "./BankNameInput";
 
+
+/** Project ড্রপডাউনের নির্ধারিত তালিকা */
+const PROJECT_OPTIONS = ["jagoron", "agrossor"];
 
 const emptyForm = (date: string) => ({
   checkDate: date,
@@ -323,27 +326,11 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
     [entries]
   );
 
-  /* ───────── Disbursse ও প্রকল্পের সাজেশন (আগের এন্ট্রি + অ্যাপের ডিসবার্স ক্যাটাগরি) ───────── */
-  const disbursseOptions = useMemo(() => {
-    const set = new Set<string>();
-    try {
-      getCategories("disburse").forEach((c) => {
-        if (c && c.name) set.add(c.name);
-      });
-    } catch {}
-    entries.forEach((e) => {
-      if (e.disbursse) set.add(e.disbursse);
-    });
-    return Array.from(set).sort((a, b) => a.localeCompare(b));
-  }, [entries]);
-
-  const projectOptions = useMemo(() => {
-    const set = new Set<string>();
-    entries.forEach((e) => {
-      if (e.project) set.add(e.project);
-    });
-    return Array.from(set).sort((a, b) => a.localeCompare(b));
-  }, [entries]);
+  /** Disbursse amount সুন্দর করে দেখানোর জন্য */
+  const fmtAmt = (v: string) => {
+    const n = Number(v);
+    return v.trim() !== "" && Number.isFinite(n) ? n.toLocaleString("en-IN") : v;
+  };
 
   const inputCls =
     "w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200";
@@ -446,35 +433,36 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
           </div>
 
           <div>
-            <label className={labelCls}>Disbursse</label>
+            <label className={labelCls}>Disbursse (Amount)</label>
             <input
-              list="check-disbursse-list"
               value={form.disbursse}
-              onChange={(e) => setForm((f) => ({ ...f, disbursse: e.target.value }))}
-              className={inputCls}
+              onChange={(e) => {
+                const v = e.target.value;
+                if (/^-?\d*\.?\d*$/.test(v)) setForm((f) => ({ ...f, disbursse: v }));
+              }}
+              inputMode="decimal"
+              className={`${inputCls} text-right font-mono`}
               autoComplete="off"
             />
-            <datalist id="check-disbursse-list">
-              {disbursseOptions.map((d) => (
-                <option key={d} value={d} />
-              ))}
-            </datalist>
           </div>
 
           <div>
             <label className={labelCls}>Project</label>
-            <input
-              list="check-project-list"
+            <select
               value={form.project}
               onChange={(e) => setForm((f) => ({ ...f, project: e.target.value }))}
-              className={inputCls}
-              autoComplete="off"
-            />
-            <datalist id="check-project-list">
-              {projectOptions.map((p) => (
-                <option key={p} value={p} />
+              className={`${inputCls} cursor-pointer`}
+            >
+              <option value="">-- Select Project --</option>
+              {form.project && !PROJECT_OPTIONS.includes(form.project) && (
+                <option value={form.project}>{form.project}</option>
+              )}
+              {PROJECT_OPTIONS.map((p) => (
+                <option key={p} value={p}>
+                  {p}
+                </option>
               ))}
-            </datalist>
+            </select>
           </div>
         </div>
 
@@ -653,7 +641,7 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
                     "Bank Name",
                     "Check No.",
                     "Disbursse",
-                    "প্রকল্প",
+                    "Project",
                     "Action",
                   ].map((h) => (
                     <th
@@ -708,9 +696,9 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
                         <td className="whitespace-nowrap px-3 py-2 font-mono text-xs font-black text-slate-900">
                           {row.checkNo}
                         </td>
-                        <td className="px-3 py-2 text-xs font-semibold text-slate-800">
+                        <td className="whitespace-nowrap px-3 py-2 text-right font-mono text-xs font-black text-slate-900">
                           {row.disbursse ? (
-                            row.disbursse
+                            fmtAmt(row.disbursse)
                           ) : (
                             <span className="text-slate-300">—</span>
                           )}
