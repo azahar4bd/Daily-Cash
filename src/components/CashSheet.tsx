@@ -410,13 +410,13 @@ export default function CashSheet({
           <img
             src={BKF_LOGO}
             alt="BKF Logo"
-            className="h-11 sm:h-12 w-auto object-contain print:h-9"
+            className="h-14 sm:h-16 w-auto object-contain print:h-9"
           />
           <div className="text-left">
-            <h1 className="text-xl sm:text-2xl print:text-lg font-black font-serif text-slate-900 leading-tight tracking-tight">
+            <h1 className="text-2xl sm:text-4xl print:text-lg font-black font-serif text-slate-900 leading-tight tracking-wide sm:whitespace-nowrap">
               Bandhu Kallyan Foundation
             </h1>
-            <p className="text-xs print:text-[10px] font-bold font-serif text-slate-800 tracking-wide mt-0.5">
+            <p className="text-sm sm:text-base print:text-[10px] font-bold font-serif text-slate-800 tracking-wide mt-0.5">
               GOBRA BRANCH-0014 Branch.
             </p>
           </div>
@@ -427,7 +427,7 @@ export default function CashSheet({
           <img
             src={CASH_BANK_BANNER}
             alt="Cash & Bank Information"
-            className="h-9 sm:h-10 print:h-8 w-auto object-contain"
+            className="h-12 sm:h-16 print:h-8 w-auto object-contain"
           />
         </div>
 
