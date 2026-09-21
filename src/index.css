@@ -83,6 +83,22 @@ div[class*="netlify-hud"] {
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
+/* ─────────── Soft, eye-friendly app background ───────────
+   হালকা নীল-সবুজ আভাসহ ম্লান গ্রেডিয়েন্ট — চোখে লাগে না, অথচ প্রিমিয়াম দেখায় */
+.app-bg {
+  background:
+    radial-gradient(1100px 480px at 88% -12%, rgba(59, 130, 246, 0.07), transparent 62%),
+    radial-gradient(900px 420px at -12% 28%, rgba(16, 185, 129, 0.06), transparent 60%),
+    radial-gradient(760px 380px at 50% 108%, rgba(99, 102, 241, 0.05), transparent 62%),
+    linear-gradient(172deg, #f5f8fb 0%, #eef2f7 52%, #e9eef5 100%);
+  background-attachment: fixed;
+}
+
+html,
+body {
+  background-color: #eef2f7;
+}
+
 /* Working-Day bar highlight pulse (when jumping from a locked notice) */
 @keyframes dayBarFlash {
   0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }

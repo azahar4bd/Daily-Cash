@@ -83,7 +83,7 @@ export default function App() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-slate-100 text-slate-900 font-sans antialiased pb-20 print:p-0 print:m-0 print:bg-white">
+    <div className="app-bg min-h-screen text-slate-900 font-sans antialiased pb-20 print:p-0 print:m-0 print:bg-white">
       {/* Main Container */}
       <main className="mx-auto max-w-6xl px-3 sm:px-4 pt-3 sm:pt-5 print:p-0 print:max-w-none">
         {/* Real-time Network & Offline/Online Sync Status Banner */}
