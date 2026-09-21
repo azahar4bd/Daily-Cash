@@ -137,6 +137,25 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
   const found = matchInfo === "found";
   const needsAll = matchInfo !== "found"; // ডাটাবেজে না থাকলে সব ঘর পূরণ করতে হবে
 
+  /* ───────── কোড টাইপ করার সাথে সাথেই নিজে থেকে খোঁজ (blur-এর অপেক্ষা নয়) ───────── */
+  const lookupTimer = useRef<number | null>(null);
+  const handleMemberCodeChange = (raw: string) => {
+    setForm((f) => ({ ...f, memberCode: raw }));
+    if (lookupTimer.current) window.clearTimeout(lookupTimer.current);
+    const val = raw.trim();
+    if (!val) {
+      setMatchInfo("idle");
+      return;
+    }
+    lookupTimer.current = window.setTimeout(() => lookupMember(val), 350);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (lookupTimer.current) window.clearTimeout(lookupTimer.current);
+    };
+  }, []);
+
   /* ───────── সেভ ───────── */
   const handleSubmit = () => {
     if (dayClosed) {
@@ -226,7 +245,11 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
     // ডাটাবেজে আছে কি না যাচাই
     const m = findMemberByCode(row.memberCode);
     setMatchInfo(m ? "found" : "notfound");
-    formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    // কিছু পরিবেশে (পুরনো WebView) scrollIntoView নাও থাকতে পারে — নিরাপদে কল করুন
+    const el = formRef.current;
+    if (el && typeof (el as any).scrollIntoView === "function") {
+      (el as any).scrollIntoView({ behavior: "smooth", block: "start" });
+    }
   };
 
   const handleDelete = (row: CheckEntry) => {
@@ -359,8 +382,11 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
             <div className="relative">
               <input
                 value={form.memberCode}
-                onChange={(e) => setForm((f) => ({ ...f, memberCode: e.target.value }))}
-                onBlur={(e) => lookupMember(e.target.value)}
+                onChange={(e) => handleMemberCodeChange(e.target.value)}
+                onBlur={(e) => {
+                  if (lookupTimer.current) window.clearTimeout(lookupTimer.current);
+                  lookupMember(e.target.value);
+                }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") (e.target as HTMLInputElement).blur();
                 }}
