@@ -95,12 +95,6 @@ export default function DenominationPopup({
     const cur = vals[active];
     if (key === "⌫") return setVal(active, cur.slice(0, -1));
     if (key === "C") return setVal(active, "");
-    // ± : প্লাস/মাইনাস — ফেরত ( refund ) পোস্টিংয়ের জন্য
-    if (key === "±") {
-      if (!cur) return setVal(active, "-");
-      if (cur.startsWith("-")) return setVal(active, cur.slice(1));
-      return setVal(active, "-" + cur);
-    }
     if (key === ".") {
       if (isManual && !cur.includes(".")) setVal(active, (cur || "0") + ".");
       return;
@@ -189,11 +183,6 @@ export default function DenominationPopup({
           >
             {fmt(total)}
           </span>
-        </div>
-        <div className="shrink-0 border-b bg-slate-50 px-3.5 py-1 text-[10px] font-bold text-slate-500">
-          💡 মাইনাস (ফেরত) লিখতে চাইলে চিহ্ন বাটন <span className="font-mono text-slate-700">±</span> চাপুন —
-          যেমন <span className="font-mono text-rose-700">1</span> → <span className="font-mono text-rose-700">±</span> ={" "}
-          <span className="font-mono text-rose-700">-1</span> (৫০০ টাকা ফেরত)
         </div>
 
         {/* Denomination Rows: Manual Entry AT THE VERY TOP (নিচে থেকে সবার উপরে দেওয়া হলো) */}
@@ -359,11 +348,10 @@ export default function DenominationPopup({
                 <Key label="0" onClick={() => press("0")} className="bg-white hover:bg-slate-50" />
                 <Key label="00" onClick={() => press("00")} className="bg-white hover:bg-slate-50" />
                 <Key
-                  label="±"
-                  onClick={() => press("±")}
-                  className="bg-rose-50 text-rose-700 ring-1 ring-rose-300 hover:bg-rose-100"
+                  label="Reset"
+                  onClick={reset}
+                  className="col-span-2 bg-slate-500 !text-xs text-white hover:bg-slate-600"
                 />
-                <Key label="Reset" onClick={reset} className="bg-slate-500 !text-xs text-white hover:bg-slate-600" />
               </div>
 
               {/* Close Button at TOP RIGHT + Navigation Arrows BELOW */}
