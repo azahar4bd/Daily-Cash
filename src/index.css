@@ -88,6 +88,10 @@ div[class*="netlify-hud"] {
     margin-bottom: 14px !important;
   }
 
+  #cash-sheet-document .signatures-block {
+    margin-top: 8mm !important;
+  }
+
   #cash-sheet-document * {
     margin-top: 1px !important;
     margin-bottom: 1px !important;
