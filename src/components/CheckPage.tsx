@@ -407,7 +407,6 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
                 onKeyDown={(e) => {
                   if (e.key === "Enter") (e.target as HTMLInputElement).blur();
                 }}
-                placeholder="যেমন: M-1001"
                 className={inputCls}
                 inputMode="text"
                 autoComplete="off"
@@ -431,33 +430,27 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
             <BankNameInput
               value={form.bankName}
               onChange={(v) => setForm((f) => ({ ...f, bankName: v }))}
-              placeholder="ব্যাংকের নাম লিখুন বা বেছে নিন"
               className={inputCls}
               extras={pastBanks}
             />
-            <p className="mt-1 text-[10px] font-semibold text-slate-500">
-              🇧🇩 বাংলা বা English — যেভাবে লিখবেন, দুই ভাষাতেই সাজেশন আসবে
-            </p>
           </div>
 
           <div>
-            <label className={labelCls}>Check No. (চেক নম্বর)</label>
+            <label className={labelCls}>Check No.</label>
             <input
               value={form.checkNo}
               onChange={(e) => setForm((f) => ({ ...f, checkNo: e.target.value }))}
-              placeholder="যেমন: 123456"
               className={inputCls}
               autoComplete="off"
             />
           </div>
 
           <div>
-            <label className={labelCls}>Disbursse (বিতরণ)</label>
+            <label className={labelCls}>Disbursse</label>
             <input
               list="check-disbursse-list"
               value={form.disbursse}
               onChange={(e) => setForm((f) => ({ ...f, disbursse: e.target.value }))}
-              placeholder="বিতরণের খাত লিখুন বা বেছে নিন"
               className={inputCls}
               autoComplete="off"
             />
@@ -469,12 +462,11 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
           </div>
 
           <div>
-            <label className={labelCls}>প্রকল্প (Project)</label>
+            <label className={labelCls}>Project</label>
             <input
               list="check-project-list"
               value={form.project}
               onChange={(e) => setForm((f) => ({ ...f, project: e.target.value }))}
-              placeholder="প্রকল্পের নাম লিখুন বা বেছে নিন"
               className={inputCls}
               autoComplete="off"
             />
@@ -487,11 +479,7 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
         </div>
 
         {/* Step 2 — extra fields when member is NOT in the database */}
-        {matchInfo === "idle" ? (
-          <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] font-semibold text-slate-600">
-            ℹ️ মেম্বার কোড লিখুন — ডাটাবেজে থাকলে নাম ও সেন্টারের তথ্য নিজে থেকেই বসে যাবে।
-          </div>
-        ) : found ? (
+        {matchInfo === "idle" ? null : found ? (
           <div className="mt-3 rounded-xl border border-emerald-300 bg-emerald-50 p-3">
             <div className="mb-2 flex items-center gap-2 text-[11px] font-black text-emerald-900">
               <span>✓</span>
