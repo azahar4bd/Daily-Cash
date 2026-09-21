@@ -75,6 +75,19 @@ div[class*="netlify-hud"] {
     display: none !important;
   }
 
+  /* প্রিন্ট কম্প্যাক্ট: নিচের টোটাল+সই যেন ২য় পেজে না যায় — সব ১ পৃষ্ঠায় */
+  #cash-sheet-document table th,
+  #cash-sheet-document table td {
+    padding-top: 1px !important;
+    padding-bottom: 1px !important;
+    line-height: 1.12 !important;
+  }
+
+  #cash-sheet-document * {
+    margin-top: 1px !important;
+    margin-bottom: 1px !important;
+  }
+
   #cash-sheet-document {
     width: 100% !important;
     max-width: 100% !important;
