@@ -69,6 +69,9 @@ export default function BottomMenu({
             <span className="hidden xs:inline font-black text-xs sm:text-sm tracking-tight whitespace-nowrap text-amber-400">
               Cash Gobra
             </span>
+            <span className="xs:hidden font-black text-[11px] tracking-tight whitespace-nowrap text-amber-400">
+              Cash
+            </span>
 
             {/* Neon Cloud Database Status Button */}
             <button
@@ -184,20 +187,24 @@ export default function BottomMenu({
               ))}
             </div>
 
-            {/* Mobile Three-Line Menu Button (থ্রি লাইন মেনু ☰) */}
+            {/* Mobile Three-Line Menu Button (থ্রি লাইন মেনু ☰)
+                ছোট ফোনেও অন্তত প্রথম ৩ অক্ষর সবসময় দেখা যাবে */}
             <button
               type="button"
               onClick={() => setThreeLineMenuOpen(!threeLineMenuOpen)}
-              className="lg:hidden flex items-center gap-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 active:bg-slate-600 border border-slate-700 px-2.5 py-1.5 text-xs font-black text-white transition shadow-sm cursor-pointer"
-              title="মেনু খুলুন"
-              aria-label="Open menu"
+              className="lg:hidden flex shrink-0 items-center gap-1 rounded-xl bg-slate-800 hover:bg-slate-700 active:bg-slate-600 border border-slate-700 px-2 py-1.5 text-xs font-black text-white transition shadow-sm cursor-pointer"
+              title={`মেনু খুলুন — বর্তমান: ${activePage.labelBn}`}
+              aria-label={`মেনু খুলুন (${activePage.label})`}
             >
-              <div className="flex flex-col gap-0.5 items-center justify-center w-3.5">
-                <span className="block h-0.5 w-3.5 bg-amber-400 rounded-full"></span>
-                <span className="block h-0.5 w-3.5 bg-amber-400 rounded-full"></span>
-                <span className="block h-0.5 w-3.5 bg-amber-400 rounded-full"></span>
+              <div className="flex w-3 flex-col gap-0.5 items-center justify-center">
+                <span className="block h-0.5 w-3 bg-amber-400 rounded-full"></span>
+                <span className="block h-0.5 w-3 bg-amber-400 rounded-full"></span>
+                <span className="block h-0.5 w-3 bg-amber-400 rounded-full"></span>
               </div>
-              <span className="hidden xs:inline text-amber-400 font-bold truncate max-w-[56px]">
+              <span className="xs:hidden text-amber-400 font-black text-[11px] tracking-tight">
+                {activePage.label.slice(0, 3)}
+              </span>
+              <span className="hidden xs:inline text-amber-400 font-bold truncate max-w-[52px] sm:max-w-[72px]">
                 {activePage.label}
               </span>
             </button>
