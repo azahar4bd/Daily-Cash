@@ -2,7 +2,7 @@
  * App version + hard cache-busting guard.
  * পুরনো Service Worker ক্যাশে যাতে কখনো পুরনো ভার্সন না দেখায়।
  */
-export const APP_VERSION = "1.4.25";
+export const APP_VERSION = "1.4.26";
 
 async function clearAllCachesAndSW() {
   try {
