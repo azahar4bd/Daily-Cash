@@ -444,7 +444,7 @@ export default function CashSheet({
             <span>A. Cash &amp; Bank Information:</span>
             <span className="pr-16 sm:pr-20 print:pr-16">Day: {getDayName(selectedDate)}</span>
           </div>
-          <table className="w-full border-collapse border-spacing-0 text-xs sm:text-sm print:text-xs">
+          <table className="print-gap-b w-full border-collapse border-spacing-0 text-xs sm:text-sm print:text-xs">
             <tbody>
               <tr>
                 <td className="border border-black px-3 py-1.5 sm:py-2 print:py-0.5 font-medium">
@@ -691,7 +691,7 @@ export default function CashSheet({
               </tr>
             </tbody>
           </table>
-          <div className="mt-1 print:mt-0.5 text-xs print:text-[10.5px] font-semibold text-slate-800">
+          <div className="print-gap-b mt-1 print:mt-0.5 text-xs print:text-[10.5px] font-semibold text-slate-800">
             <span className="font-bold">In Word:</span> {numberToWords(totalDenomination)}
           </div>
         </div>
