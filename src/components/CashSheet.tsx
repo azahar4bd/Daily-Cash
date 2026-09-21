@@ -794,13 +794,13 @@ export default function CashSheet({
       </div>
 
       {/* Signatures */}
-      <div className="signatures-block mt-6 sm:mt-8 print:mt-6 pt-3 print:pt-3 pb-1 flex items-center justify-between px-16 print:px-14 text-xs sm:text-sm print:text-xs font-bold font-serif">
+      <div className="signatures-block mt-6 sm:mt-8 print:mt-3 pt-3 print:pt-2 pb-1 grid grid-cols-2 px-16 print:px-14 text-xs sm:text-sm print:text-xs font-bold font-serif">
         <div className="text-center">
-          <div className="h-10 sm:h-12 print:h-10"></div>
+          <div className="h-10 sm:h-12 print:h-8"></div>
           <div className="w-32 sm:w-36 border-t border-black pt-1">Accountant</div>
         </div>
         <div className="text-center">
-          <div className="h-10 sm:h-12 print:h-10"></div>
+          <div className="h-10 sm:h-12 print:h-8"></div>
           <div className="w-32 sm:w-36 border-t border-black pt-1">Manager</div>
         </div>
       </div>
@@ -830,6 +830,7 @@ export default function CashSheet({
           #cash-sheet-document {
             width: 100% !important;
             max-width: 100% !important;
+            overflow: visible !important;
             height: auto !important;
             max-height: 288mm !important;
             margin: 0 !important;
