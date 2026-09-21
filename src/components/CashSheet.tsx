@@ -439,7 +439,7 @@ export default function CashSheet({
         </div>
 
         {/* Section A: Cash & Bank Information */}
-        <div className="mb-3 print:mb-1.5">
+        <div className="print-gap-b mb-3 print:mb-1.5">
           <div className="mb-1 print:mb-0.5 flex items-center justify-between text-xs sm:text-sm print:text-xs font-bold text-slate-900">
             <span>A. Cash &amp; Bank Information:</span>
             <span className="pr-16 sm:pr-20 print:pr-16">Day: {getDayName(selectedDate)}</span>
@@ -469,7 +469,7 @@ export default function CashSheet({
         </div>
 
         {/* Section B: Denominations */}
-        <div className="print-gap-t mb-3 print:mb-1.5">
+        <div className="print-gap-b mb-3 print:mb-1.5">
           <div className="mb-1 print:mb-0.5 flex items-center justify-between text-xs sm:text-sm print:text-xs font-bold text-slate-900">
             <span>B. Denominations of Cash / Notes :</span>
             {isInteractive && (
@@ -697,7 +697,7 @@ export default function CashSheet({
         </div>
 
         {/* Section C: Credit Officer & Others Cash Received Information */}
-        <div className="print-gap-t mb-2 print:mb-1">
+        <div className="mb-2 print:mb-1">
           <div className="mb-1 print:mb-0.5 text-xs sm:text-sm print:text-xs font-bold text-slate-900">
             C. Credit Officer &amp; Others Cash Received Information.
           </div>

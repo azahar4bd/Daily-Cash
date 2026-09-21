@@ -84,8 +84,8 @@ div[class*="netlify-hud"] {
   }
 
   /* ব্লকগুলোর মাঝে দৃশ্যমান ফাঁক: A → Denominations → নিচের টেবিল */
-  #cash-sheet-document .print-gap-t {
-    margin-top: 14px !important;
+  #cash-sheet-document .print-gap-b {
+    margin-bottom: 14px !important;
   }
 
   #cash-sheet-document * {
