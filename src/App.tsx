@@ -15,6 +15,7 @@ import DayOpenModal from "./components/DayOpenModal";
 import DayCloseModal from "./components/DayCloseModal";
 import { todayISO } from "./components/DatePicker";
 import { initNeonSync } from "./lib/neonSync";
+import { seedMemberDatabase } from "./lib/memberDb";
 import { forceFreshReload, APP_VERSION } from "./lib/version";
 
 export default function App() {
@@ -42,6 +43,9 @@ export default function App() {
   useEffect(() => {
     // Initialize Neon Cloud Database Synchronization
     initNeonSync();
+
+    // অ্যাপের সাথে বাঁধা মেম্বার ডাটাবেজ বসানো (৪,৭৬১ জন) — হাতে ইমপোর্ট লাগবে না
+    seedMemberDatabase();
 
     try {
       const saved = localStorage.getItem("app_master_date");

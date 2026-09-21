@@ -606,13 +606,6 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
           >
             রিসেট
           </button>
-          <button
-            type="button"
-            onClick={() => setImportOpen(true)}
-            className="rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm font-bold text-emerald-800 transition hover:bg-emerald-100"
-          >
-            🗄️ মেম্বার ডাটাবেজ আমদানি
-          </button>
 
           {status && (
             <span

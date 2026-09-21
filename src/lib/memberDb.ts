@@ -19,7 +19,10 @@ export type Member = {
   updatedAt?: string;
 };
 
+import { MEMBER_DB_CSV, MEMBER_DB_SEED_VERSION } from "@/data/memberDatabaseSeed";
+
 const MEMBER_DB_KEY = "gobra_member_database";
+const MEMBER_DB_SEED_KEY = "gobra_member_db_seed";
 
 /* ───────────────────────── normalization ───────────────────────── */
 
@@ -76,6 +79,32 @@ export function deleteMember(memberCode: string): void {
 
 export function clearMembers(): void {
   persist([]);
+}
+
+/* ───────────── bundled seed ───────────── */
+
+export function seedMemberDatabase(force = false): { added: number; updated: number; total: number } | null {
+  try {
+    if (!force && localStorage.getItem(MEMBER_DB_SEED_KEY) === MEMBER_DB_SEED_VERSION) return null;
+    const { members } = parseMemberText(MEMBER_DB_CSV);
+    if (!members.length) return null;
+    const byKey = new Map<string, Member>();
+    for (const m of getMembers()) { const k = normCode(m.memberCode); if (k) byKey.set(k, m); }
+    let added = 0, updated = 0;
+    const now = new Date().toISOString();
+    for (const m of members) {
+      const key = normCode(m.memberCode);
+      if (!key) continue;
+      const prev = byKey.get(key);
+      if (!prev) added++;
+      else if (normCode(prev.memberName) !== normCode(m.memberName) || prev.centreName !== m.centreName || normCode(prev.centreCode) !== normCode(m.centreCode)) updated++;
+      byKey.set(key, { ...(prev || {}), memberCode: key, memberName: m.memberName, centreCode: m.centreCode, centreName: m.centreName, source: "db", updatedAt: now });
+    }
+    const list = Array.from(byKey.values());
+    persist(list);
+    try { localStorage.setItem(MEMBER_DB_SEED_KEY, MEMBER_DB_SEED_VERSION); } catch {}
+    return { added, updated, total: list.length };
+  } catch { return null; }
 }
 
 /* ───────────────────────── lookup ───────────────────────── */
