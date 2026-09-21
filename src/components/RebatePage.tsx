@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import RebateRateManager from "./RebateRateManager";
 import { fmt } from "./DenominationPopup";
 import { getRebateRates } from "@/lib/storage";
+import { cmpProduct } from "@/lib/sortOrder";
+import SearchSelect from "./SearchSelect";
 import type { RebateRateItem } from "@/types";
 
 type RebateForm = {
@@ -51,7 +53,10 @@ export default function RebatePage() {
     return () => window.removeEventListener("rebate-rates-changed", handleRebateChange);
   }, []);
 
-  const products = Array.from(new Set(rates.map((r) => r.product))).sort();
+  const products: string[] = rates
+    .map((r) => String(r.product || ""))
+    .filter((v, i, arr) => v !== "" && arr.indexOf(v) === i)
+    .sort(cmpProduct);
   const availableDurations = Array.from(
     new Set(rates.filter((r) => r.product === form.product).map((r) => r.duration))
   );
@@ -204,18 +209,13 @@ export default function RebatePage() {
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                 <div>
                   <label className="mb-1 block text-xs font-bold text-slate-700">Product</label>
-                  <select
+                  <SearchSelect
                     value={form.product}
-                    onChange={(e) => handleProductChange(e.target.value)}
+                    onChange={(v) => handleProductChange(v)}
+                    options={products}
+                    placeholder="Select Product"
                     className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-2 text-sm font-semibold text-slate-800 focus:border-blue-500 focus:outline-none cursor-pointer"
-                  >
-                    <option value="">Select Product</option>
-                    {products.map((p) => (
-                      <option key={p} value={p}>
-                        {p}
-                      </option>
-                    ))}
-                  </select>
+                  />
                 </div>
                 <div>
                   <label className="mb-1 block text-xs font-bold text-slate-700">Duration</label>

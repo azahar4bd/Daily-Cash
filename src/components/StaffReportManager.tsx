@@ -21,6 +21,7 @@ import {
   isIntermediateBlockedDate,
 } from "@/lib/storage";
 import { cmpStaff } from "@/lib/sortOrder";
+import SearchSelect from "./SearchSelect";
 import type { StaffReportItem, Tx } from "@/types";
 
 const DEFAULT_STAFF = ["Sakib", "Mintu", "Alamgir", "Monir"];
@@ -895,18 +896,16 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
             Staff Collection Report Table
           </h3>
           <div className="flex items-center gap-2">
-            <select
+            <SearchSelect
               value={filterStaff}
-              onChange={(e) => setFilterStaff(e.target.value)}
-              className="rounded bg-white border border-[#d4a373] px-2 py-0.5 text-xs font-semibold text-slate-800"
-            >
-              <option value="">All Staff</option>
-              {DEFAULT_STAFF.map((st) => (
-                <option key={st} value={st}>
-                  {st}
-                </option>
-              ))}
-            </select>
+              onChange={(v) => setFilterStaff(v)}
+              options={[
+                { value: "", label: "All Staff" },
+                ...allStaffNames.map((st) => ({ value: st, label: titleCase(st) })),
+              ]}
+              placeholder="All Staff"
+              className="rounded bg-white border border-[#d4a373] px-2 py-0.5 text-xs font-semibold text-slate-800 w-32 sm:w-40"
+            />
           </div>
         </div>
         <div className="overflow-x-auto">
@@ -1286,20 +1285,16 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
                 <label className="mb-1 block text-xs font-bold text-slate-700">
                   Staff Name <span className="text-[10px] text-slate-500 font-normal">(স্টাফ নির্বাচন)</span>
                 </label>
-                <select
+                <SearchSelect
                   value={edit.staffName}
-                  onChange={(e) => {
-                    setEdit({ ...edit, staffName: e.target.value });
+                  onChange={(v) => {
+                    setEdit({ ...edit, staffName: v });
                     if (isMobile) setActiveKeyboardField("loan");
                   }}
+                  options={allStaffNames.map((st) => ({ value: st, label: titleCase(st) }))}
+                  placeholder="Select option..."
                   className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-bold text-slate-800 focus:outline-none cursor-pointer"
-                >
-                  {allStaffNames.map((st) => (
-                    <option key={st} value={st}>
-                      {titleCase(st)}
-                    </option>
-                  ))}
-                </select>
+                />
               </div>
 
               {/* Numeric Fields */}

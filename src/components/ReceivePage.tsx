@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import ReceiveCategoryDropdown from "./ReceiveCategoryDropdown";
 import DatePicker from "./DatePicker";
+import SearchSelect from "./SearchSelect";
 import DenominationPopup, { fmt } from "./DenominationPopup";
 import CategoryManager from "./CategoryManager";
 import { titleCase } from "@/lib/categories";
@@ -290,23 +291,14 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
           {isFundReceive && (
             <div>
               <label className="mb-1 block text-xs font-bold text-slate-700">Sub Category (সাব ক্যাটাগরি)</label>
-              <select
+              <SearchSelect
                 value={form.subCategory}
+                onChange={(v) => setForm({ ...form, subCategory: v })}
+                options={allowedSubs}
+                placeholder="-- Select Sub Category --"
                 disabled={isDayClosed(form.txDate)}
-                onChange={(e) => setForm({ ...form, subCategory: e.target.value })}
-                className={`w-full rounded-lg border px-3 py-2 text-sm font-bold focus:outline-none ${
-                  isDayClosed(form.txDate)
-                    ? "border-slate-300 bg-slate-100 text-slate-500 cursor-not-allowed opacity-60"
-                    : "border-slate-300 bg-white text-slate-800 focus:border-blue-500 cursor-pointer"
-                }`}
-              >
-                <option value="">-- Select Sub Category --</option>
-                {allowedSubs.map((sub) => (
-                  <option key={sub} value={sub}>
-                    {sub}
-                  </option>
-                ))}
-              </select>
+                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-bold text-slate-800 focus:border-blue-500 focus:outline-none cursor-pointer"
+              />
             </div>
           )}
 
@@ -442,18 +434,16 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
           {/* Category-wise Filtering Dropdown */}
           <div className="flex items-center gap-2">
             <label className="text-xs font-bold text-slate-600">Category Filter:</label>
-            <select
+            <SearchSelect
               value={filterCategory}
-              onChange={(e) => setFilterCategory(e.target.value)}
-              className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs sm:text-sm font-semibold text-slate-800 shadow-2xs focus:border-blue-500 focus:outline-none cursor-pointer"
-            >
-              <option value="all">All Categories ({rows.length})</option>
-              {uniqueCategories.map((cat) => (
-                <option key={cat} value={cat}>
-                  {titleCase(cat)}
-                </option>
-              ))}
-            </select>
+              onChange={(v) => setFilterCategory(v)}
+              options={[
+                { value: "all", label: `All Categories (${rows.length})` },
+                ...uniqueCategories.map((cat) => ({ value: cat, label: titleCase(cat) })),
+              ]}
+              placeholder="All Categories"
+              className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs sm:text-sm font-semibold text-slate-800 shadow-2xs focus:border-blue-500 focus:outline-none cursor-pointer w-44 sm:w-52"
+            />
           </div>
         </div>
 
@@ -669,18 +659,13 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
               {edit.category.trim().toLowerCase().includes("fund receive") && (
                 <div>
                   <label className="mb-1 block text-xs font-bold text-slate-700">Sub Category (সাব ক্যাটাগরি)</label>
-                  <select
+                  <SearchSelect
                     value={edit.subCategory || ""}
-                    onChange={(e) => setEdit({ ...edit, subCategory: e.target.value })}
+                    onChange={(v) => setEdit({ ...edit, subCategory: v })}
+                    options={filterAllowedSubCategories(edit.category, subCatRules)}
+                    placeholder="-- Select Sub Category --"
                     className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-bold text-slate-800 focus:border-blue-500 focus:outline-none cursor-pointer"
-                  >
-                    <option value="">-- Select Sub Category --</option>
-                    {filterAllowedSubCategories(edit.category, subCatRules).map((sub) => (
-                      <option key={sub} value={sub}>
-                        {sub}
-                      </option>
-                    ))}
-                  </select>
+                  />
                 </div>
               )}
 

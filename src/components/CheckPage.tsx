@@ -20,6 +20,7 @@ import { isDayClosed, isIntermediateBlockedDate } from "@/lib/storage";
 import { formatDisplay } from "./DatePicker";
 import type { CheckEntry } from "@/types";
 import BankNameInput from "./BankNameInput";
+import SearchSelect from "./SearchSelect";
 
 
 /** Project ড্রপডাউনের নির্ধারিত তালিকা */
@@ -448,21 +449,16 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
 
           <div>
             <label className={labelCls}>Project</label>
-            <select
+            <SearchSelect
               value={form.project}
-              onChange={(e) => setForm((f) => ({ ...f, project: e.target.value }))}
+              onChange={(v) => setForm((f) => ({ ...f, project: v }))}
+              options={[
+                ...PROJECT_OPTIONS,
+                ...(form.project && !PROJECT_OPTIONS.includes(form.project) ? [form.project] : []),
+              ]}
+              placeholder="-- Select Project --"
               className={`${inputCls} cursor-pointer`}
-            >
-              <option value="">-- Select Project --</option>
-              {form.project && !PROJECT_OPTIONS.includes(form.project) && (
-                <option value={form.project}>{form.project}</option>
-              )}
-              {PROJECT_OPTIONS.map((p) => (
-                <option key={p} value={p}>
-                  {p}
-                </option>
-              ))}
-            </select>
+            />
           </div>
         </div>
 
