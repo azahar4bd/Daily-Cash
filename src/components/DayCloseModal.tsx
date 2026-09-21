@@ -30,6 +30,8 @@ export default function DayCloseModal({
 }) {
   const [totalReceive, setTotalReceive] = useState(0);
   const [totalPayment, setTotalPayment] = useState(0);
+  const [todayCash, setTodayCash] = useState(0);
+  const [todayBank, setTodayBank] = useState(0);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -38,6 +40,8 @@ export default function DayCloseModal({
       const sum = getSummary(selectedDate);
       setTotalReceive(sum.receive || 0);
       setTotalPayment(sum.expense || 0);
+      setTodayCash(sum.cash || 0);
+      setTodayBank(sum.bank || 0);
     } catch (e) {
       console.error(e);
     }
@@ -132,6 +136,14 @@ export default function DayCloseModal({
             <div className="flex justify-between">
               <span className="text-slate-600 font-semibold">মোট পেমেন্ট:</span>
               <span className="font-mono font-black text-rose-700">{fmt(totalPayment)}</span>
+            </div>
+            <div className="mt-1.5 flex justify-between border-t border-slate-300 pt-1.5">
+              <span className="text-emerald-800 font-bold">Today Cash:</span>
+              <span className="font-mono font-black text-emerald-700">{fmt(todayCash)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-indigo-800 font-bold">Today Bank:</span>
+              <span className="font-mono font-black text-indigo-700">{fmt(todayBank)}</span>
             </div>
           </div>
 
