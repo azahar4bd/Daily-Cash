@@ -15,12 +15,15 @@ import {
   isDayOpen,
   getDayState,
   isIntermediateBlockedDate,
+  getSubCategoryRules,
 } from "@/lib/storage";
 import type { Tx, Cat, Denom } from "@/types";
+import { filterAllowedSubCategories } from "@/lib/categories";
 
 type FormState = {
   id?: number;
   category: string;
+  subCategory: string;
   amount: number;
   description: string;
   denomination: Denom;
@@ -52,6 +55,7 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
 
   const [form, setForm] = useState<FormState>({
     category: "",
+    subCategory: "",
     amount: 0,
     description: "",
     denomination: {},
@@ -59,6 +63,7 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
     txDate: selectedDate,
   });
   const [edit, setEdit] = useState<FormState | null>(null);
+  const [subCatRules, setSubCatRules] = useState(() => getSubCategoryRules());
   const [denomOpen, setDenomOpen] = useState(false);
   const [editDenomOpen, setEditDenomOpen] = useState(false);
   const [msg, setMsg] = useState("");
@@ -83,6 +88,7 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
   };
 
   const loadCats = () => {
+    setSubCatRules(getSubCategoryRules());
     setCats(getCategories("receive"));
   };
 
@@ -101,6 +107,9 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
   useEffect(() => {
     load();
   }, [rangeFrom, rangeTo]);
+
+  const isFundReceive = form.category.trim().toLowerCase().includes("fund receive");
+  const allowedSubs = filterAllowedSubCategories(form.category, subCatRules);
 
   const categoryNames = cats.map((c) => c.name);
 
@@ -128,6 +137,7 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
     saveTx({
       type: "receive",
       category: form.category.trim().toLowerCase(),
+      subCategory: isFundReceive ? form.subCategory.trim().toLowerCase() : "",
       amount: String(finalAmount),
       description: form.description || "",
       denomination: form.denomination,
@@ -137,6 +147,7 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
 
     setForm({
       category: "",
+      subCategory: "",
       amount: 0,
       description: "",
       denomination: {},
@@ -166,6 +177,7 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
       id: edit.id,
       type: "receive",
       category: edit.category.trim().toLowerCase(),
+      subCategory: edit.category.trim().toLowerCase().includes("fund receive") ? (edit.subCategory || "").trim().toLowerCase() : "",
       amount: String(edit.amount),
       description: edit.description || "",
       denomination: edit.denomination,
@@ -268,11 +280,35 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
             <ReceiveCategoryDropdown
               value={form.category}
               disabled={isDayClosed(form.txDate)}
-              onChange={(v) => setForm({ ...form, category: v })}
+              onChange={(v) => setForm({ ...form, category: v, subCategory: "" })}
               cats={cats}
               onManageClick={() => setManage(true)}
             />
           </div>
+
+          {/* Sub Category — শুধু fund receive হলে */}
+          {isFundReceive && (
+            <div>
+              <label className="mb-1 block text-xs font-bold text-slate-700">Sub Category (সাব ক্যাটাগরি)</label>
+              <select
+                value={form.subCategory}
+                disabled={isDayClosed(form.txDate)}
+                onChange={(e) => setForm({ ...form, subCategory: e.target.value })}
+                className={`w-full rounded-lg border px-3 py-2 text-sm font-bold focus:outline-none ${
+                  isDayClosed(form.txDate)
+                    ? "border-slate-300 bg-slate-100 text-slate-500 cursor-not-allowed opacity-60"
+                    : "border-slate-300 bg-white text-slate-800 focus:border-blue-500 cursor-pointer"
+                }`}
+              >
+                <option value="">-- Select Sub Category --</option>
+                {allowedSubs.map((sub) => (
+                  <option key={sub} value={sub}>
+                    {sub}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* Amount (Click for Denomination) - Placeholder text removed as requested */}
           <div>
@@ -429,6 +465,7 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
                 <th className="px-3.5 py-2.5">#</th>
                 <th className="px-3.5 py-2.5">Date</th>
                 <th className="px-3.5 py-2.5">Category</th>
+                <th className="px-3.5 py-2.5">Sub Cat.</th>
                 <th className="px-3.5 py-2.5">Description</th>
                 <th className="px-3.5 py-2.5 text-right">Amount</th>
                 <th className="px-3.5 py-2.5 text-center">Action</th>
@@ -473,6 +510,7 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
                     <td className="px-3.5 py-2 text-slate-500 font-mono">{i + 1}</td>
                     <td className="px-3.5 py-2 font-mono">{r.txDate}</td>
                     <td className="px-3.5 py-2 font-bold text-slate-800">{titleCase(r.category)}</td>
+                    <td className="px-3.5 py-2 text-slate-700">{r.subCategory || "-"}</td>
                     <td className="px-3.5 py-2 text-slate-600">{r.description || "-"}</td>
                     <td
                       className={`px-3.5 py-2 text-right font-mono font-black ${
@@ -494,6 +532,7 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
                             setEdit({
                               id: r.id,
                               category: r.category,
+                              subCategory: r.subCategory || "",
                               amount: Number(r.amount),
                               description: r.description ?? "",
                               denomination: r.denomination ?? {},
@@ -621,11 +660,29 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
                 <label className="mb-1 block text-xs font-bold text-slate-700">Category</label>
                 <ReceiveCategoryDropdown
                   value={edit.category}
-                  onChange={(v) => setEdit({ ...edit, category: v })}
+                  onChange={(v) => setEdit({ ...edit, category: v, subCategory: "" })}
                   cats={cats}
                   onManageClick={() => setManage(true)}
                 />
               </div>
+
+              {edit.category.trim().toLowerCase().includes("fund receive") && (
+                <div>
+                  <label className="mb-1 block text-xs font-bold text-slate-700">Sub Category (সাব ক্যাটাগরি)</label>
+                  <select
+                    value={edit.subCategory || ""}
+                    onChange={(e) => setEdit({ ...edit, subCategory: e.target.value })}
+                    className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-bold text-slate-800 focus:border-blue-500 focus:outline-none cursor-pointer"
+                  >
+                    <option value="">-- Select Sub Category --</option>
+                    {filterAllowedSubCategories(edit.category, subCatRules).map((sub) => (
+                      <option key={sub} value={sub}>
+                        {sub}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               <div className="md:col-span-2">
                 <label className="mb-1 block text-xs font-bold text-slate-700">Amount</label>

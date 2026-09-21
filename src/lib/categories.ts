@@ -77,6 +77,8 @@ export const DEFAULT_SUBCAT_RULES: SubCategoryRule[] = [
   },
 ];
 
+import { PRODUCT_ORDER, mergeOrder, cmpProduct } from "./sortOrder";
+
 export const isSubCategoryAllowed = (
   subCat: string,
   category: string,
@@ -97,8 +99,12 @@ export const filterAllowedSubCategories = (
   category: string,
   rules: SubCategoryRule[]
 ): string[] => {
-  const allSubCats = Array.from(new Set(rules.map((r) => r.subCategory)));
-  return allSubCats.filter((sub) => isSubCategoryAllowed(sub, category, rules));
+  const normCat = category.trim().toLowerCase();
+  const base = Array.from(new Set(rules.map((r) => r.subCategory)));
+  // fund receive / fund payment → fixed product তালিকা (+ নতুনগুলো শেষে)
+  const isFund = normCat.includes("fund payment") || normCat.includes("fund receive");
+  const pool = isFund ? mergeOrder(PRODUCT_ORDER, base, cmpProduct) : base;
+  return pool.filter((sub) => isSubCategoryAllowed(sub, category, rules));
 };
 
 export const getInstallments = (

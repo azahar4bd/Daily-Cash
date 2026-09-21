@@ -113,6 +113,7 @@ export default function PaymentPage({ selectedDate }: { selectedDate: string }) 
   };
 
   const isCurrentDisburse = isDisburseCategory(form.category);
+  const isFundPayment = form.category.trim().toLowerCase().includes("fund payment");
   const allowedSubCategories = filterAllowedSubCategories(form.category, subCatRules);
 
   const scAmount = isCurrentDisburse
@@ -152,7 +153,7 @@ export default function PaymentPage({ selectedDate }: { selectedDate: string }) 
     saveTx({
       type: "payment",
       category: form.category.trim().toLowerCase(),
-      subCategory: isCurrentDisburse ? form.subCategory : "",
+      subCategory: isCurrentDisburse || isFundPayment ? form.subCategory : "",
       amount: String(form.amount),
       serviceCharge: String(scAmount),
       description: form.description || "",
@@ -183,6 +184,7 @@ export default function PaymentPage({ selectedDate }: { selectedDate: string }) 
       return;
     }
     const editIsDisb = isDisburseCategory(edit.category);
+    const editIsFund = (edit.category || "").trim().toLowerCase().includes("fund payment");
     const editSc = editIsDisb
       ? calcServiceCharge(edit.amount, edit.category, edit.subCategory, rates)
       : 0;
@@ -191,7 +193,7 @@ export default function PaymentPage({ selectedDate }: { selectedDate: string }) 
       id: edit.id,
       type: "payment",
       category: edit.category.trim().toLowerCase(),
-      subCategory: editIsDisb ? edit.subCategory : "",
+      subCategory: editIsDisb || editIsFund ? edit.subCategory : "",
       amount: String(edit.amount),
       serviceCharge: String(editSc),
       description: edit.description || "",
@@ -301,7 +303,7 @@ export default function PaymentPage({ selectedDate }: { selectedDate: string }) 
           </div>
 
           {/* Sub Category */}
-          {isCurrentDisburse && (
+          {(isCurrentDisburse || isFundPayment) && (
             <div>
               <div className="mb-1 flex items-center justify-between">
                 <label className="text-xs font-bold text-slate-700">Sub Category</label>

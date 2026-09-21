@@ -20,6 +20,7 @@ import {
   evaluateMathExpression,
   isIntermediateBlockedDate,
 } from "@/lib/storage";
+import { cmpStaff } from "@/lib/sortOrder";
 import type { StaffReportItem, Tx } from "@/types";
 
 const DEFAULT_STAFF = ["Sakib", "Mintu", "Alamgir", "Monir"];
@@ -388,7 +389,7 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
   // Dena / Poana calculations
   const allStaffNames = Array.from(
     new Set([...DEFAULT_STAFF, ...reports.map((r) => r.staffName.trim())])
-  );
+  ).sort(cmpStaff);
   const receiveTxs = allTxList.filter((t) => t.type === "receive" && t.txDate === selectedDate);
 
   let totalDenaPoanaAday = 0;
@@ -543,7 +544,7 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
   const checkWithdraw = incomeBankWithdraw;
   const checkDiferent = checkWithdraw - checkExpens;
 
-  const topStaffDiffs = ["Sakib", "Monir", "Mintu", "Alamgir"].map((name) => {
+  const topStaffDiffs = ["Sakib", "Mintu", "Alamgir", "Monir"].map((name) => {
     const found = denaPoanaRows.find((r) => r.name.toLowerCase() === name.toLowerCase());
     return { name, diff: found ? Math.round(found.diff) : 0 };
   });
