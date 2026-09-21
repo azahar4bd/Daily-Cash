@@ -66,6 +66,15 @@ div[class*="netlify-hud"] {
     width: 100% !important;
   }
 
+  .app-bg {
+    background: #fff !important;
+    min-height: 0 !important;
+  }
+
+  .fixed {
+    display: none !important;
+  }
+
   #cash-sheet-document {
     width: 100% !important;
     max-width: 100% !important;
