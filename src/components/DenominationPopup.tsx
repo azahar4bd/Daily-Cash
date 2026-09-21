@@ -239,8 +239,8 @@ export default function DenominationPopup({
                         focusIdx(1);
                       }
                     }}
-                    className={`min-w-0 flex-1 rounded border border-slate-300 bg-white px-2.5 py-1 text-right font-mono text-sm sm:text-base font-bold text-slate-900 focus:border-blue-500 focus:outline-none select-text ${
-                      on && showKeypad ? "ring-2 ring-blue-400 bg-white" : ""
+                    className={`min-w-0 flex-1 rounded border border-slate-300 bg-[#eef4fb] px-2.5 py-1 text-right font-mono text-sm sm:text-base font-bold text-slate-900 focus:border-blue-500 focus:outline-none select-text ${
+                      on && showKeypad ? "ring-2 ring-blue-400 bg-[#dcebfb]" : ""
                     }`}
                   />
                   <span className="text-slate-400 text-xs">=</span>
@@ -264,7 +264,7 @@ export default function DenominationPopup({
                   key={note}
                   onClick={() => focusIdx(i)}
                   className={`flex items-center gap-1.5 rounded-md border px-2 py-0.5 sm:py-1 cursor-pointer transition ${
-                    on ? "border-blue-600 bg-blue-50 ring-1 ring-blue-400" : "border-slate-200 bg-white hover:bg-slate-50"
+                    on ? "border-blue-600 bg-blue-50 ring-1 ring-blue-400" : "border-slate-200 bg-[#f3f7fc] hover:bg-[#e8f0f9]"
                   }`}
                 >
                   <span className="w-11 shrink-0 text-right font-mono text-xs sm:text-sm font-bold text-slate-800">
@@ -308,7 +308,7 @@ export default function DenominationPopup({
                       }
                     }}
                     className={`min-w-0 flex-1 rounded border border-slate-200 px-2 py-0.5 text-right font-mono text-xs sm:text-sm font-bold focus:border-blue-500 focus:outline-none select-text ${
-                      on && showKeypad ? "bg-white text-blue-900 border-blue-400" : ""
+                      on && showKeypad ? "bg-[#dcebfb] text-blue-900 border-blue-400" : ""
                     }`}
                   />
                   <span className="text-slate-400 text-xs">=</span>
@@ -350,12 +350,17 @@ export default function DenominationPopup({
                 <Key
                   label="Reset"
                   onClick={reset}
-                  className="col-span-2 bg-slate-500 !text-xs text-white hover:bg-slate-600"
+                  className="bg-slate-500 !text-[10px] text-white hover:bg-slate-600"
+                />
+                <Key
+                  label="Save"
+                  onClick={save}
+                  className="bg-emerald-600 text-white hover:bg-emerald-700 !text-xs font-black"
                 />
               </div>
 
               {/* Close Button at TOP RIGHT + Navigation Arrows BELOW */}
-              <div className="grid grid-cols-1 grid-rows-5 gap-1">
+              <div className="grid grid-cols-1 grid-rows-4 gap-1">
                 {/* Close Button on Top Right Corner of Keyboard */}
                 <Key
                   label="✕ Close"
@@ -368,11 +373,6 @@ export default function DenominationPopup({
                   <Key label="►" onClick={() => focusIdx(active + 1)} className="bg-blue-100 text-blue-900 !text-xs" />
                 </div>
                 <Key label="▼" onClick={() => focusIdx(active + 1)} className="bg-blue-100 text-blue-900 hover:bg-blue-200" />
-                <Key
-                  label="Save"
-                  onClick={save}
-                  className="bg-emerald-600 text-white hover:bg-emerald-700 !text-xs font-black"
-                />
               </div>
             </div>
           </div>

@@ -309,7 +309,7 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
               className={`w-full rounded-lg border px-3 py-2 text-sm font-semibold text-slate-800 focus:outline-none ${
                 isDayClosed(form.txDate)
                   ? "border-slate-300 bg-slate-100 text-slate-500 cursor-not-allowed opacity-60"
-                  : "border-slate-300 bg-white focus:border-blue-500"
+                  : "border-slate-300 bg-[#eef4fb] focus:border-blue-500"
               }`}
             />
           </div>
