@@ -13,6 +13,25 @@ export type Tx = {
   txDate: string;
 };
 
+/**
+ * Check পেজের এন্ট্রি
+ * মেম্বার ডাটাবেজে কোড থাকলে name/centre সেখান থেকে আসে (foundInDb = true),
+ * না থাকলে সব ঘর হাতে পূরণ করতে হয় (foundInDb = false) — তখন নতুন মেম্বার তৈরি হয়।
+ */
+export type CheckEntry = {
+  id: number;
+  checkDate: string;
+  memberCode: string;
+  memberName: string;
+  centreCode: string;
+  centreName: string;
+  bankName: string;
+  checkNo: string;
+  /** ডাটাবেজে পাওয়া গিয়েছিল কি না */
+  foundInDb?: boolean;
+  createdAt?: string;
+};
+
 export type StaffReportItem = {
   id: number;
   reportDate: string;

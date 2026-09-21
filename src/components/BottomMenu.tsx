@@ -12,6 +12,7 @@ const pages = [
   { id: "rebate", label: "Rebate", labelBn: "রিবেট (Rebate)", icon: "🏷️" },
   { id: "report", label: "Report", labelBn: "স্টাফ রিপোর্ট", icon: "📊" },
   { id: "cashbook", label: "Cashbook", labelBn: "ক্যাশ বহি (Cashbook)", icon: "📖" },
+  { id: "check", label: "Check", labelBn: "চেক (Check)", icon: "🧾" },
 ];
 
 export default function BottomMenu({

@@ -5,6 +5,7 @@ import PaymentPage from "./components/PaymentPage";
 import RebatePage from "./components/RebatePage";
 import StaffReportManager from "./components/StaffReportManager";
 import CashSheet from "./components/CashSheet";
+import CheckPage from "./components/CheckPage";
 import BottomMenu from "./components/BottomMenu";
 import NetworkStatusBanner from "./components/NetworkStatusBanner";
 import UnclosedDateAlert from "./components/UnclosedDateAlert";
@@ -119,6 +120,7 @@ export default function App() {
         {currentTab === "cashbook" && (
           <CashSheet selectedDate={selectedDate} setSelectedDate={handleDateChange} />
         )}
+        {currentTab === "check" && <CheckPage selectedDate={selectedDate} />}
       </main>
 
       {/* 🔄 New-version available toast (hard cache-busting) */}
