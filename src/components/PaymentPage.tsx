@@ -59,6 +59,9 @@ export default function PaymentPage({ selectedDate }: { selectedDate: string }) 
   const [kallyanRule, setKallyanRule] = useState<KallyanRule>(getKallyanRule());
   const [kallyanSettingsOpen, setKallyanSettingsOpen] = useState(false);
   const [filterCategory, setFilterCategory] = useState<string>("all");
+  /** তারিখ হতে তারিখ ফিল্টার — ডিফল্ট: নির্বাচিত দিন */
+  const [rangeFrom, setRangeFrom] = useState(selectedDate);
+  const [rangeTo, setRangeTo] = useState(selectedDate);
   const [deleteTargetId, setDeleteTargetId] = useState<number | string | null>(null);
 
   const [form, setForm] = useState<PaymentFormState>({
@@ -74,7 +77,9 @@ export default function PaymentPage({ selectedDate }: { selectedDate: string }) 
 
   const loadData = () => {
     const all = getLocalTxs();
-    setRows(all.filter((t) => t.type === "payment" && t.txDate === selectedDate));
+    const f = rangeFrom <= rangeTo ? rangeFrom : rangeTo;
+    const t2 = rangeFrom <= rangeTo ? rangeTo : rangeFrom;
+    setRows(all.filter((t) => t.type === "payment" && t.txDate >= f && t.txDate <= t2));
     setDisburseCats(getCategories("disburse"));
     setExpenseCats(getCategories("expense"));
     setRates(getScRates());
@@ -83,6 +88,8 @@ export default function PaymentPage({ selectedDate }: { selectedDate: string }) 
   };
 
   useEffect(() => {
+    setRangeFrom(selectedDate);
+    setRangeTo(selectedDate);
     loadData();
     setForm((f) => ({ ...f, txDate: selectedDate }));
     const handleKallyanChange = () => setKallyanRule(getKallyanRule());
@@ -94,6 +101,11 @@ export default function PaymentPage({ selectedDate }: { selectedDate: string }) 
       window.removeEventListener("tx-changed", onTx);
     };
   }, [selectedDate]);
+
+  // রেঞ্জ বদলালে টেবিল রিলোড
+  useEffect(() => {
+    loadData();
+  }, [rangeFrom, rangeTo]);
 
   const isDisburseCategory = (catName: string) => {
     const norm = catName.trim().toLowerCase();
@@ -486,6 +498,26 @@ export default function PaymentPage({ selectedDate }: { selectedDate: string }) 
         <div className="flex flex-wrap items-center justify-between gap-3 border-b px-5 py-3 bg-slate-50">
           <div className="font-bold text-slate-800 text-sm sm:text-base">
             Saved Payment Entries ({displayedRows.length}/{rows.length})
+          </div>
+
+          {/* তারিখ হতে তারিখ ফিল্টার (ক্যাটাগরি ফিল্টারের পাশে) */}
+          <div className="flex flex-wrap items-center gap-2">
+            <label className="text-xs font-bold text-slate-600">From:</label>
+            <div className="w-32 sm:w-36">
+              <DatePicker
+                value={rangeFrom}
+                onChange={(v) => setRangeFrom(v)}
+                className="px-2 py-1 text-xs sm:text-sm"
+              />
+            </div>
+            <label className="text-xs font-bold text-slate-600">To:</label>
+            <div className="w-32 sm:w-36">
+              <DatePicker
+                value={rangeTo}
+                onChange={(v) => setRangeTo(v)}
+                className="px-2 py-1 text-xs sm:text-sm"
+              />
+            </div>
           </div>
 
           {/* Category-wise Filtering Dropdown */}

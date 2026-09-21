@@ -45,6 +45,9 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
   const [cats, setCats] = useState<Cat[]>([]);
   const [manage, setManage] = useState(false);
   const [filterCategory, setFilterCategory] = useState<string>("all");
+  /** তারিখ হতে তারিখ ফিল্টার — ডিফল্ট: নির্বাচিত দিন */
+  const [rangeFrom, setRangeFrom] = useState(selectedDate);
+  const [rangeTo, setRangeTo] = useState(selectedDate);
   const [deleteTargetId, setDeleteTargetId] = useState<number | string | null>(null);
 
   const [form, setForm] = useState<FormState>({
@@ -67,9 +70,11 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
 
   const load = () => {
     const all = getLocalTxs();
-    const filtered = all.filter((t) => t.type === "receive" && t.txDate === selectedDate);
+    const f = rangeFrom <= rangeTo ? rangeFrom : rangeTo;
+    const t2 = rangeFrom <= rangeTo ? rangeTo : rangeFrom;
+    const filtered = all.filter((t) => t.type === "receive" && t.txDate >= f && t.txDate <= t2);
     setRows(filtered);
-    const s = getSummary(selectedDate);
+    const s = getSummary(rangeFrom === rangeTo ? rangeFrom : selectedDate);
     setOpening({
       prevCash: s.prevCash,
       prevBank: s.prevBank,
@@ -82,6 +87,8 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
   };
 
   useEffect(() => {
+    setRangeFrom(selectedDate);
+    setRangeTo(selectedDate);
     load();
     loadCats();
     setForm((f) => ({ ...f, txDate: selectedDate }));
@@ -89,6 +96,11 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
     window.addEventListener("tx-changed", onTx);
     return () => window.removeEventListener("tx-changed", onTx);
   }, [selectedDate]);
+
+  // রেঞ্জ বদলালে টেবিল রিলোড
+  useEffect(() => {
+    load();
+  }, [rangeFrom, rangeTo]);
 
   const categoryNames = cats.map((c) => c.name);
 
@@ -371,6 +383,26 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
             </span>
           </div>
 
+          {/* তারিখ হতে তারিখ ফিল্টার (ক্যাটাগরি ফিল্টারের পাশে) */}
+          <div className="flex flex-wrap items-center gap-2">
+            <label className="text-xs font-bold text-slate-600">From:</label>
+            <div className="w-32 sm:w-36">
+              <DatePicker
+                value={rangeFrom}
+                onChange={(v) => setRangeFrom(v)}
+                className="px-2 py-1 text-xs sm:text-sm"
+              />
+            </div>
+            <label className="text-xs font-bold text-slate-600">To:</label>
+            <div className="w-32 sm:w-36">
+              <DatePicker
+                value={rangeTo}
+                onChange={(v) => setRangeTo(v)}
+                className="px-2 py-1 text-xs sm:text-sm"
+              />
+            </div>
+          </div>
+
           {/* Category-wise Filtering Dropdown */}
           <div className="flex items-center gap-2">
             <label className="text-xs font-bold text-slate-600">Category Filter:</label>
@@ -403,7 +435,7 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
               </tr>
             </thead>
             <tbody>
-              {opening && filterCategory === "all" && (
+              {opening && filterCategory === "all" && rangeFrom === rangeTo && (
                 <>
                   <tr className="border-b bg-emerald-50 font-semibold text-slate-900">
                     <td className="px-3.5 py-2">-</td>
