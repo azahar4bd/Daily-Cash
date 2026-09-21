@@ -27,6 +27,10 @@ export type CheckEntry = {
   centreName: string;
   bankName: string;
   checkNo: string;
+  /** বিতরণ (Disbursse) — চেকটি যে খাতে বিতরণ হচ্ছে */
+  disbursse?: string;
+  /** প্রকল্প (Project) */
+  project?: string;
   /** ডাটাবেজে পাওয়া গিয়েছিল কি না */
   foundInDb?: boolean;
   createdAt?: string;

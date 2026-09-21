@@ -16,7 +16,7 @@ import {
   deleteCheckEntry,
   isDuplicateCheck,
 } from "@/lib/checkStore";
-import { isDayClosed, isIntermediateBlockedDate } from "@/lib/storage";
+import { isDayClosed, isIntermediateBlockedDate, getCategories } from "@/lib/storage";
 import { formatDisplay } from "./DatePicker";
 import type { CheckEntry } from "@/types";
 
@@ -51,6 +51,8 @@ const emptyForm = (date: string) => ({
   centreName: "",
   bankName: "",
   checkNo: "",
+  disbursse: "",
+  project: "",
 });
 
 export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
@@ -206,6 +208,8 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
       centreName: form.centreName.trim(),
       bankName: form.bankName.trim(),
       checkNo: form.checkNo.trim(),
+      disbursse: form.disbursse.trim(),
+      project: form.project.trim(),
       foundInDb: found,
     };
 
@@ -241,6 +245,8 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
       centreName: row.centreName,
       bankName: row.bankName,
       checkNo: row.checkNo,
+      disbursse: row.disbursse || "",
+      project: row.project || "",
     });
     // ডাটাবেজে আছে কি না যাচাই
     const m = findMemberByCode(row.memberCode);
@@ -314,6 +320,8 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
       if (e.memberName.toLowerCase().includes(q)) return true;
       if (e.centreName.toLowerCase().includes(q)) return true;
       if (e.bankName.toLowerCase().includes(q)) return true;
+      if ((e.disbursse || "").toLowerCase().includes(q)) return true;
+      if ((e.project || "").toLowerCase().includes(q)) return true;
       return false;
     });
   }, [entries, search]);
@@ -327,6 +335,28 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
     () => new Set(entries.map((e) => normCode(e.memberCode))).size,
     [entries]
   );
+
+  /* ───────── Disbursse ও প্রকল্পের সাজেশন (আগের এন্ট্রি + অ্যাপের ডিসবার্স ক্যাটাগরি) ───────── */
+  const disbursseOptions = useMemo(() => {
+    const set = new Set<string>();
+    try {
+      getCategories("disburse").forEach((c) => {
+        if (c && c.name) set.add(c.name);
+      });
+    } catch {}
+    entries.forEach((e) => {
+      if (e.disbursse) set.add(e.disbursse);
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [entries]);
+
+  const projectOptions = useMemo(() => {
+    const set = new Set<string>();
+    entries.forEach((e) => {
+      if (e.project) set.add(e.project);
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [entries]);
 
   const inputCls =
     "w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200";
@@ -436,6 +466,40 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
               autoComplete="off"
             />
           </div>
+
+          <div>
+            <label className={labelCls}>Disbursse (বিতরণ)</label>
+            <input
+              list="check-disbursse-list"
+              value={form.disbursse}
+              onChange={(e) => setForm((f) => ({ ...f, disbursse: e.target.value }))}
+              placeholder="বিতরণের খাত লিখুন বা বেছে নিন"
+              className={inputCls}
+              autoComplete="off"
+            />
+            <datalist id="check-disbursse-list">
+              {disbursseOptions.map((d) => (
+                <option key={d} value={d} />
+              ))}
+            </datalist>
+          </div>
+
+          <div>
+            <label className={labelCls}>প্রকল্প (Project)</label>
+            <input
+              list="check-project-list"
+              value={form.project}
+              onChange={(e) => setForm((f) => ({ ...f, project: e.target.value }))}
+              placeholder="প্রকল্পের নাম লিখুন বা বেছে নিন"
+              className={inputCls}
+              autoComplete="off"
+            />
+            <datalist id="check-project-list">
+              {projectOptions.map((p) => (
+                <option key={p} value={p} />
+              ))}
+            </datalist>
+          </div>
         </div>
 
         {/* Step 2 — extra fields when member is NOT in the database */}
@@ -447,7 +511,7 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
           <div className="mt-3 rounded-xl border border-emerald-300 bg-emerald-50 p-3">
             <div className="mb-2 flex items-center gap-2 text-[11px] font-black text-emerald-900">
               <span>✓</span>
-              <span>ডাটাবেজ থেকে তথ্য নেওয়া হয়েছে — শুধু তারিখ, মেম্বার কোড, ব্যাংক ও চেক নম্বর এন্ট্রি করুন</span>
+              <span>ডাটাবেজ থেকে তথ্য নেওয়া হয়েছে — শুধু তারিখ, মেম্বার কোড, ব্যাংক, চেক নম্বর, বিতরণ ও প্রকল্প এন্ট্রি করুন</span>
             </div>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <div>
@@ -611,7 +675,7 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
         {/* Table */}
         <div className="overflow-hidden rounded-xl border border-slate-200">
           <div className="max-h-[60vh] overflow-auto">
-            <table className="w-full min-w-[900px] border-collapse text-sm">
+            <table className="w-full min-w-[1080px] border-collapse text-sm">
               <thead className="sticky top-0 z-10 bg-slate-800 text-white">
                 <tr>
                   {[
@@ -623,6 +687,8 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
                     "Centre Name",
                     "Bank Name",
                     "Check No.",
+                    "Disbursse",
+                    "প্রকল্প",
                     "Action",
                   ].map((h) => (
                     <th
@@ -637,7 +703,7 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
               <tbody>
                 {pageRows.length === 0 ? (
                   <tr>
-                    <td colSpan={9} className="px-4 py-10 text-center text-sm font-semibold text-slate-500">
+                    <td colSpan={11} className="px-4 py-10 text-center text-sm font-semibold text-slate-500">
                       {search
                         ? "🔍 এই অনুসন্ধানে কোনো ডাটা পাওয়া যায়নি।"
                         : "এখনো কোনো চেক এন্ট্রি নেই — উপরের ফর্ম থেকে যোগ করুন।"}
@@ -676,6 +742,20 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
                         <td className="px-3 py-2 text-xs font-semibold text-slate-800">{row.bankName}</td>
                         <td className="whitespace-nowrap px-3 py-2 font-mono text-xs font-black text-slate-900">
                           {row.checkNo}
+                        </td>
+                        <td className="px-3 py-2 text-xs font-semibold text-slate-800">
+                          {row.disbursse ? (
+                            row.disbursse
+                          ) : (
+                            <span className="text-slate-300">—</span>
+                          )}
+                        </td>
+                        <td className="px-3 py-2 text-xs font-semibold text-slate-800">
+                          {row.project ? (
+                            row.project
+                          ) : (
+                            <span className="text-slate-300">—</span>
+                          )}
                         </td>
                         <td className="whitespace-nowrap px-3 py-2">
                           <div className="flex items-center gap-1">
