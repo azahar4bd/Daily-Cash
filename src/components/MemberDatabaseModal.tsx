@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { getMembers, normCode } from "@/lib/memberDb";
+import { getMembers, normCode, parseMemberText, importMembers } from "@/lib/memberDb";
 import type { Member } from "@/lib/memberDb";
 
 /**
@@ -21,9 +21,64 @@ export default function MemberDatabaseModal({
   const [query, setQuery] = useState("");
   const [limit, setLimit] = useState(50);
   const searchRef = useRef<HTMLInputElement | null>(null);
+  /** আপলোডের পর তালিকা নতুন করে পড়ার জন্য */
+  const [reloadKey, setReloadKey] = useState(0);
+  const [upBusy, setUpBusy] = useState(false);
+  const [upDrag, setUpDrag] = useState(false);
+  const [upMsg, setUpMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const fileRef = useRef<HTMLInputElement | null>(null);
 
   /** ডাটাবেজ একবারই পড়া হবে (৪,৭০০+ রো — বার বার পড়লে ধীর হবে) */
-  const members = useMemo<Member[]>(() => (open ? getMembers() : []), [open]);
+  const members = useMemo<Member[]>(() => (open ? getMembers() : []), [open, reloadKey]);
+
+  /** সফল বার্তা কিছুক্ষণ পর নিজে থেকেই সরে যাবে */
+  useEffect(() => {
+    if (!upMsg || !upMsg.ok) return;
+    const t = window.setTimeout(() => setUpMsg(null), 12000);
+    return () => window.clearTimeout(t);
+  }, [upMsg]);
+
+  /** ডাটাবেজ বদলালে (আপলোড/ক্লাউড থেকে ফেরা) তালিকা নতুন করে পড়া হবে */
+  useEffect(() => {
+    if (!open) return;
+    const h = () => setReloadKey((k) => k + 1);
+    window.addEventListener("member-db-changed", h);
+    return () => window.removeEventListener("member-db-changed", h);
+  }, [open]);
+
+  /**
+   * 📤 CSV আপলোড — বাকি সব নিজে থেকেই হয়:
+   * ফাইল পড়া → কলাম শনাক্ত → ডুপ্লিকেট বাদ (মেম্বার কোড অনুযায়ী) → ডাটাবেজে বসানো
+   * → ক্লাউডে (এই অফিসের নিজের ঘরে) সংরক্ষণ। একবার ডাটাবেজ থাকলে এই ঘর আর দেখায় না।
+   */
+  const handleFiles = async (files: FileList | null) => {
+    const f = files && files[0] ? files[0] : null;
+    if (!f) return;
+    setUpBusy(true);
+    setUpMsg(null);
+    try {
+      const text = await f.text();
+      const { members: parsed, skipped } = parseMemberText(text);
+      if (!parsed.length) {
+        setUpMsg({
+          ok: false,
+          text: "ফাইলে কোনো মেম্বার পাওয়া যায়নি। কলাম ঠিক আছে কি না দেখুন — Member Code, Member Name, Centre Code, Centre Name (হেডার না থাকলেও এই ক্রমেই পড়বে)।",
+        });
+        return;
+      }
+      const res = importMembers(parsed);
+      setUpMsg({
+        ok: true,
+        text: `✓ ${res.total.toLocaleString("en-IN")} জন মেম্বার ডাটাবেজে বসে গেছে (নতুন ${res.added.toLocaleString("en-IN")}, আপডেট ${res.updated.toLocaleString("en-IN")}${skipped ? `, বাদ পড়েছে ${skipped.toLocaleString("en-IN")}` : ""})। ক্লাউডে সংরক্ষণ হচ্ছে…`,
+      });
+      setReloadKey((k) => k + 1);
+    } catch (e: any) {
+      setUpMsg({ ok: false, text: `ফাইল পড়া যায়নি: ${e?.message || "অজানা ত্রুটি"}` });
+    } finally {
+      setUpBusy(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -138,9 +193,91 @@ export default function MemberDatabaseModal({
           </div>
         </div>
 
+        {/* ── আপলোডের ফল (ঘর বদলে গেলেও বার্তা থেকে যাবে) ── */}
+        {upMsg && (
+          <div
+            className={`flex items-start justify-between gap-2 border-b px-4 py-2 text-[11px] font-bold leading-relaxed ${
+              upMsg.ok
+                ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+                : "border-rose-200 bg-rose-50 text-rose-800"
+            }`}
+          >
+            <span>
+              {upMsg.ok ? "✅" : "⚠️"} {upMsg.text}
+            </span>
+            <button
+              type="button"
+              onClick={() => setUpMsg(null)}
+              title="বার্তা বন্ধ করুন"
+              className="shrink-0 rounded px-1 text-xs font-black opacity-60 hover:opacity-100 cursor-pointer"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+
         {/* ── Results ── */}
         <div className="flex-1 overflow-auto">
-          {shown.length === 0 ? (
+          {members.length === 0 ? (
+            /* 📤 এই অফিসের ডাটাবেজ এখনো খালি → CSV আপলোড ঘর (একবার আপলোড হলে আর দেখাবে না) */
+            <div className="px-4 py-8">
+              <div
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setUpDrag(true);
+                }}
+                onDragLeave={() => setUpDrag(false)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setUpDrag(false);
+                  handleFiles(e.dataTransfer.files);
+                }}
+                className={`mx-auto max-w-xl rounded-2xl border-2 border-dashed p-6 text-center transition ${
+                  upDrag ? "border-indigo-500 bg-indigo-50" : "border-indigo-300 bg-indigo-50/40"
+                }`}
+              >
+                <div className="text-3xl">📤</div>
+                <h4 className="mt-2 text-sm font-black text-indigo-950">
+                  এই অফিসের মেম্বার ডাটাবেজ আপলোড করুন
+                </h4>
+                <p className="mx-auto mt-1.5 max-w-md text-[11px] font-semibold leading-relaxed text-slate-600">
+                  CSV ফাইল দিলেই বাকি সব নিজে থেকেই হয়ে যাবে — ফাইল পড়া, কলাম শনাক্ত করা,
+                  মেম্বার কোড অনুযায়ী ডুপ্লিকেট বাদ দেওয়া, ডাটাবেজে বসানো এবং ক্লাউডে এই
+                  অফিসের নিজের ঘরে সংরক্ষণ। এরপর চেক এন্ট্রিতে কোড লিখলেই নাম ও সেন্টার
+                  নিজে থেকে চলে আসবে।
+                </p>
+
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept=".csv,.txt,text/csv,text/plain"
+                  onChange={(e) => handleFiles(e.target.files)}
+                  className="hidden"
+                />
+                <button
+                  type="button"
+                  disabled={upBusy}
+                  onClick={() => fileRef.current?.click()}
+                  className="mt-3 rounded-xl bg-linear-to-r from-indigo-600 to-blue-600 px-5 py-2.5 text-xs font-black text-white shadow-md transition hover:from-indigo-700 hover:to-blue-700 disabled:opacity-50 cursor-pointer"
+                >
+                  {upBusy ? "⏳ ফাইল পড়া হচ্ছে…" : "📁 CSV ফাইল বেছে নিন"}
+                </button>
+                <p className="mt-1.5 text-[10px] font-bold text-slate-500">
+                  অথবা ফাইলটি এখানে টেনে আনুন
+                </p>
+
+                <div className="mx-auto mt-3 max-w-md rounded-xl border border-slate-200 bg-white px-3 py-2 text-left text-[10px] font-semibold leading-relaxed text-slate-500">
+                  কলাম থাকলে ভালো: <span className="font-mono">Member Code, Member Name, Centre
+                  Code, Centre Name, Bank Name, Check No</span> — হেডার ছাড়া CSV হলেও চলবে
+                  (এই ক্রমেই পড়বে)। কমা / ট্যাব / সেমিকোলন — তিনভাবেই চলে।
+                </div>
+
+                <p className="mt-2 text-[10px] font-black text-amber-700">
+                  ⚠️ একবার ডাটাবেজ আপলোড হলে এই আপলোড ঘর আর দেখাবে না।
+                </p>
+              </div>
+            </div>
+          ) : shown.length === 0 ? (
             <div className="px-4 py-12 text-center">
               <div className="text-3xl">🔍</div>
               <p className="mt-2 text-sm font-bold text-slate-600">কোনো মিল নেই</p>
