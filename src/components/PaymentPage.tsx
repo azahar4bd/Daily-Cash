@@ -303,23 +303,48 @@ export default function PaymentPage({ selectedDate }: { selectedDate: string }) 
             />
           </div>
 
-          {/* Sub Category */}
+          {/* Sub Category — যোগ / এডিট / মুছে ফেলা যায় */}
           {(isCurrentDisburse || isFundPayment) && (
             <div>
-              <div className="mb-1 flex items-center justify-between">
+              <div className="mb-1 flex items-center justify-between gap-2">
                 <label className="text-xs font-bold text-slate-700">Sub Category</label>
-                <button
-                  type="button"
-                  onClick={() => setRulesModalOpen(true)}
-                  className="text-xs font-bold text-blue-600 hover:underline flex items-center gap-1 cursor-pointer"
-                >
-                  ⚙ Rules
-                </button>
+                <div className="flex items-center gap-2">
+                  {form.subCategory ? (
+                    <button
+                      type="button"
+                      disabled={isDayClosed(form.txDate)}
+                      onClick={() => {
+                        if (isDayClosed(form.txDate)) {
+                          flashLock();
+                          return;
+                        }
+                        setForm({ ...form, subCategory: "" });
+                      }}
+                      title="সাব-ক্যাটাগরি মুছে ফেলুন (ডিলিট)"
+                      className="cursor-pointer text-[11px] font-black text-rose-600 hover:underline disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      ✕ মুছুন
+                    </button>
+                  ) : (
+                    <span className="text-[10px] font-bold text-slate-400">＋ ড্রপডাউন থেকে যোগ করুন</span>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setRulesModalOpen(true)}
+                    className="text-xs font-bold text-blue-600 hover:underline flex items-center gap-1 cursor-pointer"
+                  >
+                    ⚙ Rules
+                  </button>
+                </div>
               </div>
               <SearchSelect
                 value={form.subCategory}
                 onChange={(v) => setForm({ ...form, subCategory: v })}
-                options={allowedSubCategories}
+                options={
+                  form.subCategory && !allowedSubCategories.includes(form.subCategory)
+                    ? [...allowedSubCategories, form.subCategory]
+                    : allowedSubCategories
+                }
                 placeholder="-- Select Sub Category --"
                 disabled={isDayClosed(form.txDate)}
                 className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-bold text-slate-800 focus:border-blue-500 focus:outline-none cursor-pointer"
@@ -696,13 +721,32 @@ export default function PaymentPage({ selectedDate }: { selectedDate: string }) 
                   onManageClick={() => setManageOpen(true)}
                 />
               </div>
-              {isDisburseCategory(edit.category) && (
+              {(isDisburseCategory(edit.category) ||
+                (edit.category || "").trim().toLowerCase().includes("fund payment")) && (
                 <div>
-                  <label className="mb-1 block text-xs font-bold text-slate-700">Sub Category</label>
+                  <div className="mb-1 flex items-center justify-between gap-2">
+                    <label className="text-xs font-bold text-slate-700">Sub Category</label>
+                    {edit.subCategory ? (
+                      <button
+                        type="button"
+                        onClick={() => setEdit({ ...edit, subCategory: "" })}
+                        title="সাব-ক্যাটাগরি মুছে ফেলুন (ডিলিট)"
+                        className="cursor-pointer text-[11px] font-black text-rose-600 hover:underline"
+                      >
+                        ✕ মুছুন
+                      </button>
+                    ) : (
+                      <span className="text-[10px] font-bold text-emerald-600">＋ যোগ করতে বেছে নিন</span>
+                    )}
+                  </div>
                   <SearchSelect
                     value={edit.subCategory || ""}
                     onChange={(v) => setEdit({ ...edit, subCategory: v })}
-                    options={filterAllowedSubCategories(edit.category, subCatRules)}
+                    options={(() => {
+                      const list = filterAllowedSubCategories(edit.category, subCatRules);
+                      const cur = (edit.subCategory || "").trim();
+                      return cur && !list.includes(cur) ? [...list, cur] : list;
+                    })()}
                     placeholder="-- Select Sub Category --"
                     className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-bold text-slate-800 focus:border-blue-500 focus:outline-none cursor-pointer"
                   />

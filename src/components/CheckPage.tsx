@@ -219,6 +219,16 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
   };
 
   const handleEdit = (row: CheckEntry) => {
+    // যে দিনের এন্ট্রি — সেই দিন Day Closed হলে এডিট লক
+    if (isDayClosed(row.checkDate)) {
+      flashLock();
+      setStatus({
+        kind: "err",
+        text: `🔒 ${formatDisplay(row.checkDate) || row.checkDate} তারিখের দিন সমাপ্ত (Day Closed) — এই এন্ট্রি এডিট করা যাবে না।`,
+      });
+      return;
+    }
+    setStatus(null);
     setEdit(row);
     setForm({
       checkDate: row.checkDate,
@@ -242,12 +252,29 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
   };
 
   const handleDelete = (row: CheckEntry) => {
-    if (dayClosed) {
+    // যে দিনের এন্ট্রি — সেই দিন Day Closed হলে ডিলিট লক
+    if (isDayClosed(row.checkDate)) {
       flashLock();
+      setStatus({
+        kind: "err",
+        text: `🔒 ${formatDisplay(row.checkDate) || row.checkDate} তারিখের দিন সমাপ্ত (Day Closed) — এই এন্ট্রি মুছে ফেলা যাবে না।`,
+      });
       return;
     }
-    if (confirm(`চেক নম্বর ${row.checkNo} (${row.memberCode}) মুছে ফেলতে চান?`)) {
+    if (
+      confirm(
+        `চেক নম্বর ${row.checkNo} (${row.memberCode}) — ${
+          formatDisplay(row.checkDate) || row.checkDate
+        } তারিখের এন্ট্রিটি মুছে ফেলতে চান?`
+      )
+    ) {
       deleteCheckEntry(row.id);
+      if (edit?.id === row.id) {
+        setEdit(null);
+        setForm(emptyForm(form.checkDate));
+        setMatchInfo("idle");
+      }
+      setStatus({ kind: "ok", text: `✓ চেক #${row.checkNo} (${row.memberCode}) মুছে ফেলা হয়েছে।` });
       reload();
     }
   };
@@ -316,6 +343,13 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
       return false;
     });
   }, [entries, search]);
+
+  /** ফর্মে লেখা মেম্বার কোডের সেভ করা চেক এন্ট্রি — সার্চ করলেই এডিট/ডিলিট করা যাবে */
+  const memberEntries = useMemo(() => {
+    const key = normCode(form.memberCode);
+    if (!key) return [] as CheckEntry[];
+    return entries.filter((e) => normCode(e.memberCode) === key);
+  }, [entries, form.memberCode]);
 
   useEffect(() => setPage(1), [search]);
 
@@ -461,6 +495,92 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
             />
           </div>
         </div>
+
+        {/* ══ এই মেম্বার কোডের আগের চেক এন্ট্রি — এখানেই এডিট / ডিলিট ══ */}
+        {memberEntries.length > 0 && (
+          <div className="mt-3 rounded-xl border border-indigo-300 bg-indigo-50/70 p-3">
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+              <span className="flex items-center gap-2 text-[11px] font-black text-indigo-900">
+                🔎 এই মেম্বার কোডের সেভ করা চেক এন্ট্রি
+                <span className="rounded bg-indigo-100 px-1.5 py-0.5 font-mono">
+                  {memberEntries.length}
+                </span>
+              </span>
+              <span className="text-[10px] font-bold text-slate-500">
+                ✏️ এডিট / 🗑️ ডিলিট — Day Closed দিনের এন্ট্রি লক করা
+              </span>
+            </div>
+            <div className="space-y-1.5">
+              {memberEntries.map((e) => {
+                const rowLocked = isDayClosed(e.checkDate);
+                const isEditing = edit?.id === e.id;
+                return (
+                  <div
+                    key={e.id}
+                    className={`flex flex-wrap items-center gap-2 rounded-lg border px-2.5 py-1.5 ${
+                      rowLocked
+                        ? "border-rose-200 bg-rose-50"
+                        : isEditing
+                        ? "border-amber-300 bg-amber-50"
+                        : "border-slate-200 bg-white"
+                    }`}
+                  >
+                    <span className="font-mono text-[11px] font-black text-slate-700">
+                      {formatDisplay(e.checkDate) || e.checkDate}
+                    </span>
+                    <span className="text-[11px] font-bold text-slate-600">{e.bankName}</span>
+                    <span className="font-mono text-[11px] font-black text-slate-900">
+                      #{e.checkNo}
+                    </span>
+                    {e.disbursse && (
+                      <span className="font-mono text-[11px] font-bold text-emerald-700">
+                        ৳{fmtAmt(e.disbursse)}
+                      </span>
+                    )}
+                    {e.project && (
+                      <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-600">
+                        {e.project}
+                      </span>
+                    )}
+                    <div className="ml-auto flex items-center gap-1">
+                      {rowLocked && (
+                        <span
+                          className="rounded border border-rose-300 bg-rose-100 px-1.5 py-0.5 text-[10px] font-black text-rose-700"
+                          title="দিন সমাপ্ত (Day Closed) — এডিট/ডিলিট করা যাবে না"
+                        >
+                          🔒 Day Closed
+                        </span>
+                      )}
+                      {isEditing && (
+                        <span className="rounded border border-amber-300 bg-amber-100 px-1.5 py-0.5 text-[10px] font-black text-amber-800">
+                          ✏️ এডিট মোড
+                        </span>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => handleEdit(e)}
+                        disabled={rowLocked || isEditing}
+                        title={rowLocked ? "দিন সমাপ্ত — এডিট করা যাবে না" : "এই এন্ট্রি এডিট করুন"}
+                        className="rounded-lg border border-blue-200 bg-blue-50 px-2 py-1 text-[11px] font-bold text-blue-700 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        ✏️ এডিট
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(e)}
+                        disabled={rowLocked}
+                        title={rowLocked ? "দিন সমাপ্ত — ডিলিট করা যাবে না" : "এই এন্ট্রি মুছে ফেলুন"}
+                        className="rounded-lg border border-rose-200 bg-rose-50 px-2 py-1 text-[11px] font-bold text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        🗑️ ডিলিট
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Step 2 — extra fields when member is NOT in the database */}
         {matchInfo === "idle" ? null : found ? (
@@ -707,24 +827,39 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
                           )}
                         </td>
                         <td className="whitespace-nowrap px-3 py-2">
-                          <div className="flex items-center gap-1">
-                            <button
-                              type="button"
-                              onClick={() => handleEdit(row)}
-                              title="এডিট করুন"
-                              className="rounded-lg border border-blue-200 bg-blue-50 px-2 py-1 text-xs text-blue-700 transition hover:bg-blue-100"
-                            >
-                              ✏️
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleDelete(row)}
-                              title="মুছে ফেলুন"
-                              className="rounded-lg border border-rose-200 bg-rose-50 px-2 py-1 text-xs text-rose-700 transition hover:bg-rose-100"
-                            >
-                              🗑️
-                            </button>
-                          </div>
+                          {(() => {
+                            const rowLocked = isDayClosed(row.checkDate);
+                            return (
+                              <div className="flex items-center gap-1">
+                                {rowLocked && (
+                                  <span
+                                    className="rounded border border-rose-300 bg-rose-100 px-1.5 py-0.5 text-[10px] font-black text-rose-700"
+                                    title="দিন সমাপ্ত (Day Closed) — এই এন্ট্রি এডিট/ডিলিট করা যাবে না"
+                                  >
+                                    🔒
+                                  </span>
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => handleEdit(row)}
+                                  disabled={rowLocked}
+                                  title={rowLocked ? "দিন সমাপ্ত — এডিট করা যাবে না" : "এডিট করুন"}
+                                  className="rounded-lg border border-blue-200 bg-blue-50 px-2 py-1 text-xs text-blue-700 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-40"
+                                >
+                                  ✏️
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDelete(row)}
+                                  disabled={rowLocked}
+                                  title={rowLocked ? "দিন সমাপ্ত — মুছে ফেলা যাবে না" : "মুছে ফেলুন"}
+                                  className="rounded-lg border border-rose-200 bg-rose-50 px-2 py-1 text-xs text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-40"
+                                >
+                                  🗑️
+                                </button>
+                              </div>
+                            );
+                          })()}
                         </td>
                       </tr>
                     );
