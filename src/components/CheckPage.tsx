@@ -45,6 +45,10 @@ const entryMatches = (e: CheckEntry, rawQuery: string): boolean => {
   if ((e.bankName || "").toLowerCase().includes(q)) return true;
   if ((e.disbursse || "").toLowerCase().includes(q)) return true;
   if ((e.project || "").toLowerCase().includes(q)) return true;
+  if (q.includes("micr")) {
+    const wantsNon = q.includes("non");
+    if (wantsNon ? !e.micr : Boolean(e.micr)) return true;
+  }
   return false;
 };
 
@@ -58,6 +62,8 @@ const emptyForm = (date: string) => ({
   checkNo: "",
   disbursse: "",
   project: "",
+  /** ✔ MICR চেক কি না */
+  micr: false,
 });
 
 export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
@@ -217,6 +223,7 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
       checkNo: form.checkNo.trim(),
       disbursse: form.disbursse.trim(),
       project: form.project.trim().toLowerCase(),
+      micr: Boolean(form.micr),
       foundInDb: found,
     };
 
@@ -273,6 +280,7 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
       checkNo: row.checkNo,
       disbursse: row.disbursse || "",
       project: (row.project || "").trim().toLowerCase(),
+      micr: Boolean(row.micr),
     });
     // ডাটাবেজে আছে কি না যাচাই
     const m = findMemberByCode(row.memberCode);
@@ -491,7 +499,24 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
           </div>
 
           <div>
-            <label className={labelCls}>Check No.</label>
+            <div className="mb-1 flex items-center justify-between gap-2">
+              <label className={`${labelCls} mb-0`}>Check No.</label>
+              <label
+                className="flex cursor-pointer select-none items-center gap-1 rounded-md border border-emerald-300 bg-emerald-50 px-2 py-0.5 text-[10px] font-black text-emerald-800 transition hover:bg-emerald-100"
+                title="টিক দিলে টেবিলে MICR, টিক না দিলে NON MICR দেখাবে"
+              >
+                <input
+                  type="checkbox"
+                  checked={Boolean(form.micr)}
+                  onChange={(e) => setForm((f) => ({ ...f, micr: e.target.checked }))}
+                  className="h-3.5 w-3.5 cursor-pointer accent-emerald-600"
+                />
+                <span>MICR</span>
+                <span className="rounded bg-white px-1 text-[9px] font-black text-slate-500">
+                  {form.micr ? "MICR" : "NON MICR"}
+                </span>
+              </label>
+            </div>
             <input
               value={form.checkNo}
               onChange={(e) => setForm((f) => ({ ...f, checkNo: e.target.value }))}
@@ -581,6 +606,15 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
                         {String(e.project).trim().toLowerCase()}
                       </span>
                     )}
+                    <span
+                      className={`rounded border px-1.5 py-0.5 text-[10px] font-black ${
+                        e.micr
+                          ? "border-emerald-300 bg-emerald-100 text-emerald-800"
+                          : "border-slate-300 bg-slate-100 text-slate-600"
+                      }`}
+                    >
+                      {e.micr ? "MICR" : "NON MICR"}
+                    </span>
                     <div className="ml-auto flex items-center gap-1">
                       {rowLocked && (
                         <span
@@ -783,7 +817,7 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
         {/* Table */}
         <div className="overflow-hidden rounded-xl border border-slate-200">
           <div className="max-h-[60vh] overflow-auto">
-            <table className="w-full min-w-[1080px] border-collapse text-sm">
+            <table className="w-full min-w-[1180px] border-collapse text-sm">
               <thead className="sticky top-0 z-10 bg-slate-800 text-white">
                 <tr>
                   {[
@@ -795,6 +829,7 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
                     "Centre Name",
                     "Bank Name",
                     "Check No.",
+                    "MICR",
                     "Disbursse",
                     "Project",
                     "Action",
@@ -811,7 +846,7 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
               <tbody>
                 {pageRows.length === 0 ? (
                   <tr>
-                    <td colSpan={11} className="px-4 py-10 text-center text-sm font-semibold text-slate-500">
+                    <td colSpan={12} className="px-4 py-10 text-center text-sm font-semibold text-slate-500">
                       {search
                         ? "🔍 এই অনুসন্ধানে কোনো ডাটা পাওয়া যায়নি।"
                         : "এখনো কোনো চেক এন্ট্রি নেই — উপরের ফর্ম থেকে যোগ করুন।"}
@@ -850,6 +885,17 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
                         <td className="px-3 py-2 text-xs font-semibold text-slate-800">{row.bankName}</td>
                         <td className="whitespace-nowrap px-3 py-2 font-mono text-xs font-black text-slate-900">
                           {row.checkNo}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-2 text-center">
+                          {row.micr ? (
+                            <span className="rounded border border-emerald-300 bg-emerald-100 px-1.5 py-0.5 text-[10px] font-black text-emerald-800">
+                              MICR
+                            </span>
+                          ) : (
+                            <span className="rounded border border-slate-300 bg-slate-100 px-1.5 py-0.5 text-[10px] font-black text-slate-600">
+                              NON MICR
+                            </span>
+                          )}
                         </td>
                         <td className="whitespace-nowrap px-3 py-2 text-right font-mono text-xs font-black text-slate-900">
                           {row.disbursse ? (

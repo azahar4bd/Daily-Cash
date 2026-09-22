@@ -31,6 +31,8 @@ export type CheckEntry = {
   disbursse?: string;
   /** প্রকল্প (Project) */
   project?: string;
+  /** ✔ MICR চেক কি না — টিক দিলে টেবিলে MICR, না দিলে NON MICR */
+  micr?: boolean;
   /** ডাটাবেজে পাওয়া গিয়েছিল কি না */
   foundInDb?: boolean;
   createdAt?: string;
