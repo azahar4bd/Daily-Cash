@@ -8,6 +8,7 @@ import {
   saveDayClosure,
   isIntermediateBlockedDate,
 } from "@/lib/storage";
+import { getReportDayBalances } from "@/lib/dayBalances";
 import type { DayClosure } from "@/types";
 
 /**
@@ -38,10 +39,13 @@ export default function DayCloseModal({
     if (!isOpen || !selectedDate) return;
     try {
       const sum = getSummary(selectedDate);
+      // v1.4.41: Today Cash/Bank = রিপোর্ট পেজের বক্সের হুবহু একই সূত্র,
+      // যাতে ডে ক্লোজে সেভ হওয়া Closing মান রিপোর্টের Today ব্যালেন্সের সমান হয়
+      const rt = getReportDayBalances(selectedDate);
       setTotalReceive(sum.receive || 0);
       setTotalPayment(sum.expense || 0);
-      setTodayCash(sum.cash || 0);
-      setTodayBank(sum.bank || 0);
+      setTodayCash(rt.cash || 0);
+      setTodayBank(rt.bank || 0);
     } catch (e) {
       console.error(e);
     }
@@ -66,12 +70,14 @@ export default function DayCloseModal({
     setSaving(true);
     try {
       const sum = getSummary(selectedDate);
+      // v1.4.41: Closing = রিপোর্ট পেজের Today Cash/Today Bank-এর হুবহু একই মান
+      const rt = getReportDayBalances(selectedDate);
       const closure: DayClosure = {
         closeDate: selectedDate,
         openingCash: sum.prevCash,
         openingBank: sum.prevBank,
-        closingCash: sum.cash,
-        closingBank: sum.bank,
+        closingCash: rt.cash,
+        closingBank: rt.bank,
         totalReceive: sum.receive,
         totalPayment: sum.expense,
         status: "closed",
