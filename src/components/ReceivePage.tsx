@@ -4,6 +4,7 @@ import DatePicker from "./DatePicker";
 import SearchSelect from "./SearchSelect";
 import DenominationPopup, { fmt } from "./DenominationPopup";
 import CategoryManager from "./CategoryManager";
+import PaymentCategoryManager from "./PaymentCategoryManager";
 import { titleCase } from "@/lib/categories";
 import {
   getLocalTxs,
@@ -47,6 +48,11 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
     window.setTimeout(() => setLockPulse(false), 900);
   };
   const [cats, setCats] = useState<Cat[]>([]);
+  /** Payment পেজের disburse category তালিকা — fund receive-এর সাব-ক্যাটাগরি এখান থেকেই আসে */
+  const [disburseCats, setDisburseCats] = useState<Cat[]>([]);
+  const [expenseCats, setExpenseCats] = useState<Cat[]>([]);
+  /** disburse category ম্যানেজার (যোগ/এডিট/ডিলিট) — fund সাব-ক্যাটাগরির উৎস */
+  const [disburseManage, setDisburseManage] = useState(false);
   const [manage, setManage] = useState(false);
   const [filterCategory, setFilterCategory] = useState<string>("all");
   /** তারিখ হতে তারিখ ফিল্টার — ডিফল্ট: নির্বাচিত দিন */
@@ -91,7 +97,16 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
   const loadCats = () => {
     setSubCatRules(getSubCategoryRules());
     setCats(getCategories("receive"));
+    setDisburseCats(getCategories("disburse"));
+    setExpenseCats(getCategories("expense"));
   };
+
+  // disburse category যোগ/এডিট/ডিলিট হলে fund সাব-ক্যাটাগরির তালিকাও সাথে সাথে বদলে যাবে
+  useEffect(() => {
+    const onCats = () => loadCats();
+    window.addEventListener("categories-changed", onCats);
+    return () => window.removeEventListener("categories-changed", onCats);
+  }, []);
 
   useEffect(() => {
     setRangeFrom(selectedDate);
@@ -110,7 +125,11 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
   }, [rangeFrom, rangeTo]);
 
   const isFundReceive = form.category.trim().toLowerCase().includes("fund receive");
-  const allowedSubs = filterAllowedSubCategories(form.category, subCatRules);
+  const allowedSubs = filterAllowedSubCategories(
+    form.category,
+    subCatRules,
+    disburseCats.map((c) => c.name)
+  );
 
   const categoryNames = cats.map((c) => c.name);
 
@@ -292,6 +311,7 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
             <div>
               <div className="mb-1 flex items-center justify-between gap-2">
                 <label className="text-xs font-bold text-slate-700">Sub Category (সাব ক্যাটাগরি)</label>
+                <div className="flex items-center gap-2">
                 {form.subCategory ? (
                   <button
                     type="button"
@@ -311,6 +331,15 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
                 ) : (
                   <span className="text-[10px] font-bold text-slate-400">＋ ড্রপডাউন থেকে যোগ করুন</span>
                 )}
+                <button
+                  type="button"
+                  onClick={() => setDisburseManage(true)}
+                  title="Disburse Category যোগ/এডিট/ডিলিট — সেই তালিকা থেকেই এই সাব-ক্যাটাগরি আসে"
+                  className="cursor-pointer text-[11px] font-black text-blue-600 hover:underline"
+                >
+                  ⚙ Manage
+                </button>
+                </div>
               </div>
               <SearchSelect
                 value={form.subCategory}
@@ -324,6 +353,10 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
                 disabled={isDayClosed(form.txDate)}
                 className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-bold text-slate-800 focus:border-blue-500 focus:outline-none cursor-pointer"
               />
+              <p className="mt-1 text-[10px] font-bold text-slate-400">
+                তালিকাটি Payment পেজের <span className="font-black text-slate-500">Disburse Category</span> থেকে
+                আসে — ⚙ Manage থেকে যোগ/এডিট/ডিলিট করুন।
+              </p>
             </div>
           )}
 
@@ -702,7 +735,11 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
                     value={edit.subCategory || ""}
                     onChange={(v) => setEdit({ ...edit, subCategory: v })}
                     options={(() => {
-                      const list = filterAllowedSubCategories(edit.category, subCatRules);
+                      const list = filterAllowedSubCategories(
+                        edit.category,
+                        subCatRules,
+                        disburseCats.map((c) => c.name)
+                      );
                       const cur = (edit.subCategory || "").trim();
                       return cur && !list.includes(cur) ? [...list, cur] : list;
                     })()}
@@ -769,6 +806,15 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
           cats={cats}
           onChanged={loadCats}
           onClose={() => setManage(false)}
+        />
+      )}
+
+      {disburseManage && (
+        <PaymentCategoryManager
+          disburseCats={disburseCats}
+          expenseCats={expenseCats}
+          onChanged={loadCats}
+          onClose={() => setDisburseManage(false)}
         />
       )}
     </div>

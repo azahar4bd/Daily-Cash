@@ -95,16 +95,36 @@ export const isSubCategoryAllowed = (
   return true;
 };
 
+/**
+ * fund receive / fund payment-এর সাব-ক্যাটাগরি = Payment পেজের **disburse category** তালিকা।
+ * disburse ক্যাটাগরি যোগ/এডিট/ডিলিট করলেই এখানেও সেই তালিকা আসবে।
+ * সর্টিং fixed — নতুন/অচেনা নামগুলো সবসময় শেষে।
+ */
+export const getFundSubCategories = (
+  disburseCats: string[] | null | undefined
+): string[] => {
+  const list = (disburseCats || [])
+    .map((c) => String(c ?? "").trim().toLowerCase())
+    .filter(Boolean)
+    .filter((v, i, arr) => arr.indexOf(v) === i);
+  return list.sort(cmpProduct);
+};
+
 export const filterAllowedSubCategories = (
   category: string,
-  rules: SubCategoryRule[]
+  rules: SubCategoryRule[],
+  disburseCats?: string[] | null
 ): string[] => {
   const normCat = category.trim().toLowerCase();
   const base = Array.from(new Set(rules.map((r) => r.subCategory)));
-  // fund receive / fund payment → fixed product তালিকা (+ নতুনগুলো শেষে)
   const isFund = normCat.includes("fund payment") || normCat.includes("fund receive");
-  const pool = isFund ? mergeOrder(PRODUCT_ORDER, base, cmpProduct) : base;
-  return pool.filter((sub) => isSubCategoryAllowed(sub, category, rules));
+  if (isFund) {
+    // disburse category তালিকা থেকেই সাব-ক্যাটাগরি আসবে;
+    // তালিকা একদম খালি হলে পুরনো fixed প্রোডাক্ট তালিকায় ফিরে যাবে (যেন ড্রপডাউন খালি না থাকে)
+    const fundList = getFundSubCategories(disburseCats);
+    return fundList.length > 0 ? fundList : mergeOrder(PRODUCT_ORDER, base, cmpProduct);
+  }
+  return base.filter((sub) => isSubCategoryAllowed(sub, category, rules));
 };
 
 export const getInstallments = (

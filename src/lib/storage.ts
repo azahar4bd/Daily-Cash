@@ -327,6 +327,7 @@ export function addCategory(type: string, name: string): Cat {
   all.push(newCat);
   localStorage.setItem(CAT_KEY, JSON.stringify(all));
   enqueueNeonAction({ type: "cat", payload: newCat });
+  window.dispatchEvent(new CustomEvent("categories-changed", { detail: { action: "add", type, name: clean } }));
   return newCat;
 }
 
@@ -338,6 +339,9 @@ export function updateCategory(id: number, name: string): void {
     item.name = name.trim().toLowerCase();
     localStorage.setItem(CAT_KEY, JSON.stringify(all));
     enqueueNeonAction({ type: "cat", payload: item });
+    window.dispatchEvent(
+      new CustomEvent("categories-changed", { detail: { action: "update", id, name: item.name } })
+    );
   }
 }
 
@@ -347,6 +351,7 @@ export function deleteCategory(id: number): void {
   const filtered = all.filter((c) => c.id !== id);
   localStorage.setItem(CAT_KEY, JSON.stringify(filtered));
   enqueueNeonAction({ type: "cat_del", payload: id });
+  window.dispatchEvent(new CustomEvent("categories-changed", { detail: { action: "delete", id } }));
 }
 
 export const DEFAULT_SC_RATES: ScRate[] = [

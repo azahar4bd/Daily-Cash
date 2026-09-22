@@ -97,9 +97,12 @@ export default function PaymentPage({ selectedDate }: { selectedDate: string }) 
     const onTx = () => loadData();
     window.addEventListener("kallyan-rule-changed", handleKallyanChange);
     window.addEventListener("tx-changed", onTx);
+    // disburse category বদলালে তালিকা রিফ্রেশ (fund সাব-ক্যাটাগরিও এর সাথেই বদলায়)
+    window.addEventListener("categories-changed", onTx);
     return () => {
       window.removeEventListener("kallyan-rule-changed", handleKallyanChange);
       window.removeEventListener("tx-changed", onTx);
+      window.removeEventListener("categories-changed", onTx);
     };
   }, [selectedDate]);
 
@@ -115,7 +118,11 @@ export default function PaymentPage({ selectedDate }: { selectedDate: string }) 
 
   const isCurrentDisburse = isDisburseCategory(form.category);
   const isFundPayment = form.category.trim().toLowerCase().includes("fund payment");
-  const allowedSubCategories = filterAllowedSubCategories(form.category, subCatRules);
+  const allowedSubCategories = filterAllowedSubCategories(
+    form.category,
+    subCatRules,
+    disburseCats.map((c) => c.name)
+  );
 
   const scAmount = isCurrentDisburse
     ? calcServiceCharge(form.amount, form.category, form.subCategory, rates)
@@ -328,13 +335,24 @@ export default function PaymentPage({ selectedDate }: { selectedDate: string }) 
                   ) : (
                     <span className="text-[10px] font-bold text-slate-400">＋ ড্রপডাউন থেকে যোগ করুন</span>
                   )}
-                  <button
-                    type="button"
-                    onClick={() => setRulesModalOpen(true)}
-                    className="text-xs font-bold text-blue-600 hover:underline flex items-center gap-1 cursor-pointer"
-                  >
-                    ⚙ Rules
-                  </button>
+                  {isCurrentDisburse ? (
+                    <button
+                      type="button"
+                      onClick={() => setRulesModalOpen(true)}
+                      className="text-xs font-bold text-blue-600 hover:underline flex items-center gap-1 cursor-pointer"
+                    >
+                      ⚙ Rules
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setManageOpen(true)}
+                      title="Disburse Category যোগ/এডিট/ডিলিট — সেই তালিকা থেকেই এই সাব-ক্যাটাগরি আসে"
+                      className="text-xs font-bold text-blue-600 hover:underline flex items-center gap-1 cursor-pointer"
+                    >
+                      ⚙ Manage
+                    </button>
+                  )}
                 </div>
               </div>
               <SearchSelect
@@ -349,6 +367,12 @@ export default function PaymentPage({ selectedDate }: { selectedDate: string }) 
                 disabled={isDayClosed(form.txDate)}
                 className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-bold text-slate-800 focus:border-blue-500 focus:outline-none cursor-pointer"
               />
+              {isFundPayment && (
+                <p className="mt-1 text-[10px] font-bold text-slate-400">
+                  তালিকাটি <span className="font-black text-slate-500">Disburse Category</span> থেকে আসে —
+                  ⚙ Manage থেকে যোগ/এডিট/ডিলিট করুন।
+                </p>
+              )}
             </div>
           )}
 
@@ -743,7 +767,11 @@ export default function PaymentPage({ selectedDate }: { selectedDate: string }) 
                     value={edit.subCategory || ""}
                     onChange={(v) => setEdit({ ...edit, subCategory: v })}
                     options={(() => {
-                      const list = filterAllowedSubCategories(edit.category, subCatRules);
+                      const list = filterAllowedSubCategories(
+                        edit.category,
+                        subCatRules,
+                        disburseCats.map((c) => c.name)
+                      );
                       const cur = (edit.subCategory || "").trim();
                       return cur && !list.includes(cur) ? [...list, cur] : list;
                     })()}
