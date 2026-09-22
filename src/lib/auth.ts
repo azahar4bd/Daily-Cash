@@ -202,8 +202,19 @@ export function signOut(): void {
 
 /* ───────────────────────── seed (গোবরা অফিস) ───────────────────────── */
 
-/** গোবরা শাখা ও তার ডিফল্ট ইউজার না থাকলে তৈরি করে দেয় */
-export async function ensureAuthSeed(): Promise<void> {
+let seedInFlight: Promise<void> | null = null;
+
+/** গোবরা শাখা ও তার ডিফল্ট ইউজার না থাকলে তৈরি করে দেয় (একই সাথে একবারই চলবে) */
+export function ensureAuthSeed(): Promise<void> {
+  if (!seedInFlight) {
+    seedInFlight = runAuthSeed().finally(() => {
+      seedInFlight = null;
+    });
+  }
+  return seedInFlight;
+}
+
+async function runAuthSeed(): Promise<void> {
   try {
     const branches = listBranches();
     if (!branches.some((b) => b.id === DEFAULT_BRANCH_ID)) {

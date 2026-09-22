@@ -17,6 +17,10 @@ export const DEFAULT_BRANCH_NAME = "GOBRA BRANCH-0014";
 
 const PREFIX = "gobra_";
 
+/** `gobra_` ছাড়াও যেসব কী শাখা অনুযায়ী আলাদা হতে হবে (অফিসের নিজস্ব ডেটা) */
+const EXTRA_SCOPED_PREFIXES = ["cash_sheet_denom_"];
+const EXTRA_SCOPED_KEYS = new Set<string>(["kallyan_rule_version_v2", "app_master_date"]);
+
 /** এই কীগুলো সব শাখার জন্য এক (শাখা-স্কোপ করা হবে না) */
 const GLOBAL_KEYS = new Set<string>([
   "gobra_auth_users",
@@ -40,11 +44,62 @@ export function setBranch(branchId: string): void {
 
 /** কী-কে বর্তমান শাখার কী-তে বদলানো */
 export const scopedKey = (key: string): string => {
-  if (typeof key !== "string" || !key.startsWith(PREFIX)) return key;
-  if (GLOBAL_KEYS.has(key)) return key;
+  if (typeof key !== "string") return key;
+  const isAppKey =
+    key.startsWith(PREFIX) ||
+    EXTRA_SCOPED_KEYS.has(key) ||
+    EXTRA_SCOPED_PREFIXES.some((p) => key.startsWith(p));
+  if (!isAppKey) return key;
+  if (key.startsWith(PREFIX) && GLOBAL_KEYS.has(key)) return key;
   if (getCurrentBranch() === DEFAULT_BRANCH_ID) return key;
-  return `${PREFIX}${getCurrentBranch()}__${key.slice(PREFIX.length)}`;
+  const rest = key.startsWith(PREFIX) ? key.slice(PREFIX.length) : key;
+  return `${PREFIX}${getCurrentBranch()}__${rest}`;
 };
+
+/** নিবন্ধিত শাখাগুলোর আইডি (অথ রেজিস্ট্রি থেকে) */
+function knownBranchIds(t: Storage): string[] {
+  try {
+    const raw = t.getItem("gobra_auth_branches");
+    const list = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(list)) return [];
+    return list.map((b: { id?: unknown }) => String(b?.id || "")).filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
+/** কী-টি অন্য শাখার স্কোপড ঘর কি না */
+function isForeignScoped(t: Storage, key: string): boolean {
+  if (!key.startsWith(PREFIX)) return false;
+  const rest = key.slice(PREFIX.length);
+  const idx = rest.indexOf("__");
+  if (idx <= 0) return false;
+  const br = rest.slice(0, idx);
+  if (br === getCurrentBranch()) return false;
+  return knownBranchIds(t).includes(br);
+}
+
+/** কী-টি বর্তমান শাখা থেকে দেখা যায় কি না */
+function isVisible(t: Storage, key: string): boolean {
+  if (isForeignScoped(t, key)) return false;
+  if (GLOBAL_KEYS.has(key)) return true;
+  const cur = getCurrentBranch();
+  if (cur === DEFAULT_BRANCH_ID) return true;
+  // নন-ডিফল্ট শাখা: ডিফল্ট (গোবরা) শাখার মার্কারবিহীন অ্যাপ-কী দেখা যাবে না
+  if (EXTRA_SCOPED_KEYS.has(key) || EXTRA_SCOPED_PREFIXES.some((p) => key.startsWith(p))) return false;
+  if (key.startsWith(PREFIX)) return key.slice(PREFIX.length).startsWith(`${cur}__`);
+  return true; // অ্যাপ-বহির্ভূত কী
+}
+
+/** বর্তমান শাখা থেকে দেখা যায় এমন কী-এর তালিকা */
+function visibleKeys(t: Storage): string[] {
+  const out: string[] = [];
+  for (let i = 0; i < t.length; i++) {
+    const k = t.key(i);
+    if (k && isVisible(t, k)) out.push(k);
+  }
+  return out;
+}
 
 /**
  * localStorage-কে শাখা-স্কোপড প্রক্সি দিয়ে বদলে দেয়।
@@ -67,12 +122,19 @@ export function installBranchStorage(branchId?: string): void {
             return (k: string, v: string) => t.setItem(scopedKey(k), String(v));
           case "removeItem":
             return (k: string) => t.removeItem(scopedKey(k));
-          case "key":
-            return (i: number) => t.key(i);
+          case "key": {
+            const keys = visibleKeys(t);
+            return (i: number) => keys[i] ?? null;
+          }
           case "length":
-            return t.length;
+            return visibleKeys(t).length;
           case "clear":
-            return () => t.clear();
+            // শুধু এই শাখার ডেটা মুছবে — অন্য অফিস ও লগইন তথ্য অক্ষত থাকবে
+            return () => {
+              visibleKeys(t)
+                .filter((k) => !GLOBAL_KEYS.has(k))
+                .forEach((k) => t.removeItem(k));
+            };
           case "__branchScoped":
             return true;
           default: {
