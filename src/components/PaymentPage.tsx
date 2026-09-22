@@ -332,9 +332,7 @@ export default function PaymentPage({ selectedDate }: { selectedDate: string }) 
                     >
                       ✕ মুছুন
                     </button>
-                  ) : (
-                    <span className="text-[10px] font-bold text-slate-400">＋ ড্রপডাউন থেকে যোগ করুন</span>
-                  )}
+                  ) : null}
                   {isCurrentDisburse ? (
                     <button
                       type="button"
@@ -367,12 +365,6 @@ export default function PaymentPage({ selectedDate }: { selectedDate: string }) 
                 disabled={isDayClosed(form.txDate)}
                 className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-bold text-slate-800 focus:border-blue-500 focus:outline-none cursor-pointer"
               />
-              {isFundPayment && (
-                <p className="mt-1 text-[10px] font-bold text-slate-400">
-                  তালিকাটি <span className="font-black text-slate-500">Disburse Category</span> থেকে আসে —
-                  ⚙ Manage থেকে যোগ/এডিট/ডিলিট করুন।
-                </p>
-              )}
             </div>
           )}
 
@@ -759,9 +751,7 @@ export default function PaymentPage({ selectedDate }: { selectedDate: string }) 
                       >
                         ✕ মুছুন
                       </button>
-                    ) : (
-                      <span className="text-[10px] font-bold text-emerald-600">＋ যোগ করতে বেছে নিন</span>
-                    )}
+                    ) : null}
                   </div>
                   <SearchSelect
                     value={edit.subCategory || ""}
