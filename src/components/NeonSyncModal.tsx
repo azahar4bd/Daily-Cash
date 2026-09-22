@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
-import { getStoredSyncState, type NeonSyncState } from "@/lib/neon";
+import { getStoredSyncState, fetchNeonStats, branchSchema, type NeonSyncState } from "@/lib/neon";
 import { syncAllWithNeon } from "@/lib/neonSync";
 import { getLocalTxs, getLocalStaffReports } from "@/lib/storage";
+import { currentBranchName } from "@/lib/auth";
 
 interface NeonSyncModalProps {
   open: boolean;
@@ -12,6 +13,9 @@ export default function NeonSyncModal({ open, onClose }: NeonSyncModalProps) {
   const [syncState, setSyncState] = useState<NeonSyncState>(getStoredSyncState());
   const [msg, setMsg] = useState("");
   const [loading, setLoading] = useState(false);
+  /** 🏢 এই অফিসের ক্লাউড ঘরের হিসাব */
+  const [stats, setStats] = useState<{ schema: string; rows: Record<string, number> } | null>(null);
+  const [statsLoading, setStatsLoading] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -43,6 +47,19 @@ export default function NeonSyncModal({ open, onClose }: NeonSyncModalProps) {
 
   const txs = getLocalTxs();
   const srs = getLocalStaffReports();
+  const officeName = currentBranchName();
+  const schemaName = branchSchema();
+
+  const loadStats = async () => {
+    setStatsLoading(true);
+    try {
+      setStats(await fetchNeonStats());
+    } catch (e: any) {
+      setMsg(`ক্লাউড ঘর পড়া যায়নি: ${e?.message || "ত্রুটি"}`);
+    } finally {
+      setStatsLoading(false);
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-3 sm:p-5 overflow-y-auto animate-in fade-in">
@@ -88,6 +105,54 @@ export default function NeonSyncModal({ open, onClose }: NeonSyncModalProps) {
                 </p>
               </div>
             </div>
+          </div>
+
+          {/* 🏢 এই অফিসের ক্লাউড ঘর */}
+          <div className="rounded-2xl border border-indigo-200 bg-indigo-50/70 p-3.5">
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <div className="text-[10px] font-bold uppercase tracking-wide text-indigo-500">
+                  এই অফিসের ক্লাউড ঘর
+                </div>
+                <div className="text-sm font-black text-indigo-950">🏢 {officeName}</div>
+                <div className="font-mono text-[11px] font-bold text-indigo-700">
+                  স্কিমা: {schemaName}
+                </div>
+                <p className="mt-1 text-[11px] font-medium leading-relaxed text-indigo-800">
+                  প্রতিটি অফিসের লেনদেন, চেক এন্ট্রি ও মেম্বার ডাটাবেজ ক্লাউডে নিজের আলাদা ঘরে
+                  সংরক্ষিত হয় — অন্য অফিসের ডেটার সাথে মিশবে না।
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={loadStats}
+                disabled={statsLoading}
+                className="shrink-0 rounded-xl border border-indigo-300 bg-white px-2.5 py-1.5 text-[11px] font-black text-indigo-700 transition hover:bg-indigo-100 disabled:opacity-50 cursor-pointer"
+              >
+                {statsLoading ? "পড়ছে…" : "☁️ ঘর দেখুন"}
+              </button>
+            </div>
+            {stats && (
+              <div className="mt-2.5 grid grid-cols-2 gap-1.5 text-[11px] sm:grid-cols-4">
+                {[
+                  ["transactions", "লেনদেন"],
+                  ["check_entries", "চেক এন্ট্রি"],
+                  ["members", "মেম্বার"],
+                  ["staff_reports", "স্টাফ রিপোর্ট"],
+                  ["day_opens", "ডে ওপেন"],
+                  ["day_closures", "ডে ক্লোজ"],
+                  ["categories", "ক্যাটাগরি"],
+                  ["rebate_rates", "রিবেট রেট"],
+                ].map(([k, label]) => (
+                  <div key={k} className="rounded-lg border border-indigo-200 bg-white px-2 py-1.5">
+                    <div className="text-[9px] font-bold uppercase text-slate-500">{label}</div>
+                    <div className="text-sm font-black text-indigo-800">
+                      {stats.rows[k] === undefined ? "—" : stats.rows[k] < 0 ? "⚠️" : stats.rows[k]}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Database Specs Card */}

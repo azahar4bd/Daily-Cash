@@ -21,6 +21,16 @@ export type Member = {
 
 import { MEMBER_DB_CSV, MEMBER_DB_SEED_VERSION } from "@/data/memberDatabaseSeed";
 import { isDefaultBranch } from "./branchScope";
+import { enqueueNeonAction } from "./neonSync";
+
+/** মেম্বার ডাটাবেজ ক্লাউডে আপলোডের জন্য দাগ (বাল্ক বদলের পর) */
+const MEMBER_DIRTY_KEY = "gobra_member_cloud_dirty";
+const markCloudDirty = () => {
+  try {
+    localStorage.setItem(MEMBER_DIRTY_KEY, "1");
+    enqueueNeonAction({ type: "member_dirty", payload: null });
+  } catch {}
+};
 
 const MEMBER_DB_KEY = "gobra_member_database";
 const MEMBER_DB_SEED_KEY = "gobra_member_db_seed";
@@ -56,6 +66,8 @@ function persist(list: Member[]): void {
 
 export function saveMembers(list: Member[]): void {
   persist(list);
+  // বাল্ক বদল (ইমপোর্ট/পুরো তালিকা সেভ) → ক্লাউডে পুরো ডাটাবেজ আপলোড হবে
+  markCloudDirty();
 }
 
 /** একক মেম্বার যোগ/আপডেট (কোড দিয়ে মেলানো) */
@@ -70,16 +82,22 @@ export function upsertMember(m: Omit<Member, "updatedAt">): Member {
     list.unshift(rec);
   }
   persist(list);
+  // ☁️ এই মেম্বারটি ক্লাউডেও আপডেট হবে
+  try { enqueueNeonAction({ type: "member", payload: rec }); } catch {}
   return rec;
 }
 
 export function deleteMember(memberCode: string): void {
   const key = normCode(memberCode);
   persist(getMembers().filter((m) => normCode(m.memberCode) !== key));
+  // ☁️ ক্লাউড থেকেও মুছে যাবে
+  try { enqueueNeonAction({ type: "member_del", payload: clean(memberCode) }); } catch {}
 }
 
 export function clearMembers(): void {
   persist([]);
+  // ☁️ ক্লাউডের মেম্বার টেবিলও খালি হবে
+  try { enqueueNeonAction({ type: "member_clear", payload: null }); } catch {}
 }
 
 /* ───────────── bundled seed ───────────── */
@@ -109,6 +127,8 @@ export function seedMemberDatabase(force = false): { added: number; updated: num
     const list = Array.from(byKey.values());
     persist(list);
     try { localStorage.setItem(MEMBER_DB_SEED_KEY, MEMBER_DB_SEED_VERSION); } catch {}
+    // ☁️ বাঁধা ডাটাবেজটি ক্লাউডেও একবার উঠে যাক
+    markCloudDirty();
     return { added, updated, total: list.length };
   } catch { return null; }
 }
@@ -248,6 +268,8 @@ export function importMembers(incoming: Member[]): { added: number; updated: num
     }
   }
   persist(list);
+  // ☁️ আমদানি করা পুরো ডাটাবেজ ক্লাউডেও উঠবে
+  markCloudDirty();
   return { added, updated, total: list.length };
 }
 

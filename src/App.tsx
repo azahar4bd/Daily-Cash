@@ -60,7 +60,7 @@ export default function App() {
 
   useEffect(() => {
     if (!session) return;
-    // Initialize Neon Cloud Database Synchronization (শুধু গোবরা শাখার জন্য)
+    // ☁️ Neon Cloud Database Synchronization — প্রতিটি অফিসের জন্য (আলাদা ক্লাউড স্কিমা)
     initNeonSync();
 
     // অ্যাপের সাথে বাঁধা মেম্বার ডাটাবেজ বসানো (৪,৭৬১ জন) — শুধু গোবরা শাখায়

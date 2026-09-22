@@ -26,7 +26,18 @@ import {
   upsertAppSettingInNeon,
   updateSyncState,
   getStoredSyncState,
+  ensureBranchSchema,
+  branchSchema,
+  fetchCheckEntriesFromNeon,
+  upsertCheckEntryInNeon,
+  deleteCheckEntryFromNeon,
+  fetchMembersFromNeon,
+  upsertMembersBulkInNeon,
+  deleteMemberFromNeon,
+  clearMembersInNeon,
 } from "./neon";
+import type { CheckEntry } from "@/types";
+import type { Member } from "./memberDb";
 import type {
   Tx,
   StaffReportItem,
@@ -39,8 +50,6 @@ import type {
   DayOpen,
 } from "@/types";
 
-import { isDefaultBranch } from "./branchScope";
-
 const TX_KEY = "gobra_local_transactions";
 const SR_KEY = "gobra_local_staff_reports";
 const CAT_KEY = "gobra_local_categories";
@@ -52,9 +61,18 @@ const DAY_CLOSURES_KEY = "gobra_local_day_closures";
 const DAY_OPENS_KEY = "gobra_local_day_opens";
 const G_SHEET_KEY = "gobra_google_sheet_url";
 const QUEUE_KEY = "gobra_neon_sync_queue";
+const CHECK_KEY = "gobra_check_entries";
+const CHECK_BACKUP_KEY = "gobra_check_entries_backup";
+const MEMBER_DB_KEY = "gobra_member_database";
+/** মেম্বার ডাটাবেজ বদলালে ক্লাউডে পাঠানোর জন্য দাগ */
+const MEMBER_DIRTY_KEY = "gobra_member_cloud_dirty";
+const MEMBER_CLOUD_STATE_KEY = "gobra_member_cloud_state";
 
 interface SyncQueueItem {
-  type: "tx" | "tx_del" | "sr" | "sr_del" | "cat" | "cat_del" | "sc" | "sc_del" | "subcat" | "subcat_del" | "kallyan" | "day_close" | "day_reopen" | "day_open" | "setting";
+  type:
+    | "tx" | "tx_del" | "sr" | "sr_del" | "cat" | "cat_del" | "sc" | "sc_del"
+    | "subcat" | "subcat_del" | "kallyan" | "day_close" | "day_reopen" | "day_open" | "setting"
+    | "check" | "check_del" | "member" | "member_dirty" | "member_del" | "member_clear";
   payload: any;
 }
 
@@ -75,8 +93,7 @@ function saveQueue(q: SyncQueueItem[]): void {
 }
 
 export function enqueueNeonAction(action: SyncQueueItem): void {
-  // 🏢 অন্য শাখার হিসাব ক্লাউড ডাটাবেজে পাঠানো হবে না (গোবরার ডেটার সাথে মিশে যেত)
-  if (!isDefaultBranch()) return;
+  // 🏢 প্রতিটি অফিসের ডেটা ক্লাউডে নিজের আলাদা স্কিমাতে যায় — তাই সবার জন্য চালু
   const q = getQueue();
   q.push(action);
   saveQueue(q);
@@ -90,6 +107,14 @@ export async function flushNeonQueue(): Promise<void> {
   }
   const q = getQueue();
   if (q.length === 0) return;
+
+  // এই অফিসের ক্লাউড ঘর (স্কিমা + টেবিল) আগে নিশ্চিত করে নিই
+  try {
+    await ensureBranchSchema();
+  } catch (e) {
+    console.warn("[neon] স্কিমা তৈরি করা যায়নি — কিউ পরে আবার চেষ্টা করবে", e);
+    return;
+  }
 
   const remaining: SyncQueueItem[] = [];
   for (const item of q) {
@@ -124,6 +149,28 @@ export async function flushNeonQueue(): Promise<void> {
         await upsertDayOpenInNeon(item.payload);
       } else if (item.type === "setting") {
         await upsertAppSettingInNeon(item.payload.key, item.payload.value);
+      } else if (item.type === "check") {
+        await upsertCheckEntryInNeon(item.payload);
+      } else if (item.type === "check_del") {
+        await deleteCheckEntryFromNeon(item.payload);
+      } else if (item.type === "member") {
+        await upsertMembersBulkInNeon([item.payload as Member]);
+      } else if (item.type === "member_dirty") {
+        const raw = localStorage.getItem(MEMBER_DB_KEY);
+        const list: Member[] = raw ? JSON.parse(raw) : [];
+        if (list.length > 0) {
+          const n = await upsertMembersBulkInNeon(list);
+          localStorage.setItem(
+            MEMBER_CLOUD_STATE_KEY,
+            JSON.stringify({ count: n, syncedAt: new Date().toISOString(), schema: branchSchema() })
+          );
+        }
+        localStorage.removeItem(MEMBER_DIRTY_KEY);
+      } else if (item.type === "member_del") {
+        await deleteMemberFromNeon(String(item.payload));
+      } else if (item.type === "member_clear") {
+        await clearMembersInNeon();
+        localStorage.removeItem(MEMBER_DIRTY_KEY);
       }
     } catch (e) {
       console.warn("Failed to process queue item, keeping in retry queue:", item, e);
@@ -140,7 +187,22 @@ export async function flushNeonQueue(): Promise<void> {
  * 3. If local has records not yet in Neon (e.g. added offline or before Neon was connected), pushes them to Neon.
  * 4. Updates local cache and notifies UI.
  */
+let syncInFlight = false;
+
+/** পূর্ণ সিংক — একসাথে একটাই চলবে (৪৫ সেকেন্ড পরপর ডাক পড়লেও ওভারল্যাপ হবে না) */
 export async function syncAllWithNeon(): Promise<{ success: boolean; message: string }> {
+  if (syncInFlight) {
+    return { success: false, message: "সিংক চলছে… একটু পরে আবার চেষ্টা হবে।" };
+  }
+  syncInFlight = true;
+  try {
+    return await doSyncAllWithNeon();
+  } finally {
+    syncInFlight = false;
+  }
+}
+
+async function doSyncAllWithNeon(): Promise<{ success: boolean; message: string }> {
   if (typeof navigator !== "undefined" && !navigator.onLine) {
     updateSyncState({
       connected: false,
@@ -156,6 +218,9 @@ export async function syncAllWithNeon(): Promise<{ success: boolean; message: st
   updateSyncState({ isSyncing: true, lastError: null });
 
   try {
+    // 0. 🏢 এই অফিসের ক্লাউড স্কিমা + টেবিল নিশ্চিত করা (নতুন অফিস হলে এখানেই তৈরি হবে)
+    await ensureBranchSchema();
+
     // 1. Flush any pending queue
     await flushNeonQueue();
 
@@ -290,6 +355,89 @@ export async function syncAllWithNeon(): Promise<{ success: boolean; message: st
       console.warn("Failed to sync google_sheet_url:", e);
     }
 
+    /* ── ✅ চেক এন্ট্রি সিংক (ক্লাউড ↔ লোকাল মিলন; কোনো এন্ট্রি মুছে ফেলা হবে না) ── */
+    try {
+      const neonChecks: CheckEntry[] = await fetchCheckEntriesFromNeon();
+      const rawChk = localStorage.getItem(CHECK_KEY);
+      const localChecks: CheckEntry[] = rawChk ? JSON.parse(rawChk) : [];
+
+      const qNow = getQueue();
+      const pendingIds = new Set(
+        qNow.filter((i) => i.type === "check").map((i) => String((i.payload as any)?.id))
+      );
+      const deletedIds = new Set(
+        qNow.filter((i) => i.type === "check_del").map((i) => String(i.payload))
+      );
+
+      const merged = mergeCheckEntries(localChecks, neonChecks, pendingIds, deletedIds);
+
+      // নিরাপত্তা বলয়: স্পষ্ট ডিলিট ছাড়া লোকাল তালিকা কখনো ছোট হতে পারবে না
+      if (merged.length >= localChecks.length - deletedIds.size) {
+        if (checkSignature(merged) !== checkSignature(localChecks)) {
+          localStorage.setItem(CHECK_KEY, JSON.stringify(merged));
+          localStorage.setItem(CHECK_BACKUP_KEY, JSON.stringify(merged));
+          window.dispatchEvent(
+            new CustomEvent("check-changed", {
+              detail: { count: merged.length, restored: merged.length - localChecks.length, cloud: true },
+            })
+          );
+        }
+      } else {
+        console.warn(
+          `[neon] চেক এন্ট্রি মার্জ লোকালের চেয়ে ছোট হয়ে যাচ্ছিল (${localChecks.length} → ${merged.length}) — লোকাল তালিকাই রাখা হয়েছে`
+        );
+      }
+
+      // ক্লাউডে নেই এমন এন্ট্রি পাঠানো (অন্য ডিভাইসেও যেন দেখা যায়)
+      const cloudIds = new Set(neonChecks.map((c) => String(c.id)));
+      const missing = merged.filter((c) => !cloudIds.has(String(c.id)) && !deletedIds.has(String(c.id)));
+      for (const c of missing.slice(0, 250)) {
+        try {
+          await upsertCheckEntryInNeon(c);
+        } catch (e) {
+          console.warn("[neon] চেক এন্ট্রি আপলোড ব্যর্থ", e);
+          break;
+        }
+      }
+    } catch (e) {
+      console.warn("[neon] চেক এন্ট্রি সিংক ব্যর্থ:", e);
+    }
+
+    /* ── 🗄️ মেম্বার ডাটাবেজ (চেক লুকআপ ডাটাবেজ) সিংক ── */
+    try {
+      const rawMem = localStorage.getItem(MEMBER_DB_KEY);
+      let localMembers: Member[] = [];
+      try {
+        localMembers = rawMem ? JSON.parse(rawMem) : [];
+      } catch {}
+
+      const cloudState = localStorage.getItem(MEMBER_CLOUD_STATE_KEY);
+      const dirty = localStorage.getItem(MEMBER_DIRTY_KEY) === "1";
+      if ((dirty || !cloudState) && localMembers.length > 0) {
+        // লোকালে বদলেছে বা কখনো ক্লাউডে ওঠেনি → আপলোড (ব্যাচে)
+        const n = await upsertMembersBulkInNeon(localMembers);
+        localStorage.removeItem(MEMBER_DIRTY_KEY);
+        localStorage.setItem(
+          MEMBER_CLOUD_STATE_KEY,
+          JSON.stringify({ count: n, syncedAt: new Date().toISOString(), schema: branchSchema() })
+        );
+        window.dispatchEvent(
+          new CustomEvent("member-cloud-synced", { detail: { count: n, schema: branchSchema() } })
+        );
+      } else if (localMembers.length === 0) {
+        // লোকাল খালি (নতুন ডিভাইস/নতুন ইনস্টল) → ক্লাউড থেকে ফিরিয়ে আনা
+        const cloudMembers = await fetchMembersFromNeon();
+        if (cloudMembers.length > 0) {
+          localStorage.setItem(MEMBER_DB_KEY, JSON.stringify(cloudMembers));
+          window.dispatchEvent(
+            new CustomEvent("member-db-changed", { detail: { count: cloudMembers.length, cloud: true } })
+          );
+        }
+      }
+    } catch (e) {
+      console.warn("[neon] মেম্বার ডাটাবেজ সিংক ব্যর্থ:", e);
+    }
+
     const nowStr = new Date().toLocaleTimeString("bn-BD", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
     updateSyncState({
       connected: true,
@@ -333,8 +481,7 @@ let syncInitialized = false;
  * - Syncs periodically every 45 seconds.
  */
 export function initNeonSync(): void {
-  // 🏢 শুধু ডিফল্ট (গোবরা) শাখার জন্য ক্লাউড সিংক চালু থাকবে
-  if (!isDefaultBranch()) return;
+  // 🏢 প্রতিটি অফিসের জন্য ক্লাউড সিংক চালু — প্রতি অফিসের ডেটা নিজের আলাদা স্কিমাতে যায়
   if (syncInitialized) return;
   syncInitialized = true;
 
@@ -359,4 +506,60 @@ export function initNeonSync(): void {
   setInterval(() => {
     syncAllWithNeon().catch(() => {});
   }, 45000);
+}
+
+
+/* ══════════════════════════════════════════════════════════════
+ * ✅ চেক এন্ট্রি মার্জ — ইউনিয়ন, কখনো ধ্বংসাত্মক নয়
+ *  • কিউতে পেন্ডিং থাকা এন্ট্রি → লোকাল মানই রাখা হয় (সদ্য করা এডিট হারাবে না)
+ *  • ক্লাউডে আছে কিন্তু লোকালে নেই → যোগ হয় (অন্য ডিভাইসের এন্ট্রি ফিরে পাবেন)
+ *  • স্পষ্ট ডিলিট (কিউতে check_del) → বাদ পড়ে
+ * ══════════════════════════════════════════════════════════════ */
+export function mergeCheckEntries(
+  local: CheckEntry[],
+  cloud: CheckEntry[],
+  pendingIds: Set<string>,
+  deletedIds: Set<string>
+): CheckEntry[] {
+  const cloudById = new Map<string, CheckEntry>();
+  for (const c of Array.isArray(cloud) ? cloud : []) {
+    if (c && c.id !== undefined && c.id !== null) cloudById.set(String(c.id), c);
+  }
+  const out: CheckEntry[] = [];
+  const seen = new Set<string>();
+
+  for (const e of Array.isArray(local) ? local : []) {
+    if (!e || e.id === undefined || e.id === null) continue;
+    const id = String(e.id);
+    if (deletedIds.has(id)) continue;
+    seen.add(id);
+    const c = cloudById.get(id);
+    out.push(c && !pendingIds.has(id) ? ({ ...e, ...c, id: e.id } as CheckEntry) : e);
+  }
+  for (const c of cloudById.values()) {
+    const id = String(c.id);
+    if (!seen.has(id) && !deletedIds.has(id)) out.push(c);
+  }
+  return out.sort(
+    (a, b) =>
+      String(a.checkDate || "").localeCompare(String(b.checkDate || "")) || Number(a.id) - Number(b.id)
+  );
+}
+
+/** তালিকার কনটেন্ট-সিগনেচার — অপ্রয়োজনীয় লেখালেখি/ইভেন্ট এড়াতে */
+function checkSignature(list: CheckEntry[]): string {
+  return (Array.isArray(list) ? list : [])
+    .map((e) =>
+      [
+        String(e?.id),
+        String(e?.checkDate || ""),
+        String(e?.memberCode || ""),
+        String(e?.bankName || "").toLowerCase(),
+        String(e?.checkNo || "").toLowerCase(),
+        String(e?.project || "").toLowerCase(),
+        e?.micr === true ? "1" : "0",
+      ].join("|")
+    )
+    .sort()
+    .join(";");
 }

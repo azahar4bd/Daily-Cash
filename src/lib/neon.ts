@@ -1,4 +1,7 @@
 import { neon } from "@neondatabase/serverless";
+import { getCurrentBranch, DEFAULT_BRANCH_ID } from "./branchScope";
+import type { CheckEntry } from "@/types";
+import type { Member } from "./memberDb";
 import type {
   Tx,
   StaffReportItem,
@@ -16,7 +19,29 @@ export const NEON_DATABASE_URL =
   "postgresql://neondb_owner:npg_ZWT8gcO4xuym@ep-aged-night-b3r0h0bv.c-4.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require";
 
 // Create Neon serverless HTTP sql client
-export const sql = neon(NEON_DATABASE_URL);
+// (disableWarningInBrowsers: কনসোলে বড় সতর্কবার্তা ছাপা বন্ধ — অ্যাপের নিজস্ব নিয়ন্ত্রণ আছে)
+export const sql = neon(NEON_DATABASE_URL, { disableWarningInBrowsers: true });
+
+/* ══════════════════════════════════════════════════════════════
+ * 🏢 মাল্টি-অফিস ক্লাউড স্কোপ
+ * প্রতিটি অফিসের জন্য Neon-এ আলাদা **স্কিমা**:
+ *   • গোবরা (ডিফল্ট)  → `public`  (আগের সব ডেটা হুবহু সেই জায়গাতেই)
+ *   • অন্য যেকোনো অফিস → `br_<অফিস_আইডি>`  (নিজের টেবিল, নিজেই তৈরি হয়)
+ * ফলে এক অফিসের হিসাব ক্লাউডে আরেক অফিসের সাথে মিশবে না।
+ * ══════════════════════════════════════════════════════════════ */
+
+/** বর্তমান অফিসের ক্লাউড স্কিমার নাম */
+export const branchSchema = (): string => {
+  const b = String(getCurrentBranch() || DEFAULT_BRANCH_ID).trim();
+  if (!b || b === DEFAULT_BRANCH_ID) return "public";
+  return "br_" + b.toLowerCase().replace(/[^a-z0-9_]/g, "_").slice(0, 48);
+};
+
+/** স্কিমা-কোয়ালিফাইড টেবিলের নাম (নিরাপদ — নিজের স্যানিটাইজ করা আইডি থেকে তৈরি) */
+export const T = (table: string): string => `"${branchSchema()}"."${table}"`;
+
+/** SQL টেমপ্লেটে টেবিলের নাম বসানোর জন্য raw মার্কার */
+const tbl = (table: string) => sql.unsafe(T(table));
 
 export interface NeonSyncState {
   connected: boolean;
@@ -57,7 +82,7 @@ export function updateSyncState(patch: Partial<NeonSyncState>): void {
 export async function fetchTransactionsFromNeon(): Promise<Tx[]> {
   const rows = await sql`
     SELECT id, type, category, sub_category, amount, service_charge, description, denomination, other_amount, tx_date
-    FROM transactions
+    FROM ${tbl("transactions")}
     ORDER BY id DESC
   `;
   return rows.map((r: any) => ({
@@ -79,7 +104,7 @@ export async function fetchTransactionsFromNeon(): Promise<Tx[]> {
  */
 export async function upsertTxInNeon(t: Tx): Promise<void> {
   await sql`
-    INSERT INTO transactions (id, type, category, sub_category, amount, service_charge, description, denomination, other_amount, tx_date)
+    INSERT INTO ${tbl("transactions")} (id, type, category, sub_category, amount, service_charge, description, denomination, other_amount, tx_date)
     VALUES (
       ${t.id},
       ${t.type},
@@ -111,7 +136,7 @@ export async function upsertTxInNeon(t: Tx): Promise<void> {
 export async function deleteTxFromNeon(id: number | string): Promise<void> {
   const numId = Number(id);
   if (!numId || isNaN(numId)) return;
-  await sql`DELETE FROM transactions WHERE id = ${numId}`;
+  await sql`DELETE FROM ${tbl("transactions")} WHERE id = ${numId}`;
 }
 
 /**
@@ -120,7 +145,7 @@ export async function deleteTxFromNeon(id: number | string): Promise<void> {
 export async function fetchStaffReportsFromNeon(): Promise<StaffReportItem[]> {
   const rows = await sql`
     SELECT id, staff_name, report_date, loan, rebate, savings, dps, passbook, admission, savings_adjust, nogod_return, created_at
-    FROM staff_reports
+    FROM ${tbl("staff_reports")}
     ORDER BY id DESC
   `;
   return rows.map((r: any) => ({
@@ -144,7 +169,7 @@ export async function fetchStaffReportsFromNeon(): Promise<StaffReportItem[]> {
  */
 export async function upsertStaffReportInNeon(sr: StaffReportItem): Promise<void> {
   await sql`
-    INSERT INTO staff_reports (id, staff_name, report_date, loan, rebate, savings, dps, passbook, admission, savings_adjust, nogod_return)
+    INSERT INTO ${tbl("staff_reports")} (id, staff_name, report_date, loan, rebate, savings, dps, passbook, admission, savings_adjust, nogod_return)
     VALUES (
       ${sr.id},
       ${sr.staffName},
@@ -178,14 +203,14 @@ export async function upsertStaffReportInNeon(sr: StaffReportItem): Promise<void
 export async function deleteStaffReportFromNeon(id: number | string): Promise<void> {
   const numId = Number(id);
   if (!numId || isNaN(numId)) return;
-  await sql`DELETE FROM staff_reports WHERE id = ${numId}`;
+  await sql`DELETE FROM ${tbl("staff_reports")} WHERE id = ${numId}`;
 }
 
 /**
  * Fetch categories from Neon
  */
 export async function fetchCategoriesFromNeon(): Promise<Cat[]> {
-  const rows = await sql`SELECT id, type, name FROM categories ORDER BY id ASC`;
+  const rows = await sql`SELECT id, type, name FROM ${tbl("categories")} ORDER BY id ASC`;
   return rows.map((r: any) => ({
     id: Number(r.id),
     type: r.type,
@@ -198,7 +223,7 @@ export async function fetchCategoriesFromNeon(): Promise<Cat[]> {
  */
 export async function upsertCategoryInNeon(cat: Cat): Promise<void> {
   await sql`
-    INSERT INTO categories (id, type, name)
+    INSERT INTO ${tbl("categories")} (id, type, name)
     VALUES (${cat.id}, ${cat.type}, ${cat.name})
     ON CONFLICT (id) DO UPDATE SET
       type = EXCLUDED.type,
@@ -210,14 +235,14 @@ export async function upsertCategoryInNeon(cat: Cat): Promise<void> {
  * Delete category from Neon
  */
 export async function deleteCategoryFromNeon(id: number): Promise<void> {
-  await sql`DELETE FROM categories WHERE id = ${id}`;
+  await sql`DELETE FROM ${tbl("categories")} WHERE id = ${id}`;
 }
 
 /**
  * Fetch SC rates from Neon
  */
 export async function fetchScRatesFromNeon(): Promise<ScRate[]> {
-  const rows = await sql`SELECT id, category, sub_category, rate_per_100 FROM sc_rates ORDER BY id ASC`;
+  const rows = await sql`SELECT id, category, sub_category, rate_per_100 FROM ${tbl("sc_rates")} ORDER BY id ASC`;
   return rows.map((r: any) => ({
     id: Number(r.id),
     category: r.category,
@@ -231,7 +256,7 @@ export async function fetchScRatesFromNeon(): Promise<ScRate[]> {
  */
 export async function upsertScRateInNeon(r: ScRate): Promise<void> {
   await sql`
-    INSERT INTO sc_rates (id, category, sub_category, rate_per_100)
+    INSERT INTO ${tbl("sc_rates")} (id, category, sub_category, rate_per_100)
     VALUES (${r.id}, ${r.category}, ${r.subCategory}, ${r.ratePer100})
     ON CONFLICT (id) DO UPDATE SET
       category = EXCLUDED.category,
@@ -244,14 +269,14 @@ export async function upsertScRateInNeon(r: ScRate): Promise<void> {
  * Delete SC rate from Neon
  */
 export async function deleteScRateFromNeon(id: number): Promise<void> {
-  await sql`DELETE FROM sc_rates WHERE id = ${id}`;
+  await sql`DELETE FROM ${tbl("sc_rates")} WHERE id = ${id}`;
 }
 
 /**
  * Fetch SubCategoryRules from Neon
  */
 export async function fetchSubCategoryRulesFromNeon(): Promise<SubCategoryRule[]> {
-  const rows = await sql`SELECT id, sub_category, installments, mode, categories FROM subcat_rules ORDER BY id ASC`;
+  const rows = await sql`SELECT id, sub_category, installments, mode, categories FROM ${tbl("subcat_rules")} ORDER BY id ASC`;
   return rows.map((r: any) => ({
     id: Number(r.id),
     subCategory: r.sub_category,
@@ -267,7 +292,7 @@ export async function fetchSubCategoryRulesFromNeon(): Promise<SubCategoryRule[]
 export async function upsertSubCategoryRuleInNeon(rule: SubCategoryRule): Promise<void> {
   const ruleId = rule.id || Date.now();
   await sql`
-    INSERT INTO subcat_rules (id, sub_category, installments, mode, categories)
+    INSERT INTO ${tbl("subcat_rules")} (id, sub_category, installments, mode, categories)
     VALUES (${ruleId}, ${rule.subCategory}, ${rule.installments}, ${rule.mode}, ${JSON.stringify(rule.categories || [])})
     ON CONFLICT (id) DO UPDATE SET
       sub_category = EXCLUDED.sub_category,
@@ -281,14 +306,14 @@ export async function upsertSubCategoryRuleInNeon(rule: SubCategoryRule): Promis
  * Delete SubCategoryRule from Neon
  */
 export async function deleteSubCategoryRuleFromNeon(id: number): Promise<void> {
-  await sql`DELETE FROM subcat_rules WHERE id = ${id}`;
+  await sql`DELETE FROM ${tbl("subcat_rules")} WHERE id = ${id}`;
 }
 
 /**
  * Fetch KallyanRule from Neon
  */
 export async function fetchKallyanRuleFromNeon(): Promise<KallyanRule | null> {
-  const rows = await sql`SELECT rule_data FROM kallyan_rule WHERE id = 'default' LIMIT 1`;
+  const rows = await sql`SELECT rule_data FROM ${tbl("kallyan_rule")} WHERE id = 'default' LIMIT 1`;
   if (rows.length > 0 && rows[0].rule_data) {
     return rows[0].rule_data as KallyanRule;
   }
@@ -300,7 +325,7 @@ export async function fetchKallyanRuleFromNeon(): Promise<KallyanRule | null> {
  */
 export async function upsertKallyanRuleInNeon(rule: KallyanRule): Promise<void> {
   await sql`
-    INSERT INTO kallyan_rule (id, rule_data, updated_at)
+    INSERT INTO ${tbl("kallyan_rule")} (id, rule_data, updated_at)
     VALUES ('default', ${JSON.stringify(rule)}, NOW())
     ON CONFLICT (id) DO UPDATE SET
       rule_data = EXCLUDED.rule_data,
@@ -314,7 +339,7 @@ export async function upsertKallyanRuleInNeon(rule: KallyanRule): Promise<void> 
 export async function fetchRebateRatesFromNeon(): Promise<RebateRateItem[]> {
   const rows = await sql`
     SELECT id, product, duration, kisti, rate
-    FROM rebate_rates
+    FROM ${tbl("rebate_rates")}
     ORDER BY product ASC, duration ASC, kisti ASC
   `;
   return rows.map((r: any) => ({
@@ -333,7 +358,7 @@ export async function fetchRebateRatesFromNeon(): Promise<RebateRateItem[]> {
 export async function ensureDayClosuresTable(): Promise<void> {
   try {
     await sql`
-      CREATE TABLE IF NOT EXISTS day_closures (
+      CREATE TABLE IF NOT EXISTS ${tbl("day_closures")} (
         id SERIAL PRIMARY KEY,
         close_date VARCHAR(20) UNIQUE NOT NULL,
         opening_cash NUMERIC DEFAULT 0,
@@ -363,7 +388,7 @@ export async function fetchDayClosuresFromNeon(): Promise<DayClosure[]> {
     const rows = await sql`
       SELECT id, close_date, opening_cash, opening_bank, closing_cash, closing_bank,
              total_receive, total_payment, denomination, status, closed_at, closed_by, notes
-      FROM day_closures
+      FROM ${tbl("day_closures")}
       ORDER BY close_date DESC
     `;
     return rows.map((r: any) => ({
@@ -394,7 +419,7 @@ export async function upsertDayClosureInNeon(c: DayClosure): Promise<void> {
   try {
     await ensureDayClosuresTable();
     await sql`
-      INSERT INTO day_closures (close_date, opening_cash, opening_bank, closing_cash, closing_bank, total_receive, total_payment, denomination, status, closed_at, closed_by, notes)
+      INSERT INTO ${tbl("day_closures")} (close_date, opening_cash, opening_bank, closing_cash, closing_bank, total_receive, total_payment, denomination, status, closed_at, closed_by, notes)
       VALUES (
         ${c.closeDate},
         ${c.openingCash},
@@ -434,7 +459,7 @@ export async function upsertDayClosureInNeon(c: DayClosure): Promise<void> {
 export async function deleteDayClosureInNeon(closeDate: string): Promise<void> {
   try {
     await ensureDayClosuresTable();
-    await sql`DELETE FROM day_closures WHERE close_date = ${closeDate}`;
+    await sql`DELETE FROM ${tbl("day_closures")} WHERE close_date = ${closeDate}`;
   } catch (e) {
     console.warn("deleteDayClosureInNeon error:", e);
   }
@@ -446,7 +471,7 @@ export async function deleteDayClosureInNeon(closeDate: string): Promise<void> {
 export async function ensureAppSettingsTable(): Promise<void> {
   try {
     await sql`
-      CREATE TABLE IF NOT EXISTS app_settings (
+      CREATE TABLE IF NOT EXISTS ${tbl("app_settings")} (
         key TEXT PRIMARY KEY,
         value TEXT NOT NULL,
         updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -463,7 +488,7 @@ export async function ensureAppSettingsTable(): Promise<void> {
 export async function ensureDayOpensTable(): Promise<void> {
   try {
     await sql`
-      CREATE TABLE IF NOT EXISTS day_opens (
+      CREATE TABLE IF NOT EXISTS ${tbl("day_opens")} (
         id SERIAL PRIMARY KEY,
         open_date VARCHAR(20) UNIQUE NOT NULL,
         prev_close_date VARCHAR(20),
@@ -486,7 +511,7 @@ export async function fetchDayOpensFromNeon(): Promise<DayOpen[]> {
     await ensureDayOpensTable();
     const rows = await sql`
       SELECT id, open_date, prev_close_date, opening_cash, opening_bank, opened_at, opened_by
-      FROM day_opens
+      FROM ${tbl("day_opens")}
       ORDER BY open_date DESC
     `;
     return rows.map((r: any) => ({
@@ -511,7 +536,7 @@ export async function upsertDayOpenInNeon(o: DayOpen): Promise<void> {
   try {
     await ensureDayOpensTable();
     await sql`
-      INSERT INTO day_opens (open_date, prev_close_date, opening_cash, opening_bank, opened_at, opened_by)
+      INSERT INTO ${tbl("day_opens")} (open_date, prev_close_date, opening_cash, opening_bank, opened_at, opened_by)
       VALUES (
         ${o.openDate},
         ${o.prevCloseDate || null},
@@ -539,7 +564,7 @@ export async function upsertDayOpenInNeon(o: DayOpen): Promise<void> {
 export async function fetchAppSettingFromNeon(key: string): Promise<string | null> {
   try {
     const rows = await sql`
-      SELECT value FROM app_settings WHERE key = ${key} LIMIT 1
+      SELECT value FROM ${tbl("app_settings")} WHERE key = ${key} LIMIT 1
     `;
     if (rows.length > 0 && rows[0].value) {
       return String(rows[0].value);
@@ -557,7 +582,7 @@ export async function upsertAppSettingInNeon(key: string, value: string): Promis
   try {
     await ensureAppSettingsTable();
     await sql`
-      INSERT INTO app_settings (key, value, updated_at)
+      INSERT INTO ${tbl("app_settings")} (key, value, updated_at)
       VALUES (${key}, ${value}, NOW())
       ON CONFLICT (key) DO UPDATE SET
         value = EXCLUDED.value,
@@ -568,3 +593,286 @@ export async function upsertAppSettingInNeon(key: string, value: string): Promis
   }
 }
 
+
+/* ══════════════════════════════════════════════════════════════
+ * 🏢 অফিস-প্রতি ক্লাউড ঘর তৈরি (একবারই, নিজে থেকে)
+ * ══════════════════════════════════════════════════════════════ */
+
+/** যে টেবিলগুলো গোবরার (public) থেকে হুবহু নকল করে নতুন অফিসের জন্য বানানো হবে */
+const CORE_TABLES = [
+  "transactions",
+  "staff_reports",
+  "categories",
+  "sc_rates",
+  "subcat_rules",
+  "kallyan_rule",
+  "rebate_rates",
+  "day_closures",
+  "day_opens",
+  "app_settings",
+  "site_content",
+];
+
+const SCHEMA_FLAG_KEY = "gobra_neon_schema_ready";
+
+/** প্রতিটি DDL আলাদা স্টেটমেন্ট (এক রিকোয়েস্টে একাধিক কমান্ড Postgres নেয় না) */
+const checkEntriesDdl = (sch: string): string[] => [
+  `CREATE TABLE IF NOT EXISTS "${sch}".check_entries (
+    id BIGINT PRIMARY KEY,
+    check_date VARCHAR(20) NOT NULL,
+    member_code TEXT,
+    member_name TEXT,
+    centre_code TEXT,
+    centre_name TEXT,
+    bank_name TEXT,
+    check_no TEXT,
+    disbursse TEXT,
+    project TEXT,
+    micr BOOLEAN DEFAULT FALSE,
+    found_in_db BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+  )`,
+  `CREATE INDEX IF NOT EXISTS check_entries_date_idx ON "${sch}".check_entries (check_date)`,
+  `CREATE INDEX IF NOT EXISTS check_entries_member_idx ON "${sch}".check_entries (member_code)`,
+];
+
+const membersDdl = (sch: string): string[] => [
+  `CREATE TABLE IF NOT EXISTS "${sch}".members (
+    member_code TEXT PRIMARY KEY,
+    member_name TEXT,
+    centre_code TEXT,
+    centre_name TEXT,
+    bank_name TEXT,
+    check_no TEXT,
+    source TEXT DEFAULT 'db',
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+  )`,
+  `CREATE INDEX IF NOT EXISTS members_centre_idx ON "${sch}".members (centre_code)`,
+];
+
+let schemaInFlight: Promise<void> | null = null;
+
+/**
+ * বর্তমান অফিসের ক্লাউড স্কিমা + টেবিল নিশ্চিত করে।
+ * গোবরার জন্য শুধু নতুন টেবিল দুটি (check_entries, members) তৈরি হয় —
+ * বাকি সব আগের জায়গাতেই অপরিবর্তিত থাকে।
+ */
+export async function ensureBranchSchema(force = false): Promise<void> {
+  const sch = branchSchema();
+  try {
+    if (!force && localStorage.getItem(SCHEMA_FLAG_KEY) === sch) return;
+  } catch {}
+
+  if (!schemaInFlight) {
+    schemaInFlight = (async () => {
+      const stmts: string[] = [];
+      if (sch !== "public") {
+        stmts.push(`CREATE SCHEMA IF NOT EXISTS "${sch}"`);
+        for (const t of CORE_TABLES) {
+          stmts.push(`CREATE TABLE IF NOT EXISTS "${sch}"."${t}" (LIKE "public"."${t}" INCLUDING ALL)`);
+        }
+      }
+      stmts.push(...checkEntriesDdl(sch), ...membersDdl(sch));
+      // এক HTTP রিকোয়েস্টে সব DDL (ট্রানজেকশন অ্যারে)
+      await (sql as any).transaction(stmts.map((q) => (sql as any).query(q)));
+      try {
+        localStorage.setItem(SCHEMA_FLAG_KEY, sch);
+      } catch {}
+    })().finally(() => {
+      schemaInFlight = null;
+    });
+  }
+  return schemaInFlight;
+}
+
+/* ══════════════════════════════════════════════════════════════
+ * ✅ চেক এন্ট্রি — ক্লাউড সংরক্ষণ (প্রতি অফিসে আলাদা)
+ * ══════════════════════════════════════════════════════════════ */
+
+export async function fetchCheckEntriesFromNeon(): Promise<CheckEntry[]> {
+  try {
+    await ensureBranchSchema();
+    const rows: any = await sql`
+      SELECT id, check_date, member_code, member_name, centre_code, centre_name,
+             bank_name, check_no, disbursse, project, micr, found_in_db, created_at
+      FROM ${tbl("check_entries")}
+      ORDER BY check_date DESC, id DESC
+    `;
+    return (rows as any[]).map((r: any) => ({
+      id: Number(r.id),
+      checkDate: r.check_date,
+      memberCode: r.member_code || "",
+      memberName: r.member_name || "",
+      centreCode: r.centre_code || "",
+      centreName: r.centre_name || "",
+      bankName: r.bank_name || "",
+      checkNo: r.check_no || "",
+      disbursse: r.disbursse || "",
+      project: r.project || "",
+      micr: r.micr === true,
+      foundInDb: r.found_in_db === true,
+      createdAt: r.created_at ? new Date(r.created_at).toISOString() : undefined,
+    }));
+  } catch (e) {
+    console.warn("fetchCheckEntriesFromNeon error:", e);
+    return [];
+  }
+}
+
+export async function upsertCheckEntryInNeon(e: CheckEntry): Promise<void> {
+  const id = Number(e?.id);
+  if (!id || isNaN(id)) return;
+  await ensureBranchSchema();
+  await sql`
+    INSERT INTO ${tbl("check_entries")}
+      (id, check_date, member_code, member_name, centre_code, centre_name,
+       bank_name, check_no, disbursse, project, micr, found_in_db, created_at, updated_at)
+    VALUES (
+      ${id}, ${e.checkDate || ""}, ${e.memberCode || ""}, ${e.memberName || ""},
+      ${e.centreCode || ""}, ${e.centreName || ""}, ${e.bankName || ""}, ${e.checkNo || ""},
+      ${e.disbursse || ""}, ${e.project || ""}, ${e.micr === true}, ${e.foundInDb === true},
+      ${e.createdAt ? new Date(e.createdAt).toISOString() : new Date().toISOString()}, NOW()
+    )
+    ON CONFLICT (id) DO UPDATE SET
+      check_date = EXCLUDED.check_date,
+      member_code = EXCLUDED.member_code,
+      member_name = EXCLUDED.member_name,
+      centre_code = EXCLUDED.centre_code,
+      centre_name = EXCLUDED.centre_name,
+      bank_name = EXCLUDED.bank_name,
+      check_no = EXCLUDED.check_no,
+      disbursse = EXCLUDED.disbursse,
+      project = EXCLUDED.project,
+      micr = EXCLUDED.micr,
+      found_in_db = EXCLUDED.found_in_db,
+      updated_at = NOW();
+  `;
+}
+
+export async function deleteCheckEntryFromNeon(id: number | string): Promise<void> {
+  const numId = Number(id);
+  if (!numId || isNaN(numId)) return;
+  try {
+    await ensureBranchSchema();
+    await sql`DELETE FROM ${tbl("check_entries")} WHERE id = ${numId}`;
+  } catch (e) {
+    console.warn("deleteCheckEntryFromNeon error:", e);
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
+ * 🗄️ মেম্বার ডাটাবেজ (চেক লুকআপ ডাটাবেজ) — ক্লাউড সংরক্ষণ
+ * ══════════════════════════════════════════════════════════════ */
+
+export async function fetchMembersFromNeon(): Promise<Member[]> {
+  try {
+    await ensureBranchSchema();
+    const rows: any = await sql`
+      SELECT member_code, member_name, centre_code, centre_name, bank_name, check_no, source, updated_at
+      FROM ${tbl("members")}
+      ORDER BY member_code ASC
+    `;
+    return (rows as any[]).map((r: any) => ({
+      memberCode: String(r.member_code || ""),
+      memberName: r.member_name || "",
+      centreCode: r.centre_code || "",
+      centreName: r.centre_name || "",
+      bankName: r.bank_name || undefined,
+      checkNo: r.check_no || undefined,
+      source: r.source === "auto" ? ("auto" as const) : ("db" as const),
+      updatedAt: r.updated_at ? new Date(r.updated_at).toISOString() : undefined,
+    }));
+  } catch (e) {
+    console.warn("fetchMembersFromNeon error:", e);
+    return [];
+  }
+}
+
+/**
+ * মেম্বার ডাটাবেজ ব্যাচে আপলোড (এক রিকোয়েস্টে অনেক সারি — দ্রুত ও সাশ্রয়ী)।
+ * @returns ক্লাউডে লেখা সারির সংখ্যা
+ */
+export async function upsertMembersBulkInNeon(list: Member[], batchSize = 400): Promise<number> {
+  const clean = (Array.isArray(list) ? list : []).filter((m) => m && String(m.memberCode || "").trim());
+  if (clean.length === 0) return 0;
+  await ensureBranchSchema();
+
+  let written = 0;
+  for (let i = 0; i < clean.length; i += batchSize) {
+    const chunk = clean.slice(i, i + batchSize);
+    const values: string[] = [];
+    const params: any[] = [];
+    chunk.forEach((m, j) => {
+      const b = j * 7;
+      values.push(`($${b + 1},$${b + 2},$${b + 3},$${b + 4},$${b + 5},$${b + 6},$${b + 7})`);
+      params.push(
+        String(m.memberCode).trim(),
+        m.memberName || "",
+        m.centreCode || "",
+        m.centreName || "",
+        m.bankName || "",
+        m.checkNo || "",
+        m.source === "auto" ? "auto" : "db"
+      );
+    });
+    await sql.query(
+      `INSERT INTO ${T("members")}
+         (member_code, member_name, centre_code, centre_name, bank_name, check_no, source)
+       VALUES ${values.join(",")}
+       ON CONFLICT (member_code) DO UPDATE SET
+         member_name = EXCLUDED.member_name,
+         centre_code = EXCLUDED.centre_code,
+         centre_name = EXCLUDED.centre_name,
+         bank_name = EXCLUDED.bank_name,
+         check_no = EXCLUDED.check_no,
+         source = EXCLUDED.source,
+         updated_at = NOW()`,
+      params
+    );
+    written += chunk.length;
+  }
+  return written;
+}
+
+export async function deleteMemberFromNeon(memberCode: string): Promise<void> {
+  const code = String(memberCode || "").trim();
+  if (!code) return;
+  try {
+    await ensureBranchSchema();
+    await sql`DELETE FROM ${tbl("members")} WHERE member_code = ${code}`;
+  } catch (e) {
+    console.warn("deleteMemberFromNeon error:", e);
+  }
+}
+
+/** পুরো মেম্বার ডাটাবেজ ক্লাউড থেকে মুছে ফেলা (লোকালে মুছলে ক্লাউডেও যেন না থাকে) */
+export async function clearMembersInNeon(): Promise<void> {
+  try {
+    await ensureBranchSchema();
+    await sql`DELETE FROM ${tbl("members")}`;
+  } catch (e) {
+    console.warn("clearMembersInNeon error:", e);
+  }
+}
+
+/** বর্তমান অফিসের ক্লাউড ঘরে কী কী আছে তার সংক্ষিপ্ত হিসাব (স্ট্যাটাস মডালের জন্য) */
+export async function fetchNeonStats(): Promise<{ schema: string; rows: Record<string, number> }> {
+  const sch = branchSchema();
+  const out: Record<string, number> = {};
+  try {
+    await ensureBranchSchema();
+    const tables = ["transactions", "staff_reports", "categories", "day_opens", "day_closures", "rebate_rates", "check_entries", "members"];
+    for (const t of tables) {
+      try {
+        const r: any = await sql.query(`SELECT count(*)::int AS n FROM ${T(t)}`);
+        out[t] = Number(r?.[0]?.n || 0);
+      } catch {
+        out[t] = -1;
+      }
+    }
+  } catch (e) {
+    console.warn("fetchNeonStats error:", e);
+  }
+  return { schema: sch, rows: out };
+}

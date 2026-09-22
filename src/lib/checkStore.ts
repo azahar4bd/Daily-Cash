@@ -17,6 +17,7 @@
  */
 
 import type { CheckEntry } from "@/types";
+import { enqueueNeonAction } from "./neonSync";
 
 const CHECK_KEY = "gobra_check_entries";
 const CHECK_BACKUP_KEY = "gobra_check_entries_backup";
@@ -95,6 +96,26 @@ function persist(next: CheckEntry[], removedIds: Array<number | string> = []): v
       } catch {}
     }
   }
+  // ☁️ ক্লাউড (Neon) কিউ: নতুন/বদলানো এন্ট্রি পাঠানো হবে, স্পষ্ট ডিলিটও যাবে
+  try {
+    const prevById = new Map<string, string>();
+    for (const x of prev) {
+      if (x && x.id !== undefined && x.id !== null) prevById.set(String(x.id), JSON.stringify(x));
+    }
+    for (const e of merged) {
+      if (!e || e.id === undefined || e.id === null) continue;
+      const id = String(e.id);
+      if (prevById.get(id) !== JSON.stringify(e)) {
+        enqueueNeonAction({ type: "check", payload: e });
+      }
+    }
+    for (const rid of removed) {
+      enqueueNeonAction({ type: "check_del", payload: rid });
+    }
+  } catch (e) {
+    console.warn("[checkStore] ক্লাউড কিউতে যোগ করা যায়নি", e);
+  }
+
   window.dispatchEvent(
     new CustomEvent("check-changed", {
       detail: { count: merged.length, restored: restored.length },
