@@ -20,6 +20,7 @@ export type Member = {
 };
 
 import { MEMBER_DB_CSV, MEMBER_DB_SEED_VERSION } from "@/data/memberDatabaseSeed";
+import { isDefaultBranch } from "./branchScope";
 
 const MEMBER_DB_KEY = "gobra_member_database";
 const MEMBER_DB_SEED_KEY = "gobra_member_db_seed";
@@ -85,6 +86,11 @@ export function clearMembers(): void {
 
 export function seedMemberDatabase(force = false): { added: number; updated: number; total: number } | null {
   try {
+    // 🏢 গোবরার ৪,৭৬১ মেম্বার শুধু গোবরা শাখাতেই বসবে — নতুন অফিস খালি ডাটাবেজ নিয়ে শুরু করবে
+    if (!isDefaultBranch()) {
+      try { localStorage.setItem(MEMBER_DB_SEED_KEY, MEMBER_DB_SEED_VERSION); } catch {}
+      return null;
+    }
     if (!force && localStorage.getItem(MEMBER_DB_SEED_KEY) === MEMBER_DB_SEED_VERSION) return null;
     const { members } = parseMemberText(MEMBER_DB_CSV);
     if (!members.length) return null;

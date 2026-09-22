@@ -39,6 +39,8 @@ import type {
   DayOpen,
 } from "@/types";
 
+import { isDefaultBranch } from "./branchScope";
+
 const TX_KEY = "gobra_local_transactions";
 const SR_KEY = "gobra_local_staff_reports";
 const CAT_KEY = "gobra_local_categories";
@@ -73,6 +75,8 @@ function saveQueue(q: SyncQueueItem[]): void {
 }
 
 export function enqueueNeonAction(action: SyncQueueItem): void {
+  // 🏢 অন্য শাখার হিসাব ক্লাউড ডাটাবেজে পাঠানো হবে না (গোবরার ডেটার সাথে মিশে যেত)
+  if (!isDefaultBranch()) return;
   const q = getQueue();
   q.push(action);
   saveQueue(q);
@@ -329,6 +333,8 @@ let syncInitialized = false;
  * - Syncs periodically every 45 seconds.
  */
 export function initNeonSync(): void {
+  // 🏢 শুধু ডিফল্ট (গোবরা) শাখার জন্য ক্লাউড সিংক চালু থাকবে
+  if (!isDefaultBranch()) return;
   if (syncInitialized) return;
   syncInitialized = true;
 

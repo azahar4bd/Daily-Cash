@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import DatePicker from "./DatePicker";
 import { fmt } from "./DenominationPopup";
 import { BKF_LOGO } from "@/assets/logoBase64";
+import { branchPrintLine } from "@/lib/auth";
 import { CASH_BANK_BANNER } from "@/assets/bannerBase64";
 import {
   getLocalTxs,
@@ -417,7 +418,7 @@ export default function CashSheet({
               Bandhu Kallyan Foundation
             </h1>
             <p className="text-sm sm:text-base print:text-base font-bold font-serif text-slate-800 tracking-wide mt-0.5">
-              GOBRA BRANCH-0014 Branch.
+              {branchPrintLine()}
             </p>
           </div>
         </div>

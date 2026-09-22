@@ -17,8 +17,21 @@ import { todayISO } from "./components/DatePicker";
 import { initNeonSync } from "./lib/neonSync";
 import { seedMemberDatabase } from "./lib/memberDb";
 import { forceFreshReload, APP_VERSION } from "./lib/version";
+import AuthScreen from "./components/AuthScreen";
+import { setBranch } from "./lib/branchScope";
+import { isDefaultBranch } from "./lib/branchScope";
+import {
+  getSession,
+  currentUser,
+  currentBranchName,
+  signOut,
+  ensureAuthSeed,
+} from "./lib/auth";
+import type { Session } from "./lib/auth";
 
 export default function App() {
+  /** 🔐 লগইন সেশন — না থাকলে সাইন ইন/সাইন আপ স্ক্রিন দেখাবে */
+  const [session, setSession] = useState<Session | null>(() => getSession());
   const [currentTab, setCurrentTab] = useState<string>("receive");
   const [trackerOpen, setTrackerOpen] = useState(false);
   const [dayOpenModalOpen, setDayOpenModalOpen] = useState(false);
@@ -40,13 +53,21 @@ export default function App() {
     } catch {}
   };
 
+  // লগইন না করা পর্যন্ত ডেটা-সংশ্লিষ্ট কিছুই চালু হবে না
   useEffect(() => {
-    // Initialize Neon Cloud Database Synchronization
+    ensureAuthSeed().catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (!session) return;
+    // Initialize Neon Cloud Database Synchronization (শুধু গোবরা শাখার জন্য)
     initNeonSync();
 
-    // অ্যাপের সাথে বাঁধা মেম্বার ডাটাবেজ বসানো (৪,৭৬১ জন) — হাতে ইমপোর্ট লাগবে না
-    seedMemberDatabase();
+    // অ্যাপের সাথে বাঁধা মেম্বার ডাটাবেজ বসানো (৪,৭৬১ জন) — শুধু গোবরা শাখায়
+    if (isDefaultBranch()) seedMemberDatabase();
+  }, [session?.userId, session?.branchId]);
 
+  useEffect(() => {
     try {
       const saved = localStorage.getItem("app_master_date");
       if (saved && saved.includes("-") && saved !== selectedDate) {
@@ -82,10 +103,58 @@ export default function App() {
     };
   }, []);
 
+  /* ───────── লগইন না করা থাকলে সাইন ইন / সাইন আপ স্ক্রিন ───────── */
+  if (!session) {
+    return (
+      <AuthScreen
+        onAuthed={(s) => {
+          setBranch(s.branchId);
+          setSession(s);
+          // নতুন শাখার ডেটা ঠিকমতো পড়ার জন্য পুরো অ্যাপ একবার রিলোড হবে
+          window.location.reload();
+        }}
+      />
+    );
+  }
+
+  const me = currentUser();
+  const branchLabel = currentBranchName();
+  const handleLogout = () => {
+    if (
+      !window.confirm(
+        "সাইন আউট করবেন? আবার ঢুকতে ইউজার আইডি (মোবাইল নম্বর) ও পাসওয়ার্ড লাগবে।"
+      )
+    )
+      return;
+    signOut();
+    window.location.reload();
+  };
+
   return (
     <div className="app-bg min-h-screen text-slate-900 font-sans antialiased pb-20 print:p-0 print:m-0 print:bg-white">
       {/* Main Container */}
       <main className="mx-auto max-w-6xl px-3 sm:px-4 pt-3 sm:pt-5 print:p-0 print:max-w-none">
+        {/* 🏢 বর্তমান অফিস + ইউজার + লগআউট */}
+        <div className="print:hidden mb-2 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white/80 px-3 py-1.5 text-[11px] font-bold text-slate-700 shadow-xs">
+          <span className="flex items-center gap-1.5">
+            <span>🏢</span>
+            <span className="font-black text-indigo-800">{branchLabel}</span>
+          </span>
+          <span className="flex items-center gap-2">
+            <span className="text-slate-600">
+              👤 {me ? `${me.name} • ${me.mobile}` : session.userId}
+            </span>
+            <button
+              type="button"
+              onClick={handleLogout}
+              title="সাইন আউট করুন"
+              className="rounded-lg border border-rose-300 bg-rose-50 px-2 py-1 text-[10px] font-black text-rose-700 transition hover:bg-rose-100 cursor-pointer"
+            >
+              🚪 লগআউট
+            </button>
+          </span>
+        </div>
+
         {/* Real-time Network & Offline/Online Sync Status Banner */}
         <NetworkStatusBanner />
 
