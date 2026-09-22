@@ -110,6 +110,13 @@ export type DayOpen = {
   openingBank: number;
   openedAt: string;
   openedBy?: string;
+  /** ✍️ ওপেনিং ক্যাশ/ব্যাংক হাতে টাইপ করে বসানো হয়েছে কি না */
+  manualOpening?: boolean;
+  /** অ্যাপের নিজের হিসাবে যা আসত — তুলনা/অডিটের জন্য সংরক্ষিত */
+  systemOpeningCash?: number;
+  systemOpeningBank?: number;
+  /** কেন হাতে বসানো হলো — ঐচ্ছিক নোট */
+  openingNote?: string;
 };
 
 export type DayState = "not_opened" | "open" | "closed";

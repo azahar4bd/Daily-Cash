@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { getDayState, isIntermediateBlockedDate, reopenDay, getSummary } from "@/lib/storage";
+import { getDayState, isIntermediateBlockedDate, reopenDay, getSummary, getDayOpen } from "@/lib/storage";
 import type { DayState } from "@/types";
 import { formatDisplay } from "./DatePicker";
 import { fmt } from "./DenominationPopup";
@@ -20,6 +20,8 @@ export default function DayStateBanner({
   const [dayState, setDayState] = useState<DayState>("not_opened");
   const [openingCash, setOpeningCash] = useState(0);
   const [openingBank, setOpeningBank] = useState(0);
+  /** ✍️ ওপেনিং হাতে বসানো হয়েছে কি না */
+  const [manualOpen, setManualOpen] = useState(false);
   const [flash, setFlash] = useState(false);
   const barRef = useRef<HTMLDivElement | null>(null);
 
@@ -29,6 +31,7 @@ export default function DayStateBanner({
       const sum = getSummary(selectedDate);
       setOpeningCash(sum.prevCash || 0);
       setOpeningBank(sum.prevBank || 0);
+      setManualOpen(Boolean(getDayOpen(selectedDate)?.manualOpening));
     } catch {}
   };
 
@@ -154,24 +157,43 @@ export default function DayStateBanner({
         <span className="rounded bg-emerald-600 px-1.5 py-0.5 text-[10px] font-bold text-white uppercase">
           Open ✓
         </span>
+        {manualOpen && (
+          <span
+            className="rounded border border-fuchsia-300 bg-fuchsia-50 px-1.5 py-0.5 text-[10px] font-black text-fuchsia-700"
+            title="এই দিনের প্রারম্ভিক ক্যাশ/ব্যাংক হাতে টাইপ করে বসানো হয়েছে"
+          >
+            ✍️ ম্যানুয়াল ওপেনিং
+          </span>
+        )}
         <span className="text-slate-500 text-[11px] hidden md:inline">
           — দিনের কাজ শেষে এখান থেকেই Day Close করুন
         </span>
       </div>
-      <button
-        type="button"
-        onClick={() => window.dispatchEvent(new CustomEvent("open-day-close-modal"))}
-        disabled={blockedCheck.blocked}
-        className="shrink-0 self-end sm:self-center rounded-xl bg-linear-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white px-3.5 py-1.5 text-xs font-black shadow-sm transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
-        title={
-          blockedCheck.blocked
-            ? "মধ্যবর্তী বন্ধের দিন (Day Close করা যাবে না)"
-            : "এই তারিখের হিসাব চূড়ান্তভাবে বন্ধ ও লক করুন"
-        }
-      >
-        <span>{blockedCheck.blocked ? "🚫" : "🔒"}</span>
-        <span>{blockedCheck.blocked ? "তারিখ ব্লকড" : "Day Close করুন"}</span>
-      </button>
+      <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+        <button
+          type="button"
+          onClick={() => window.dispatchEvent(new CustomEvent("open-day-open-modal"))}
+          className="rounded-xl border border-emerald-400 bg-white px-3 py-1.5 text-xs font-black text-emerald-800 shadow-xs transition hover:bg-emerald-100 cursor-pointer flex items-center gap-1.5"
+          title="প্রারম্ভিক ক্যাশ/ব্যাংক দেখুন বা হাতে টাইপ করে সংশোধন করুন"
+        >
+          <span>✏️</span>
+          <span>ওপেনিং</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => window.dispatchEvent(new CustomEvent("open-day-close-modal"))}
+          disabled={blockedCheck.blocked}
+          className="rounded-xl bg-linear-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white px-3.5 py-1.5 text-xs font-black shadow-sm transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+          title={
+            blockedCheck.blocked
+              ? "মধ্যবর্তী বন্ধের দিন (Day Close করা যাবে না)"
+              : "এই তারিখের হিসাব চূড়ান্তভাবে বন্ধ ও লক করুন"
+          }
+        >
+          <span>{blockedCheck.blocked ? "🚫" : "🔒"}</span>
+          <span>{blockedCheck.blocked ? "তারিখ ব্লকড" : "Day Close করুন"}</span>
+        </button>
+      </div>
     </div>
   );
 }

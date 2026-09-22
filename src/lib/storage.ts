@@ -169,15 +169,42 @@ export function saveDayOpen(payload: DayOpen): DayOpen {
   return payload;
 }
 
-export function openDay(targetDate: string, openedBy: string = "Cashier"): DayOpen {
-  const sum = getSummary(targetDate);
+/**
+ * কর্মদিবস শুরু (Day Open)
+ * `manual` দিলে ওপেনিং ক্যাশ/ব্যাংক হাতে টাইপ করা সংখ্যা হিসেবে বসবে —
+ * অ্যাপের নিজের হিসাবের বদলে সেই সংখ্যা থেকেই খতিয়ান এগোবে।
+ */
+export function openDay(
+  targetDate: string,
+  openedBy: string = "Cashier",
+  manual?: { cash?: number | string | null; bank?: number | string | null; note?: string } | null
+): DayOpen {
+  // এই দিনের আগের ম্যানুয়াল ওপেনিং থাকলেও সিস্টেমের আসল হিসাবটাই দেখতে হবে
+  const sum = getSummary(targetDate, { skipManualOpeningFor: targetDate });
+  const sysCash = Math.round(Number(sum.prevCash) || 0);
+  const sysBank = Math.round(Number(sum.prevBank) || 0);
+
+  const hasManualCash = manual && manual.cash !== undefined && manual.cash !== null && manual.cash !== "";
+  const hasManualBank = manual && manual.bank !== undefined && manual.bank !== null && manual.bank !== "";
+  const manCash = hasManualCash ? Math.round(Number(manual!.cash) || 0) : sysCash;
+  const manBank = hasManualBank ? Math.round(Number(manual!.bank) || 0) : sysBank;
+  const isManual = Boolean(manual) && (manCash !== sysCash || manBank !== sysBank);
+
   const record: DayOpen = {
     openDate: targetDate,
     prevCloseDate: sum.prevDate || null,
-    openingCash: sum.prevCash,
-    openingBank: sum.prevBank,
+    openingCash: isManual ? manCash : sysCash,
+    openingBank: isManual ? manBank : sysBank,
     openedAt: new Date().toISOString(),
     openedBy,
+    ...(isManual
+      ? {
+          manualOpening: true,
+          systemOpeningCash: sysCash,
+          systemOpeningBank: sysBank,
+          openingNote: String(manual?.note || "").trim(),
+        }
+      : {}),
   };
   return saveDayOpen(record);
 }
@@ -651,7 +678,10 @@ export function setGoogleSheetUrl(url: string): void {
   } catch {}
 }
 
-export function getSummary(targetDate: string): Summary {
+export function getSummary(
+  targetDate: string,
+  opts?: { skipManualOpeningFor?: string }
+): Summary {
   const allTx = getLocalTxs();
   const allSr = getLocalStaffReports();
   const DEFAULT_PERSONS = ["monir", "sakib", "mintu", "alamgir"];
@@ -674,9 +704,20 @@ export function getSummary(targetDate: string): Summary {
   allTx.forEach((t) => dateSet.add(t.txDate));
   allSr.forEach((s) => dateSet.add(s.reportDate));
   dateSet.add(targetDate);
-  const sortedDates = Array.from(dateSet).sort();
 
   const closures = getLocalDayClosures();
+  /** ✍️ ম্যানুয়াল ওপেনিং বসানো কর্মদিবসের তালিকা */
+  const opensByDate = new Map<string, DayOpen>();
+  getLocalDayOpens().forEach((o) => {
+    if (o && o.openDate) opensByDate.set(o.openDate, o);
+  });
+  // ম্যানুয়াল ওপেনিং বসানো দিনে কোনো লেনদেন না থাকলেও দিনটি খতিয়ানে ধরতে হবে,
+  // না হলে পরের কর্মদিবসের ওপেনিং আবার পুরনো হিসাবে ফিরে যেত
+  opensByDate.forEach((o, d) => {
+    if (o && o.manualOpening) dateSet.add(d);
+  });
+
+  const sortedDates = Array.from(dateSet).sort();
   let runningCash = 0;
   let runningBank = 0;
   let prevCash = 0;
@@ -697,6 +738,13 @@ export function getSummary(targetDate: string): Summary {
   );
 
   for (const d of sortedDates) {
+    // ✍️ ওই দিনের ওপেনিং হাতে বসানো থাকলে খতিয়ান সেই সংখ্যা থেকেই শুরু হবে
+    // (এবং পরের কর্মদিবসগুলোর ওপেনিংও সেখান থেকেই এগোবে)
+    const openRec = opts?.skipManualOpeningFor === d ? undefined : opensByDate.get(d);
+    if (openRec && openRec.manualOpening) {
+      runningCash = Number(openRec.openingCash) || 0;
+      runningBank = Number(openRec.openingBank) || 0;
+    }
     if (d === targetDate) {
       prevCash = runningCash;
       prevBank = runningBank;
@@ -705,7 +753,10 @@ export function getSummary(targetDate: string): Summary {
     const dayTx = allTx.filter((t) => t.txDate === d);
     const daySr = allSr.filter((s) => s.reportDate === d);
 
-    if (d < targetDate && (dayTx.length > 0 || daySr.length > 0)) {
+    if (
+      d < targetDate &&
+      (dayTx.length > 0 || daySr.length > 0 || Boolean(openRec && openRec.manualOpening))
+    ) {
       lastActiveDateBeforeTarget = d;
     }
 
