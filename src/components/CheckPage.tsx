@@ -10,6 +10,7 @@ import {
   memberDbCount,
 } from "@/lib/memberDb";
 import {
+  getCheckEntries,
   getCheckEntriesSorted,
   saveCheckEntry,
   updateCheckEntry,
@@ -26,6 +27,26 @@ import MemberDatabaseModal from "./MemberDatabaseModal";
 
 /** Project ড্রপডাউনের নির্ধারিত তালিকা */
 const PROJECT_OPTIONS = ["jagoron", "agrossor"];
+
+/**
+ * সার্চের সাথে এন্ট্রি মেলে কি না — টেবিল ফিল্টার ও সেভ-পরবর্তী যাচাইয়ে একই নিয়ম।
+ * (সেভ/এডিটের পর এন্ট্রিটি ফিল্টারের বাইরে চলে গেলে তা ধরা পড়ে, ফিল্টার সরিয়ে দেওয়া হয়)
+ */
+const entryMatches = (e: CheckEntry, rawQuery: string): boolean => {
+  const q = String(rawQuery || "").trim().toLowerCase();
+  if (!q) return true;
+  const nq = normCode(rawQuery);
+  if (nq && normCode(e.memberCode).includes(nq)) return true;
+  if (nq && normCode(e.centreCode).includes(nq)) return true;
+  if (nq && normCode(e.checkNo).includes(nq)) return true;
+  if ((e.checkDate || "").includes(q)) return true;
+  if ((e.memberName || "").toLowerCase().includes(q)) return true;
+  if ((e.centreName || "").toLowerCase().includes(q)) return true;
+  if ((e.bankName || "").toLowerCase().includes(q)) return true;
+  if ((e.disbursse || "").toLowerCase().includes(q)) return true;
+  if ((e.project || "").toLowerCase().includes(q)) return true;
+  return false;
+};
 
 const emptyForm = (date: string) => ({
   checkDate: date,
@@ -199,22 +220,31 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
       foundInDb: found,
     };
 
-    if (edit) {
-      updateCheckEntry({ ...edit, ...payload });
-      setStatus({
-        kind: "ok",
-        text: `✓ চেক #${payload.checkNo} আপডেট হয়েছে।`,
-      });
-      setEdit(null);
-    } else {
-      saveCheckEntry(payload);
-      setStatus({
-        kind: "ok",
-        text: needsAll
-          ? `✓ নতুন মেম্বার (${payload.memberCode}) ডাটাবেজে যোগ হয়েছে এবং চেক এন্ট্রি সেভ হয়েছে।`
-          : `✓ চেক #${payload.checkNo} সেভ হয়েছে (ডাটাবেজ থেকে তথ্য আনা হয়েছে)।`,
-      });
+    const wasEdit = Boolean(edit);
+    const savedEntry: CheckEntry = wasEdit
+      ? updateCheckEntry({ ...edit!, ...payload })
+      : saveCheckEntry(payload);
+    if (wasEdit) setEdit(null);
+
+    // সেভ/আপডেটের পর এন্ট্রিটি বর্তমান সার্চ ফিল্টারের বাইরে চলে গেলে ফিল্টার সরিয়ে দেওয়া হয় —
+    // না হলে এন্ট্রিটি টেবিলে দেখা যায় না এবং "মুছে গেছে" বলে মনে হয়
+    const hiddenBySearch = Boolean(search.trim()) && !entryMatches(savedEntry, search);
+    if (hiddenBySearch) {
+      setSearch("");
+      setPage(1);
     }
+
+    const totalNow = getCheckEntries().length;
+    setStatus({
+      kind: "ok",
+      text: wasEdit
+        ? `✓ চেক #${payload.checkNo} (${payload.memberCode}) আপডেট হয়েছে — আগের এন্ট্রিটি মুছে যায়নি, ওই এন্ট্রিটিই বদলেছে। মোট এন্ট্রি: ${totalNow.toLocaleString("en-IN")}${
+            hiddenBySearch ? " • সার্চ ফিল্টার সরানো হয়েছে যাতে এন্ট্রিটি দেখা যায়" : ""
+          }`
+        : needsAll
+        ? `✓ নতুন মেম্বার (${payload.memberCode}) ডাটাবেজে যোগ হয়েছে এবং চেক এন্ট্রি সেভ হয়েছে। মোট এন্ট্রি: ${totalNow.toLocaleString("en-IN")}`
+        : `✓ চেক #${payload.checkNo} সেভ হয়েছে (ডাটাবেজ থেকে তথ্য আনা হয়েছে)। মোট এন্ট্রি: ${totalNow.toLocaleString("en-IN")}`,
+    });
 
     setForm(emptyForm(form.checkDate));
     setMatchInfo("idle");
@@ -277,7 +307,10 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
         setForm(emptyForm(form.checkDate));
         setMatchInfo("idle");
       }
-      setStatus({ kind: "ok", text: `✓ চেক #${row.checkNo} (${row.memberCode}) মুছে ফেলা হয়েছে।` });
+      setStatus({
+        kind: "ok",
+        text: `✓ চেক #${row.checkNo} (${row.memberCode}) মুছে ফেলা হয়েছে। বাকি মোট এন্ট্রি: ${getCheckEntries().length.toLocaleString("en-IN")}`,
+      });
       reload();
     }
   };
@@ -329,23 +362,10 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
     return Array.from(set);
   }, [entries]);
 
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return entries;
-    const nq = normCode(search);
-    return entries.filter((e) => {
-      if (normCode(e.memberCode).includes(nq)) return true;
-      if (normCode(e.centreCode).includes(nq)) return true;
-      if (normCode(e.checkNo).includes(nq)) return true;
-      if (e.checkDate.includes(q)) return true;
-      if (e.memberName.toLowerCase().includes(q)) return true;
-      if (e.centreName.toLowerCase().includes(q)) return true;
-      if (e.bankName.toLowerCase().includes(q)) return true;
-      if ((e.disbursse || "").toLowerCase().includes(q)) return true;
-      if ((e.project || "").toLowerCase().includes(q)) return true;
-      return false;
-    });
-  }, [entries, search]);
+  const filtered = useMemo(
+    () => (search.trim() ? entries.filter((e) => entryMatches(e, search)) : entries),
+    [entries, search]
+  );
 
   /** ফর্মে লেখা মেম্বার কোডের সেভ করা চেক এন্ট্রি — সার্চ করলেই এডিট/ডিলিট করা যাবে */
   const memberEntries = useMemo(() => {
