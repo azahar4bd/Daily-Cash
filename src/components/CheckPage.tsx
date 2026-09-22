@@ -195,7 +195,7 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
       bankName: form.bankName.trim(),
       checkNo: form.checkNo.trim(),
       disbursse: form.disbursse.trim(),
-      project: form.project.trim(),
+      project: form.project.trim().toLowerCase(),
       foundInDb: found,
     };
 
@@ -242,7 +242,7 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
       bankName: row.bankName,
       checkNo: row.checkNo,
       disbursse: row.disbursse || "",
-      project: row.project || "",
+      project: (row.project || "").trim().toLowerCase(),
     });
     // ডাটাবেজে আছে কি না যাচাই
     const m = findMemberByCode(row.memberCode);
@@ -497,16 +497,20 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
           </div>
 
           <div>
-            <label className={labelCls}>Project</label>
+            <label className="mb-1 block text-[11px] font-black tracking-wide text-slate-600">
+              project
+            </label>
             <SearchSelect
-              value={form.project}
-              onChange={(v) => setForm((f) => ({ ...f, project: v }))}
-              options={[
-                ...PROJECT_OPTIONS,
-                ...(form.project && !PROJECT_OPTIONS.includes(form.project) ? [form.project] : []),
-              ]}
-              placeholder="-- Select Project --"
-              className={`${inputCls} cursor-pointer`}
+              value={(form.project || "").trim().toLowerCase()}
+              onChange={(v) => setForm((f) => ({ ...f, project: v.trim().toLowerCase() }))}
+              options={(() => {
+                const cur = (form.project || "").trim().toLowerCase();
+                return cur && !PROJECT_OPTIONS.includes(cur)
+                  ? [...PROJECT_OPTIONS, cur]
+                  : PROJECT_OPTIONS;
+              })()}
+              placeholder="-- select project --"
+              className={`${inputCls} cursor-pointer lowercase`}
             />
           </div>
         </div>
@@ -553,8 +557,8 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
                       </span>
                     )}
                     {e.project && (
-                      <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-600">
-                        {e.project}
+                      <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-600 lowercase">
+                        {String(e.project).trim().toLowerCase()}
                       </span>
                     )}
                     <div className="ml-auto flex items-center gap-1">
@@ -836,7 +840,7 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
                         </td>
                         <td className="px-3 py-2 text-xs font-semibold text-slate-800">
                           {row.project ? (
-                            row.project
+                            <span className="lowercase">{String(row.project).trim().toLowerCase()}</span>
                           ) : (
                             <span className="text-slate-300">—</span>
                           )}
