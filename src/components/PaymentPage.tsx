@@ -535,23 +535,27 @@ export default function PaymentPage({ selectedDate }: { selectedDate: string }) 
             Saved Payment Entries ({displayedRows.length}/{rows.length})
           </div>
 
-          {/* তারিখ হতে তারিখ ফিল্টার (ক্যাটাগরি ফিল্টারের পাশে) */}
-          <div className="flex flex-wrap items-center gap-2">
-            <label className="text-xs font-bold text-slate-600">From:</label>
-            <div className="w-32 sm:w-36">
-              <DatePicker
-                value={rangeFrom}
-                onChange={(v) => setRangeFrom(v)}
-                className="px-2 py-1 text-xs sm:text-sm"
-              />
+          {/* তারিখ হতে তারিখ ফিল্টার — মোবাইলেও দুটো পাশাপাশি এক লাইনে */}
+          <div className="grid w-full grid-cols-2 items-center gap-x-2 gap-y-1 sm:w-auto sm:max-w-md sm:flex sm:flex-wrap">
+            <div className="flex min-w-0 items-center gap-1.5">
+              <label className="shrink-0 text-xs font-bold text-slate-600">From:</label>
+              <div className="min-w-0 flex-1">
+                <DatePicker
+                  value={rangeFrom}
+                  onChange={(v) => setRangeFrom(v)}
+                  className="w-full px-2 py-1 text-xs sm:text-sm"
+                />
+              </div>
             </div>
-            <label className="text-xs font-bold text-slate-600">To:</label>
-            <div className="w-32 sm:w-36">
-              <DatePicker
-                value={rangeTo}
-                onChange={(v) => setRangeTo(v)}
-                className="px-2 py-1 text-xs sm:text-sm"
-              />
+            <div className="flex min-w-0 items-center gap-1.5">
+              <label className="shrink-0 text-xs font-bold text-slate-600">To:</label>
+              <div className="min-w-0 flex-1">
+                <DatePicker
+                  value={rangeTo}
+                  onChange={(v) => setRangeTo(v)}
+                  className="w-full px-2 py-1 text-xs sm:text-sm"
+                />
+              </div>
             </div>
           </div>
 
