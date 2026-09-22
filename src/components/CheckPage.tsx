@@ -21,6 +21,7 @@ import { formatDisplay } from "./DatePicker";
 import type { CheckEntry } from "@/types";
 import BankNameInput from "./BankNameInput";
 import SearchSelect from "./SearchSelect";
+import MemberDatabaseModal from "./MemberDatabaseModal";
 
 
 /** Project ড্রপডাউনের নির্ধারিত তালিকা */
@@ -49,6 +50,8 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
   const [dbCount, setDbCount] = useState(0);
   const [status, setStatus] = useState<{ kind: "ok" | "warn" | "err"; text: string } | null>(null);
   const [importOpen, setImportOpen] = useState(false);
+  /** 🗄️ মেম্বার ডাটাবেজ পপআপ উইন্ডো */
+  const [dbBrowseOpen, setDbBrowseOpen] = useState(false);
   const [importText, setImportText] = useState("");
   const [lockPulse, setLockPulse] = useState(false);
   const [page, setPage] = useState(1);
@@ -417,7 +420,17 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
           </div>
 
           <div>
-            <label className={labelCls}>Member Code (মেম্বার কোড)</label>
+            <div className="mb-1 flex items-center justify-between gap-2">
+              <label className={`${labelCls} mb-0`}>Member Code (মেম্বার কোড)</label>
+              <button
+                type="button"
+                onClick={() => setDbBrowseOpen(true)}
+                title="মেম্বার ডাটাবেজ থেকে খুঁজুন"
+                className="flex h-6 w-7 shrink-0 cursor-pointer items-center justify-center rounded-md border border-indigo-300 bg-indigo-50 text-xs transition hover:bg-indigo-100"
+              >
+                🗄️
+              </button>
+            </div>
             <div className="relative">
               <input
                 value={form.memberCode}
@@ -463,6 +476,8 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
               value={form.checkNo}
               onChange={(e) => setForm((f) => ({ ...f, checkNo: e.target.value }))}
               className={inputCls}
+              inputMode="numeric"
+              pattern="[0-9]*"
               autoComplete="off"
             />
           </div>
@@ -898,6 +913,25 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
           </div>
         )}
       </div>
+
+      {/* ══════════════ MEMBER DATABASE POPUP ══════════════ */}
+      {dbBrowseOpen && (
+        <MemberDatabaseModal
+          open={dbBrowseOpen}
+          onClose={() => setDbBrowseOpen(false)}
+          onPick={(m) => {
+            setForm((f) => ({
+              ...f,
+              memberCode: m.memberCode || "",
+              memberName: m.memberName || "",
+              centreCode: m.centreCode || "",
+              centreName: m.centreName || "",
+            }));
+            setMatchInfo("found");
+            setStatus(null);
+          }}
+        />
+      )}
 
       {/* ══════════════ IMPORT MODAL ══════════════ */}
       {importOpen && (
