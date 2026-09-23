@@ -168,6 +168,20 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
   }, []);
 
   const [keyboardOpen, setKeyboardOpen] = useState(false);
+  /** ✏️ v1.4.56: এন্ট্রি ফর্ম আইকনের ভেতরে — ক্লিকে expand, ✕ বাটনে collapse (মনে রাখে) */
+  const [entryCollapsed, setEntryCollapsed] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem("gobra_staff_entry_collapsed") !== "0";
+    } catch {
+      return true;
+    }
+  });
+  const collapseEntry = (v: boolean) => {
+    setEntryCollapsed(v);
+    try {
+      localStorage.setItem("gobra_staff_entry_collapsed", v ? "1" : "0");
+    } catch {}
+  };
   const [activeKeyboardField, setActiveKeyboardField] = useState<StaffFieldKey>("loan");
   const [prevCash, setPrevCash] = useState(0);
   const [prevBank, setPrevBank] = useState(0);
@@ -652,7 +666,23 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
         document.body
       )}
 
-      {/* Entry Form */}
+      {/* Entry Form — ✏️ আইকনের ভেতরে: ক্লিকে expand, ✕-এ collapse (v1.4.56) */}
+      {entryCollapsed ? (
+        <button
+          type="button"
+          onClick={() => collapseEntry(false)}
+          className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-50 to-purple-50 px-4 py-3 shadow-sm transition hover:border-indigo-400 hover:from-indigo-100 hover:to-purple-100"
+          title="Staff Collection Report Entry ফর্ম খুলুন"
+        >
+          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-600 text-base text-white shadow">
+            ✏️
+          </span>
+          <span className="text-sm font-black text-indigo-900">Staff Collection Report Entry</span>
+          <span className="rounded-full bg-indigo-200 px-2 py-0.5 text-[10px] font-black text-indigo-800">
+            খুলতে ক্লিক করুন ▼
+          </span>
+        </button>
+      ) : (
       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         {!dayClosed && isIntermediateBlockedDate(selectedDate).blocked && (
           <div className="mb-4 rounded-xl border border-rose-400 bg-rose-50 p-3 text-xs sm:text-sm font-bold text-rose-900 flex items-start gap-2 shadow-xs">
@@ -714,6 +744,14 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
                 </span>
               </button>
             )}
+            <button
+              type="button"
+              onClick={() => collapseEntry(true)}
+              className="rounded-lg bg-rose-600 px-2.5 py-1 text-sm font-black text-white shadow transition hover:bg-rose-700 cursor-pointer"
+              title="বন্ধ করুন — এন্ট্রি ফর্ম আইকনে collapse হবে"
+            >
+              ✕
+            </button>
             <div className="text-xs font-mono font-bold text-slate-700 bg-slate-100 px-3 py-1 rounded-lg border border-slate-200">
               Date: {selectedDate}
             </div>
@@ -862,6 +900,7 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
           </button>
         </div>
       </div>
+      )}
 
       {/* 3-Box Dashboard */}
       <div className="rounded-2xl border border-slate-200 bg-white p-2.5 sm:p-3 shadow-sm">
