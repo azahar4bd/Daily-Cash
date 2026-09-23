@@ -33,6 +33,8 @@ export type CheckEntry = {
   project?: string;
   /** ✔ MICR চেক কি না — টিক দিলে টেবিলে MICR, না দিলে NON MICR */
   micr?: boolean;
+  /** ↩ Return টিক (v1.4.47) — টিক দিলে এন্ট্রিটি চেক লিস্ট থেকে Return টেবিলে সরে যায়, টিক তুললে ফিরে আসে */
+  returned?: boolean;
   /** ডাটাবেজে পাওয়া গিয়েছিল কি না */
   foundInDb?: boolean;
   createdAt?: string;

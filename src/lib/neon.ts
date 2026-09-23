@@ -613,7 +613,12 @@ const CORE_TABLES = [
   "site_content",
 ];
 
-const SCHEMA_FLAG_KEY = "gobra_neon_schema_ready";
+/**
+ * v1.4.47: কী-এর ভার্সন বাড়ানো হয়েছে — check_entries টেবিলে নতুন `returned` কলামের
+ * ALTER সব ডিভাইসের স্কিমাতে একবার করে চালানোর জন্য। সব স্টেটমেন্ট idempotent
+ * (IF NOT EXISTS), তাই পুরনো ডিভাইসেও আবার চালানো নিরাপদ।
+ */
+const SCHEMA_FLAG_KEY = "gobra_neon_schema_ready_v2";
 
 /** প্রতিটি DDL আলাদা স্টেটমেন্ট (এক রিকোয়েস্টে একাধিক কমান্ড Postgres নেয় না) */
 const checkEntriesDdl = (sch: string): string[] => [
@@ -630,9 +635,11 @@ const checkEntriesDdl = (sch: string): string[] => [
     project TEXT,
     micr BOOLEAN DEFAULT FALSE,
     found_in_db BOOLEAN DEFAULT FALSE,
+    returned BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
   )`,
+  `ALTER TABLE "${sch}".check_entries ADD COLUMN IF NOT EXISTS returned BOOLEAN DEFAULT FALSE`,
   `CREATE INDEX IF NOT EXISTS check_entries_date_idx ON "${sch}".check_entries (check_date)`,
   `CREATE INDEX IF NOT EXISTS check_entries_member_idx ON "${sch}".check_entries (member_code)`,
 ];
@@ -695,7 +702,7 @@ export async function fetchCheckEntriesFromNeon(): Promise<CheckEntry[]> {
     await ensureBranchSchema();
     const rows: any = await sql`
       SELECT id, check_date, member_code, member_name, centre_code, centre_name,
-             bank_name, check_no, disbursse, project, micr, found_in_db, created_at
+             bank_name, check_no, disbursse, project, micr, found_in_db, returned, created_at
       FROM ${tbl("check_entries")}
       ORDER BY check_date DESC, id DESC
     `;
@@ -712,6 +719,7 @@ export async function fetchCheckEntriesFromNeon(): Promise<CheckEntry[]> {
       project: r.project || "",
       micr: r.micr === true,
       foundInDb: r.found_in_db === true,
+      returned: r.returned === true,
       createdAt: r.created_at ? new Date(r.created_at).toISOString() : undefined,
     }));
   } catch (e) {
@@ -727,11 +735,11 @@ export async function upsertCheckEntryInNeon(e: CheckEntry): Promise<void> {
   await sql`
     INSERT INTO ${tbl("check_entries")}
       (id, check_date, member_code, member_name, centre_code, centre_name,
-       bank_name, check_no, disbursse, project, micr, found_in_db, created_at, updated_at)
+       bank_name, check_no, disbursse, project, micr, found_in_db, returned, created_at, updated_at)
     VALUES (
       ${id}, ${e.checkDate || ""}, ${e.memberCode || ""}, ${e.memberName || ""},
       ${e.centreCode || ""}, ${e.centreName || ""}, ${e.bankName || ""}, ${e.checkNo || ""},
-      ${e.disbursse || ""}, ${e.project || ""}, ${e.micr === true}, ${e.foundInDb === true},
+      ${e.disbursse || ""}, ${e.project || ""}, ${e.micr === true}, ${e.foundInDb === true}, ${e.returned === true},
       ${e.createdAt ? new Date(e.createdAt).toISOString() : new Date().toISOString()}, NOW()
     )
     ON CONFLICT (id) DO UPDATE SET
@@ -746,6 +754,7 @@ export async function upsertCheckEntryInNeon(e: CheckEntry): Promise<void> {
       project = EXCLUDED.project,
       micr = EXCLUDED.micr,
       found_in_db = EXCLUDED.found_in_db,
+      returned = EXCLUDED.returned,
       updated_at = NOW();
   `;
 }

@@ -39,6 +39,23 @@ const projectOpts = (extra?: string): { value: string; label: string }[] => {
   return list.map((v) => ({ value: v, label: v.toUpperCase() }));
 };
 
+/** v1.4.47: চেক লিস্ট ও Return টেবিল — দুই টেবিলের কলাম হুবহু এক; Return কলামটি Action-এর ঠিক আগে */
+const TABLE_HEADERS = [
+  "Sr",
+  "Date",
+  "মেম্বার কোড",
+  "মেম্বার Name",
+  "Centre Code",
+  "Centre Name",
+  "Bank Name",
+  "Check No.",
+  "MICR",
+  "Disbursse",
+  "Project",
+  "Return",
+  "Action",
+];
+
 /**
  * সার্চের সাথে এন্ট্রি মেলে কি না — টেবিল ফিল্টার ও সেভ-পরবর্তী যাচাইয়ে একই নিয়ম।
  * (সেভ/এডিটের পর এন্ট্রিটি ফিল্টারের বাইরে চলে গেলে তা ধরা পড়ে, ফিল্টার সরিয়ে দেওয়া হয়)
@@ -93,6 +110,8 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
   const [importText, setImportText] = useState("");
   const [lockPulse, setLockPulse] = useState(false);
   const [page, setPage] = useState(1);
+  /** v1.4.47: Return টেবিলের নিজস্ব পেজ */
+  const [retPage, setRetPage] = useState(1);
   const PAGE_SIZE = 25;
 
   const formRef = useRef<HTMLDivElement | null>(null);
@@ -396,10 +415,147 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
     return entries.filter((e) => normCode(e.memberCode) === key);
   }, [entries, form.memberCode]);
 
-  useEffect(() => setPage(1), [search]);
+  useEffect(() => {
+    setPage(1);
+    setRetPage(1);
+  }, [search]);
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const pageRows = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  /* v1.4.47: একই সার্চ-ফিল্টার করা তালিকা Return টিক অনুযায়ী দুই টেবিলে ভাগ হয় */
+  const listFiltered = useMemo(() => filtered.filter((e) => !e.returned), [filtered]);
+  const returnFiltered = useMemo(() => filtered.filter((e) => Boolean(e.returned)), [filtered]);
+  const returnedCount = entries.reduce((n, e) => n + (e.returned ? 1 : 0), 0);
+  const totalPages = Math.max(1, Math.ceil(listFiltered.length / PAGE_SIZE));
+  const pageRows = listFiltered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const retTotalPages = Math.max(1, Math.ceil(returnFiltered.length / PAGE_SIZE));
+  const retPageRows = returnFiltered.slice((retPage - 1) * PAGE_SIZE, retPage * PAGE_SIZE);
+
+  /** Return টিক টগল — এন্ট্রিটি দুই টেবিলের মধ্যে সরে যায়; মুছে যায় না, ডেটা অক্ষত থাকে */
+  const toggleReturned = (row: CheckEntry) => {
+    if (isDayClosed(row.checkDate)) {
+      setStatus({
+        kind: "err",
+        text: `🔒 ${formatDisplay(row.checkDate) || row.checkDate} তারিখের দিন সমাপ্ত (Day Closed) — Return টিক বদলানো যাবে না।`,
+      });
+      return;
+    }
+    const nowReturned = !row.returned;
+    updateCheckEntry({ ...row, returned: nowReturned });
+    setStatus({
+      kind: "ok",
+      text: nowReturned
+        ? `↩ চেক #${row.checkNo} (${row.memberCode}) Return টেবিলে পাঠানো হয়েছে — এন্ট্রিটি মুছে যায়নি।`
+        : `✓ চেক #${row.checkNo} (${row.memberCode}) Return থেকে চেক লিস্টে ফিরে এসেছে।`,
+    });
+  };
+
+  /** দুই টেবিলের জন্য একই সারি-রেন্ডারার — চেহারা হুবহু এক */
+  const renderCheckRow = (row: CheckEntry, sr: number, zebra: number) => {
+    const rowLocked = isDayClosed(row.checkDate);
+    return (
+      <tr
+        key={row.id}
+        className={`border-b border-slate-200 last:border-b-0 ${
+          zebra % 2 ? "bg-slate-50/70" : "bg-white"
+        } hover:bg-blue-50/60`}
+      >
+        <td className="px-3 py-2 font-mono text-[11px] font-bold text-slate-500">{sr}</td>
+        <td className="whitespace-nowrap px-3 py-2 font-mono text-xs font-bold text-slate-800">
+          {formatDisplay(row.checkDate) || row.checkDate}
+        </td>
+        <td className="whitespace-nowrap px-3 py-2 font-mono text-xs font-black text-indigo-700">
+          {row.memberCode}
+          {row.foundInDb === false && (
+            <span
+              className="ml-1 rounded bg-amber-100 px-1 py-0.5 text-[9px] font-black text-amber-800"
+              title="এই মেম্বারটি এন্ট্রির সময় ডাটাবেজে ছিল না — এন্ট্রি থেকেই ডাটাবেজে যোগ হয়েছে"
+            >
+              NEW
+            </span>
+          )}
+        </td>
+        <td className="px-3 py-2 text-xs font-semibold text-slate-900">{row.memberName}</td>
+        <td className="whitespace-nowrap px-3 py-2 font-mono text-xs font-bold text-slate-700">
+          {row.centreCode}
+        </td>
+        <td className="px-3 py-2 text-xs font-semibold text-slate-900">{row.centreName}</td>
+        <td className="px-3 py-2 text-xs font-semibold text-slate-800">{row.bankName}</td>
+        <td className="whitespace-nowrap px-3 py-2 font-mono text-xs font-black text-slate-900">
+          {row.checkNo}
+        </td>
+        <td className="whitespace-nowrap px-3 py-2 text-center">
+          {row.micr ? (
+            <span className="rounded border border-emerald-300 bg-emerald-100 px-1.5 py-0.5 text-[10px] font-black text-emerald-800">
+              MICR
+            </span>
+          ) : (
+            <span className="rounded border border-slate-300 bg-slate-100 px-1.5 py-0.5 text-[10px] font-black text-slate-600">
+              NON MICR
+            </span>
+          )}
+        </td>
+        <td className="whitespace-nowrap px-3 py-2 text-right font-mono text-xs font-black text-slate-900">
+          {row.disbursse ? (
+            fmtAmt(row.disbursse)
+          ) : (
+            <span className="text-slate-300">—</span>
+          )}
+        </td>
+        <td className="px-3 py-2 text-xs font-semibold text-slate-800">
+          {row.project ? (
+            <span className="uppercase">{String(row.project).trim().toUpperCase()}</span>
+          ) : (
+            <span className="text-slate-300">—</span>
+          )}
+        </td>
+        <td className="whitespace-nowrap px-3 py-2 text-center">
+          <input
+            type="checkbox"
+            checked={Boolean(row.returned)}
+            disabled={rowLocked}
+            onChange={() => toggleReturned(row)}
+            title={
+              rowLocked
+                ? "দিন সমাপ্ত (Day Closed) — Return টিক বদলানো যাবে না"
+                : row.returned
+                ? "টিক তুললে এন্ট্রিটি চেক লিস্টে ফিরে যাবে"
+                : "টিক দিলে এন্ট্রিটি Return টেবিলে চলে যাবে"
+            }
+            className="h-4 w-4 cursor-pointer accent-amber-600 disabled:cursor-not-allowed disabled:opacity-40"
+          />
+        </td>
+        <td className="whitespace-nowrap px-3 py-2">
+          <div className="flex items-center gap-1">
+            {rowLocked && (
+              <span
+                className="rounded border border-rose-300 bg-rose-100 px-1.5 py-0.5 text-[10px] font-black text-rose-700"
+                title="দিন সমাপ্ত (Day Closed) — এই এন্ট্রি এডিট/ডিলিট করা যাবে না"
+              >
+                🔒
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={() => handleEdit(row)}
+              disabled={rowLocked}
+              title={rowLocked ? "দিন সমাপ্ত — এডিট করা যাবে না" : "এডিট করুন"}
+              className="rounded-lg border border-blue-200 bg-blue-50 px-2 py-1 text-xs text-blue-700 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              ✏️
+            </button>
+            <button
+              type="button"
+              onClick={() => handleDelete(row)}
+              disabled={rowLocked}
+              title={rowLocked ? "দিন সমাপ্ত — মুছে ফেলা যাবে না" : "মুছে ফেলুন"}
+              className="rounded-lg border border-rose-200 bg-rose-50 px-2 py-1 text-xs text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              🗑️
+            </button>
+          </div>
+        </td>
+      </tr>
+    );
+  };
 
   const uniqueMembers = useMemo(
     () => new Set(entries.map((e) => normCode(e.memberCode))).size,
@@ -813,6 +969,9 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
             <span className="rounded-lg border border-slate-200 bg-slate-100 px-2 py-1">
               মেম্বার: <span className="font-mono">{uniqueMembers.toLocaleString("en-IN")}</span>
             </span>
+            <span className="rounded-lg border border-amber-300 bg-amber-50 px-2 py-1 text-amber-800">
+              ↩ Return: <span className="font-mono">{returnedCount.toLocaleString("en-IN")}</span>
+            </span>
             {search && (
               <span className="rounded-lg border border-blue-200 bg-blue-50 px-2 py-1 text-blue-800">
                 ফিল্টার: <span className="font-mono">{filtered.length}</span>
@@ -850,20 +1009,7 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
             <table className="w-full min-w-[1180px] border-collapse text-sm">
               <thead className="sticky top-0 z-10 bg-slate-800 text-white">
                 <tr>
-                  {[
-                    "Sr",
-                    "Date",
-                    "মেম্বার কোড",
-                    "মেম্বার Name",
-                    "Centre Code",
-                    "Centre Name",
-                    "Bank Name",
-                    "Check No.",
-                    "MICR",
-                    "Disbursse",
-                    "Project",
-                    "Action",
-                  ].map((h) => (
+                  {TABLE_HEADERS.map((h) => (
                     <th
                       key={h}
                       className="whitespace-nowrap border-r border-slate-700 px-3 py-2.5 text-left text-[11px] font-black uppercase tracking-wide last:border-r-0"
@@ -876,109 +1022,14 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
               <tbody>
                 {pageRows.length === 0 ? (
                   <tr>
-                    <td colSpan={12} className="px-4 py-10 text-center text-sm font-semibold text-slate-500">
+                    <td colSpan={13} className="px-4 py-10 text-center text-sm font-semibold text-slate-500">
                       {search
-                        ? "🔍 এই অনুসন্ধানে কোনো ডাটা পাওয়া যায়নি।"
+                        ? "🔍 এই অনুসন্ধানে চেক লিস্টে কোনো ডাটা পাওয়া যায়নি।"
                         : "এখনো কোনো চেক এন্ট্রি নেই — উপরের ফর্ম থেকে যোগ করুন।"}
                     </td>
                   </tr>
                 ) : (
-                  pageRows.map((row, i) => {
-                    const sr = (page - 1) * PAGE_SIZE + i + 1;
-                    return (
-                      <tr
-                        key={row.id}
-                        className={`border-b border-slate-200 last:border-b-0 ${
-                          i % 2 ? "bg-slate-50/70" : "bg-white"
-                        } hover:bg-blue-50/60`}
-                      >
-                        <td className="px-3 py-2 font-mono text-[11px] font-bold text-slate-500">{sr}</td>
-                        <td className="whitespace-nowrap px-3 py-2 font-mono text-xs font-bold text-slate-800">
-                          {formatDisplay(row.checkDate) || row.checkDate}
-                        </td>
-                        <td className="whitespace-nowrap px-3 py-2 font-mono text-xs font-black text-indigo-700">
-                          {row.memberCode}
-                          {row.foundInDb === false && (
-                            <span
-                              className="ml-1 rounded bg-amber-100 px-1 py-0.5 text-[9px] font-black text-amber-800"
-                              title="এই মেম্বারটি এন্ট্রির সময় ডাটাবেজে ছিল না — এন্ট্রি থেকেই ডাটাবেজে যোগ হয়েছে"
-                            >
-                              NEW
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-3 py-2 text-xs font-semibold text-slate-900">{row.memberName}</td>
-                        <td className="whitespace-nowrap px-3 py-2 font-mono text-xs font-bold text-slate-700">
-                          {row.centreCode}
-                        </td>
-                        <td className="px-3 py-2 text-xs font-semibold text-slate-900">{row.centreName}</td>
-                        <td className="px-3 py-2 text-xs font-semibold text-slate-800">{row.bankName}</td>
-                        <td className="whitespace-nowrap px-3 py-2 font-mono text-xs font-black text-slate-900">
-                          {row.checkNo}
-                        </td>
-                        <td className="whitespace-nowrap px-3 py-2 text-center">
-                          {row.micr ? (
-                            <span className="rounded border border-emerald-300 bg-emerald-100 px-1.5 py-0.5 text-[10px] font-black text-emerald-800">
-                              MICR
-                            </span>
-                          ) : (
-                            <span className="rounded border border-slate-300 bg-slate-100 px-1.5 py-0.5 text-[10px] font-black text-slate-600">
-                              NON MICR
-                            </span>
-                          )}
-                        </td>
-                        <td className="whitespace-nowrap px-3 py-2 text-right font-mono text-xs font-black text-slate-900">
-                          {row.disbursse ? (
-                            fmtAmt(row.disbursse)
-                          ) : (
-                            <span className="text-slate-300">—</span>
-                          )}
-                        </td>
-                        <td className="px-3 py-2 text-xs font-semibold text-slate-800">
-                          {row.project ? (
-                            <span className="uppercase">{String(row.project).trim().toUpperCase()}</span>
-                          ) : (
-                            <span className="text-slate-300">—</span>
-                          )}
-                        </td>
-                        <td className="whitespace-nowrap px-3 py-2">
-                          {(() => {
-                            const rowLocked = isDayClosed(row.checkDate);
-                            return (
-                              <div className="flex items-center gap-1">
-                                {rowLocked && (
-                                  <span
-                                    className="rounded border border-rose-300 bg-rose-100 px-1.5 py-0.5 text-[10px] font-black text-rose-700"
-                                    title="দিন সমাপ্ত (Day Closed) — এই এন্ট্রি এডিট/ডিলিট করা যাবে না"
-                                  >
-                                    🔒
-                                  </span>
-                                )}
-                                <button
-                                  type="button"
-                                  onClick={() => handleEdit(row)}
-                                  disabled={rowLocked}
-                                  title={rowLocked ? "দিন সমাপ্ত — এডিট করা যাবে না" : "এডিট করুন"}
-                                  className="rounded-lg border border-blue-200 bg-blue-50 px-2 py-1 text-xs text-blue-700 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-40"
-                                >
-                                  ✏️
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => handleDelete(row)}
-                                  disabled={rowLocked}
-                                  title={rowLocked ? "দিন সমাপ্ত — মুছে ফেলা যাবে না" : "মুছে ফেলুন"}
-                                  className="rounded-lg border border-rose-200 bg-rose-50 px-2 py-1 text-xs text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-40"
-                                >
-                                  🗑️
-                                </button>
-                              </div>
-                            );
-                          })()}
-                        </td>
-                      </tr>
-                    );
-                  })
+                  pageRows.map((row, i) => renderCheckRow(row, (page - 1) * PAGE_SIZE + i + 1, i))
                 )}
               </tbody>
             </table>
@@ -990,7 +1041,7 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
           <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
             <span className="text-[11px] font-bold text-slate-600">
               পেজ <span className="font-mono">{page}</span> / <span className="font-mono">{totalPages}</span> —{" "}
-              মোট <span className="font-mono">{filtered.length}</span> রেকর্ড
+              মোট <span className="font-mono">{listFiltered.length}</span> রেকর্ড
             </span>
             <div className="flex items-center gap-1">
               <button
@@ -1005,6 +1056,80 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
                 type="button"
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 disabled={page === totalPages}
+                className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 transition hover:bg-slate-100 disabled:opacity-40"
+              >
+                পরের ›
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ══════════════ ↩ RETURN TABLE — চেক লিস্টের ঠিক নিচে, হুবহু একই গঠন ══════════════ */}
+      <div className="mt-5 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-base font-black text-slate-900 sm:text-lg">↩ Return Table</h2>
+          <div className="flex flex-wrap items-center gap-2 text-[11px] font-bold text-slate-600">
+            <span className="rounded-lg border border-amber-300 bg-amber-50 px-2 py-1 text-amber-800">
+              রিটার্ন এন্ট্রি: <span className="font-mono">{returnFiltered.length.toLocaleString("en-IN")}</span>
+            </span>
+            <span className="rounded-lg border border-slate-200 bg-slate-100 px-2 py-1">
+              Return ঘরের টিক তুললে এন্ট্রি চেক লিস্টে ফিরে যায়
+            </span>
+          </div>
+        </div>
+
+        <div className="overflow-hidden rounded-xl border border-slate-200">
+          <div className="max-h-[60vh] overflow-auto">
+            <table className="w-full min-w-[1180px] border-collapse text-sm">
+              <thead className="sticky top-0 z-10 bg-slate-800 text-white">
+                <tr>
+                  {TABLE_HEADERS.map((h) => (
+                    <th
+                      key={h}
+                      className="whitespace-nowrap border-r border-slate-700 px-3 py-2.5 text-left text-[11px] font-black uppercase tracking-wide last:border-r-0"
+                    >
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {retPageRows.length === 0 ? (
+                  <tr>
+                    <td colSpan={13} className="px-4 py-10 text-center text-sm font-semibold text-slate-500">
+                      {search
+                        ? "🔍 এই অনুসন্ধানে Return টেবিলে কোনো ডাটা পাওয়া যায়নি।"
+                        : "Return টেবিলে কোনো এন্ট্রি নেই — চেক লিস্টের Return ঘরে টিক দিন।"}
+                    </td>
+                  </tr>
+                ) : (
+                  retPageRows.map((row, i) => renderCheckRow(row, (retPage - 1) * PAGE_SIZE + i + 1, i))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {retTotalPages > 1 && (
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+            <span className="text-[11px] font-bold text-slate-600">
+              পেজ <span className="font-mono">{retPage}</span> / <span className="font-mono">{retTotalPages}</span> —{" "}
+              মোট <span className="font-mono">{returnFiltered.length}</span> রেকর্ড
+            </span>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setRetPage((p) => Math.max(1, p - 1))}
+                disabled={retPage === 1}
+                className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 transition hover:bg-slate-100 disabled:opacity-40"
+              >
+                ‹ আগের
+              </button>
+              <button
+                type="button"
+                onClick={() => setRetPage((p) => Math.min(retTotalPages, p + 1))}
+                disabled={retPage === retTotalPages}
                 className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 transition hover:bg-slate-100 disabled:opacity-40"
               >
                 পরের ›
