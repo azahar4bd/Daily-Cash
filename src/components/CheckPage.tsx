@@ -57,11 +57,11 @@ const TABLE_HEADERS = [
 ];
 
 /** v1.4.48: এন্ট্রির সব ব্যাংক/চেক নম্বরের জোড়া — প্রথম জোড়া মূল ঘর থেকে, বাকিগুলো extraBanks থেকে */
-const allBankPairs = (e: CheckEntry): { bankName: string; checkNo: string }[] => {
-  const list = [{ bankName: e.bankName || "", checkNo: e.checkNo || "" }];
+const allBankPairs = (e: CheckEntry): { bankName: string; checkNo: string; micr: boolean }[] => {
+  const list = [{ bankName: e.bankName || "", checkNo: e.checkNo || "", micr: e.micr === true }];
   for (const b of e.extraBanks || []) {
     if (b && ((b.bankName || "").trim() || (b.checkNo || "").trim())) {
-      list.push({ bankName: b.bankName || "", checkNo: b.checkNo || "" });
+      list.push({ bankName: b.bankName || "", checkNo: b.checkNo || "", micr: b.micr === true });
     }
   }
   return list;
@@ -98,7 +98,8 @@ const entryMatches = (e: CheckEntry, rawQuery: string): boolean => {
   if (nq && normCode(e.reissuedFrom?.checkNo || "").includes(nq)) return true;
   if (q.includes("micr")) {
     const wantsNon = q.includes("non");
-    if (wantsNon ? !e.micr : Boolean(e.micr)) return true;
+    const pairs = allBankPairs(e); // v1.4.50: যেকোনো জোড়ার MICR অবস্থানে মেলে
+    if (wantsNon ? pairs.some((p) => !p.micr) : pairs.some((p) => p.micr)) return true;
   }
   return false;
 };
@@ -115,8 +116,8 @@ const emptyForm = (date: string) => ({
   project: "",
   /** ✔ MICR চেক কি না */
   micr: false,
-  /** 🏦 অতিরিক্ত ব্যাংক + চেক নম্বরের জোড়া (v1.4.48) */
-  extraBanks: [] as { bankName: string; checkNo: string }[],
+  /** 🏦 অতিরিক্ত ব্যাংক + চেক নম্বরের জোড়া — প্রতিটিতে নিজস্ব MICR টিক (v1.4.48/50) */
+  extraBanks: [] as { bankName: string; checkNo: string; micr: boolean }[],
 });
 
 export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
@@ -261,7 +262,11 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
 
     // v1.4.48: অতিরিক্ত ব্যাংক জোড়া — আংশিক পূরণ করা জোড়া সেভ হবে না
     const cleanExtras = form.extraBanks
-      .map((b) => ({ bankName: (b.bankName || "").trim(), checkNo: (b.checkNo || "").trim() }))
+      .map((b) => ({
+        bankName: (b.bankName || "").trim(),
+        checkNo: (b.checkNo || "").trim(),
+        micr: Boolean(b.micr),
+      }))
       .filter((b) => b.bankName || b.checkNo);
     for (let i = 0; i < cleanExtras.length; i++) {
       if (!cleanExtras[i].bankName)
@@ -366,6 +371,7 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
       extraBanks: (row.extraBanks || []).map((b) => ({
         bankName: b?.bankName || "",
         checkNo: b?.checkNo || "",
+        micr: b?.micr === true,
       })),
     });
     // ডাটাবেজে আছে কি না যাচাই
@@ -503,8 +509,8 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
 
   /* v1.4.48: একাধিক ব্যাংক + চেক নম্বরের জোড়া — ＋ বাটনে যোগ, ✕ বাটনে বাদ */
   const addBankPair = () =>
-    setForm((f) => ({ ...f, extraBanks: [...f.extraBanks, { bankName: "", checkNo: "" }] }));
-  const updateExtraBank = (i: number, key: "bankName" | "checkNo", v: string) =>
+    setForm((f) => ({ ...f, extraBanks: [...f.extraBanks, { bankName: "", checkNo: "", micr: false }] }));
+  const updateExtraBank = (i: number, key: "bankName" | "checkNo" | "micr", v: string | boolean) =>
     setForm((f) => ({
       ...f,
       extraBanks: f.extraBanks.map((b, bi) => (bi === i ? { ...b, [key]: v } : b)),
@@ -532,7 +538,7 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
       // একাধিক ব্যাংক থাকলে ব্যাংকের নামগুলো থেকে যাবে, চেক নম্বর ফাঁকা (নতুন নম্বর লাগবে)
       extraBanks: (row.extraBanks || [])
         .filter((b) => (b?.bankName || "").trim() || (b?.checkNo || "").trim())
-        .map((b) => ({ bankName: b?.bankName || "", checkNo: "" })),
+        .map((b) => ({ bankName: b?.bankName || "", checkNo: "", micr: b?.micr === true })),
     });
     const m = findMemberByCode(row.memberCode);
     setRMatchInfo(m ? "found" : "notfound");
@@ -564,8 +570,8 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
   };
 
   const addRBankPair = () =>
-    setRForm((f) => ({ ...f, extraBanks: [...f.extraBanks, { bankName: "", checkNo: "" }] }));
-  const updateRExtraBank = (i: number, key: "bankName" | "checkNo", v: string) =>
+    setRForm((f) => ({ ...f, extraBanks: [...f.extraBanks, { bankName: "", checkNo: "", micr: false }] }));
+  const updateRExtraBank = (i: number, key: "bankName" | "checkNo" | "micr", v: string | boolean) =>
     setRForm((f) => ({
       ...f,
       extraBanks: f.extraBanks.map((b, bi) => (bi === i ? { ...b, [key]: v } : b)),
@@ -603,7 +609,11 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
       if (!rForm.centreName.trim()) return setRStatus({ kind: "err", text: "সেন্টার নাম দিন (ডাটাবেজে পাওয়া যায়নি)।" });
     }
     const cleanExtras = rForm.extraBanks
-      .map((b) => ({ bankName: (b.bankName || "").trim(), checkNo: (b.checkNo || "").trim() }))
+      .map((b) => ({
+        bankName: (b.bankName || "").trim(),
+        checkNo: (b.checkNo || "").trim(),
+        micr: Boolean(b.micr),
+      }))
       .filter((b) => b.bankName || b.checkNo);
     for (let i = 0; i < cleanExtras.length; i++) {
       if (!cleanExtras[i].bankName)
@@ -656,6 +666,8 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
       getCheckEntries().find((x) => Number(x.id) === Number(orig.id)) || orig;
     updateCheckEntry({
       ...latest,
+      // v1.4.50: রি-ইস্যু হলে পুরনো এন্ট্রিটি Return টেবিলে চলে যাবে (নতুন এন্ট্রি চেক লিস্টেই থাকে)
+      returned: true,
       reissuedTo: { id: Number(newEntry.id), date: newEntry.checkDate, checkNo: newEntry.checkNo },
     });
     setReissueFor(null);
@@ -668,7 +680,7 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
       kind: "ok",
       text: `✓ চেক #${orig.checkNo} রি-ইস্যু হয়েছে → নতুন চেক #${newEntry.checkNo} (${
         formatDisplay(newEntry.checkDate) || newEntry.checkDate
-      })। পুরনো এন্ট্রিতে রি-ইস্যুর তারিখ দেখানো হচ্ছে — কোনো এন্ট্রি মুছে যায়নি।`,
+      }) — নতুন এন্ট্রি চেক লিস্টে আছে, পুরনো এন্ট্রিটি রি-ইস্যুর তারিখসহ Return টেবিলে পাঠানো হয়েছে। কোনো এন্ট্রি মুছে যায়নি.`,
     });
     reload();
   };
@@ -737,15 +749,26 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
           )}
         </td>
         <td className="whitespace-nowrap px-3 py-2 text-center">
-          {row.micr ? (
-            <span className="rounded border border-emerald-300 bg-emerald-100 px-1.5 py-0.5 text-[10px] font-black text-emerald-800">
-              MICR
-            </span>
-          ) : (
-            <span className="rounded border border-slate-300 bg-slate-100 px-1.5 py-0.5 text-[10px] font-black text-slate-600">
-              NON MICR
-            </span>
-          )}
+          {/* v1.4.50: প্রতি ব্যাংক-জোড়ার নিজস্ব MICR ব্যাজ — ব্যাংক/চেক নম্বরের স্ট্যাকের সাথে মিল রেখে */}
+          <div className="flex flex-col items-center gap-0.5">
+            {allBankPairs(row).map((b, bi) =>
+              b.micr ? (
+                <span
+                  key={bi}
+                  className="rounded border border-emerald-300 bg-emerald-100 px-1.5 py-0.5 text-[10px] font-black text-emerald-800"
+                >
+                  MICR
+                </span>
+              ) : (
+                <span
+                  key={bi}
+                  className="rounded border border-slate-300 bg-slate-100 px-1.5 py-0.5 text-[10px] font-black text-slate-600"
+                >
+                  NON MICR
+                </span>
+              )
+            )}
+          </div>
         </td>
         <td className="whitespace-nowrap px-3 py-2 text-right font-mono text-xs font-black text-slate-900">
           {row.disbursse ? (
@@ -1039,9 +1062,27 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
                   />
                 </div>
                 <div>
-                  <span className="mb-1 block text-[10px] font-black tracking-wide text-emerald-800">
-                    চেক নম্বর #{bi + 2}
-                  </span>
+                  <div className="mb-1 flex items-center justify-between gap-2">
+                    <span className="block text-[10px] font-black tracking-wide text-emerald-800">
+                      চেক নম্বর #{bi + 2}
+                    </span>
+                    {/* v1.4.50: প্রতি ব্যাংক জোড়ার নিজস্ব MICR চেকবক্স — চেক নম্বরের ঠিক উপরে */}
+                    <label
+                      className="flex cursor-pointer select-none items-center gap-1 rounded-md border border-emerald-300 bg-emerald-50 px-1.5 py-0.5 text-[9px] font-black text-emerald-800 transition hover:bg-emerald-100"
+                      title="টিক দিলে এই চেকটি MICR, টিক না দিলে NON MICR"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={Boolean(b.micr)}
+                        onChange={(e) => updateExtraBank(bi, "micr", e.target.checked)}
+                        className="h-3.5 w-3.5 cursor-pointer accent-emerald-600"
+                      />
+                      <span>MICR</span>
+                      <span className="rounded bg-white px-1 text-[8px] font-black text-slate-500">
+                        {b.micr ? "MICR" : "NON MICR"}
+                      </span>
+                    </label>
+                  </div>
                   <input
                     value={b.checkNo}
                     onChange={(e) => updateExtraBank(bi, "checkNo", e.target.value)}
@@ -1555,7 +1596,16 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
                           {allBankPairs(row).map((b, bi) => (
                             <p key={bi} className="truncate">
                               🏦 {b.bankName || "—"} •{" "}
-                              <span className="font-mono font-black text-slate-900">#{b.checkNo || "—"}</span>
+                              <span className="font-mono font-black text-slate-900">#{b.checkNo || "—"}</span>{" "}
+                              <span
+                                className={`rounded border px-1 text-[8px] font-black ${
+                                  b.micr
+                                    ? "border-emerald-300 bg-emerald-100 text-emerald-800"
+                                    : "border-slate-300 bg-slate-100 text-slate-600"
+                                }`}
+                              >
+                                {b.micr ? "MICR" : "NON MICR"}
+                              </span>
                             </p>
                           ))}
                           {row.reissuedTo && (
@@ -1572,8 +1622,7 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
                           )}
                           <p className="truncate">
                             💵 {row.disbursse ? `৳${fmtAmt(row.disbursse)}` : "—"}
-                            {row.project ? ` • ${String(row.project).trim().toUpperCase()}` : ""} •{" "}
-                            {row.micr ? "MICR" : "NON MICR"}
+                            {row.project ? ` • ${String(row.project).trim().toUpperCase()}` : ""}
                           </p>
                         </div>
                         <div className="mt-1.5 flex shrink-0 items-center justify-between gap-1">
@@ -1847,9 +1896,27 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
                         />
                       </div>
                       <div>
-                        <span className="mb-1 block text-[10px] font-black tracking-wide text-emerald-800">
-                          নতুন চেক নম্বর #{bi + 2}
-                        </span>
+                        <div className="mb-1 flex items-center justify-between gap-2">
+                          <span className="block text-[10px] font-black tracking-wide text-emerald-800">
+                            নতুন চেক নম্বর #{bi + 2}
+                          </span>
+                          {/* v1.4.50: পপআপের জোড়াতেও নিজস্ব MICR চেকবক্স */}
+                          <label
+                            className="flex cursor-pointer select-none items-center gap-1 rounded-md border border-emerald-300 bg-emerald-50 px-1.5 py-0.5 text-[9px] font-black text-emerald-800 transition hover:bg-emerald-100"
+                            title="টিক দিলে এই চেকটি MICR, টিক না দিলে NON MICR"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={Boolean(b.micr)}
+                              onChange={(e) => updateRExtraBank(bi, "micr", e.target.checked)}
+                              className="h-3.5 w-3.5 cursor-pointer accent-emerald-600"
+                            />
+                            <span>MICR</span>
+                            <span className="rounded bg-white px-1 text-[8px] font-black text-slate-500">
+                              {b.micr ? "MICR" : "NON MICR"}
+                            </span>
+                          </label>
+                        </div>
                         <input
                           value={b.checkNo}
                           onChange={(e) => updateRExtraBank(bi, "checkNo", e.target.value)}
