@@ -289,6 +289,55 @@ export function saveStaffReport(item: Omit<StaffReportItem, "id"> & { id?: numbe
     );
   }
   const list = getLocalStaffReports();
+  /**
+   * v1.4.42: একই তারিখে একই স্টাফের নামে আগে থেকে এন্ট্রি থাকলে নতুন পোস্টিং
+   * সেই এন্ট্রির সাথে ঘর-প্রতি ঘর যোগ/বিয়োগ হয়ে বসবে (আগের নামের বানান ও id বহাল) —
+   * কখনো ডাবল সারি/ডাবল পোস্টিং হবে না। পুরনো ডাবল সারি থাকলে এক সারিতে সংকুচিত হবে।
+   */
+  if (!item.id) {
+    const nameKey = String(item.staffName || "").toLowerCase().trim();
+    const sameName = list.filter(
+      (r) =>
+        r.reportDate === item.reportDate &&
+        String(r.staffName || "").toLowerCase().trim() === nameKey
+    );
+    if (sameName.length > 0) {
+      const base = sameName[0];
+      // একই নামের সব পুরনো সারির মান + নতুন পোস্টিং — সব যোগ (কোনো মান হারাবে না)
+      const sumField = (field: keyof StaffReportItem) =>
+        Math.round(
+          (sameName.reduce((s, r) => s + (Number(r[field]) || 0), 0) +
+            (Number(item[field] as string) || 0)) *
+            100
+        ) / 100;
+      const merged: StaffReportItem = {
+        ...base,
+        loan: String(sumField("loan")),
+        rebate: String(sumField("rebate")),
+        savings: String(sumField("savings")),
+        dps: String(sumField("dps")),
+        admission: String(sumField("admission")),
+        passbook: String(sumField("passbook")),
+        savingsAdjust: String(sumField("savingsAdjust")),
+        nogodReturn: String(sumField("nogodReturn")),
+        createdAt: new Date().toISOString(),
+      };
+      // একই নামের একাধিক পুরনো সারি থাকলে বাকিগুলো বাদ (মান যোগ হয়েই — ক্লাউড থেকেও মুছে যাবে)
+      const dupIds = sameName.slice(1).map((r) => r.id);
+      const dupIdSet = new Set(dupIds.map((d) => String(d)));
+      const updated = list
+        .map((r) => (String(r.id) === String(merged.id) ? merged : r))
+        .filter((r) => !dupIdSet.has(String(r.id)));
+      localStorage.setItem(SR_KEY, JSON.stringify(updated));
+      window.dispatchEvent(new Event("tx-changed"));
+      enqueueNeonAction({ type: "sr", payload: merged });
+      dupIds.forEach((id) => {
+        enqueueNeonAction({ type: "sr_del", payload: id });
+        deleteStaffReportFromNeon(id).catch(console.error);
+      });
+      return merged;
+    }
+  }
   const newSr: StaffReportItem = {
     ...item,
     id: item.id || Date.now(),
