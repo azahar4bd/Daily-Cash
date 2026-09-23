@@ -789,7 +789,7 @@ export default function CashSheet({
                   Total :
                 </td>
                 <td className="border border-black px-2.5 py-1.5 print:py-0.5 text-right font-mono font-bold">
-                  {fmtUS(totalOfficersReceived)}
+                  {totalOfficersReceived > 0 ? fmtUS(totalOfficersReceived) : "-"}
                 </td>
                 <td className="border border-black px-2.5 py-1.5 print:py-0.5"></td>
               </tr>
@@ -866,6 +866,12 @@ export default function CashSheet({
           }
           table.fill-c {
             height: 62mm !important;
+          }
+          /* স্বাক্ষর ব্লক প্রিন্টেও ২ কলামেই থাকবে — Accountant বামে, Manager ডানে (একই সারিতে)
+             উপরের block রুলটা শুধু কনটেন্ট ফ্লোর জন্য, এটা যেন না ভাঙে */
+          .cash-sheet-print-container > .signatures-block {
+            display: grid !important;
+            grid-template-columns: 1fr 1fr !important;
           }
           .signatures-block {
             page-break-before: avoid !important;
