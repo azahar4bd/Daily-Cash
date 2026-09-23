@@ -17,6 +17,9 @@ import type { Tx } from "@/types";
 const NOTES_LIST = [1000, 500, 200, 100, 50, 20, 10, 5, 2, 1] as const;
 const CASH_SHEET_DENOM_PREFIX = "cash_sheet_denom_";
 
+// প্রিন্টে এক্সেল-শিটের মতো US-স্টাইল কমা (যেমন 183,690 / 4,304,023) — স্ক্রিনের অন্যান্য জায়গায় en-IN-ই থাকবে
+const fmtUS = (n: number | string) => Math.round(Number(n) || 0).toLocaleString("en-US");
+
 export function normalizeDigits(input: string): string {
   const bnToEnMap: Record<string, string> = {
     "০": "0", "১": "1", "২": "2", "৩": "3", "৪": "4",
@@ -411,13 +414,13 @@ export default function CashSheet({
           <img
             src={BKF_LOGO}
             alt="BKF Logo"
-            className="h-14 sm:h-16 w-auto object-contain print:h-16"
+            className="h-14 sm:h-16 w-auto object-contain print:h-14"
           />
           <div className="text-left">
-            <h1 className="text-2xl sm:text-4xl print:text-4xl font-black font-serif text-slate-900 leading-tight tracking-wide sm:whitespace-nowrap">
+            <h1 className="text-2xl sm:text-4xl print:text-3xl font-black font-serif text-slate-900 leading-tight tracking-wide sm:whitespace-nowrap">
               Bandhu Kallyan Foundation
             </h1>
-            <p className="text-sm sm:text-base print:text-base font-bold font-serif text-slate-800 tracking-wide mt-0.5">
+            <p className="text-sm sm:text-base print:text-sm font-bold font-serif text-slate-800 tracking-wide mt-0.5">
               {branchPrintLine()}
             </p>
           </div>
@@ -443,7 +446,9 @@ export default function CashSheet({
         <div className="print-gap-b mb-3 print:mb-1.5">
           <div className="mb-1 print:mb-0.5 flex items-center justify-between text-xs sm:text-sm print:text-xs font-bold text-slate-900">
             <span>A. Cash &amp; Bank Information:</span>
-            <span className="pr-16 sm:pr-20 print:pr-16">Day: {getDayName(selectedDate)}</span>
+            <span className="pr-16 sm:pr-20 print:pr-16">
+              Day: <span className="font-normal">{getDayName(selectedDate)}</span>
+            </span>
           </div>
           <table className="w-full border-collapse border-spacing-0 text-xs sm:text-sm print:text-xs">
             <tbody>
@@ -452,16 +457,18 @@ export default function CashSheet({
                   Closing Cash in Hand: TK (BDT)
                 </td>
                 <td className="w-48 sm:w-56 print:w-56 border border-black px-3 py-1.5 sm:py-2 print:py-0.5 text-right font-mono font-bold">
-                  {fmt(closingCash)}
+                  {fmtUS(closingCash)}
                 </td>
-                <td className="w-16 sm:w-20 print:w-16 border-0 border-transparent p-0"></td>
+                <td className="w-16 sm:w-20 print:w-16 border-0 border-transparent p-0 text-center align-middle text-transparent print:text-slate-900">
+                  -
+                </td>
               </tr>
               <tr>
                 <td className="border border-black px-3 py-1.5 sm:py-2 print:py-0.5 font-medium">
                   Closing Cash at Bank: TK (BDT)
                 </td>
                 <td className="w-48 sm:w-56 print:w-56 border border-black px-3 py-1.5 sm:py-2 print:py-0.5 text-right font-mono font-bold">
-                  {fmt(closingBank)}
+                  {fmtUS(closingBank)}
                 </td>
                 <td className="w-16 sm:w-20 print:w-16 border-0 border-transparent p-0"></td>
               </tr>
@@ -546,15 +553,15 @@ export default function CashSheet({
                             }`}
                           />
                           <span className="hidden print:inline font-mono font-bold">
-                            {qty > 0 ? qty : "-"}
+                            {qty > 0 ? qty : ""}
                           </span>
                         </>
                       ) : (
-                        <span className="font-mono font-bold">{qty > 0 ? qty : "-"}</span>
+                        <span className="font-mono font-bold">{qty > 0 ? qty : ""}</span>
                       )}
                     </td>
                     <td className="border border-black px-2.5 py-0.5 sm:py-1 print:py-1 text-right font-mono font-semibold">
-                      {rowTk > 0 ? fmt(rowTk) : "-"}
+                      {rowTk > 0 ? fmtUS(rowTk) : "-"}
                     </td>
                     <td className="border border-black px-1.5 py-0.5 print:py-1 text-center font-mono text-slate-400">-</td>
                   </tr>
@@ -590,15 +597,15 @@ export default function CashSheet({
                         }`}
                       />
                       <span className="hidden print:inline font-mono font-bold">
-                        {quantities.coins || "-"}
+                        {quantities.coins || ""}
                       </span>
                     </>
                   ) : (
-                    <span>{quantities.coins || "-"}</span>
+                    <span>{quantities.coins || ""}</span>
                   )}
                 </td>
                 <td className="border border-black px-2.5 py-0.5 sm:py-1 print:py-0.5 text-right font-mono font-semibold">
-                  {coinsAmt > 0 ? fmt(coinsAmt) : "-"}
+                  {coinsAmt > 0 ? fmtUS(coinsAmt) : "-"}
                 </td>
                 <td className="border border-black px-1.5 py-0.5 print:py-0.5 text-center font-mono text-slate-400">-</td>
               </tr>
@@ -630,15 +637,15 @@ export default function CashSheet({
                         }`}
                       />
                       <span className="hidden print:inline font-mono font-bold">
-                        {quantities.revenueStamp ? quantities.revenueStamp : "-"}
+                        {quantities.revenueStamp ? quantities.revenueStamp : ""}
                       </span>
                     </>
                   ) : (
-                    <span>{quantities.revenueStamp || "-"}</span>
+                    <span>{quantities.revenueStamp || ""}</span>
                   )}
                 </td>
                 <td className="border border-black px-2.5 py-0.5 sm:py-1 print:py-0.5 text-right font-mono font-semibold">
-                  {revenueStampAmt > 0 ? fmt(revenueStampAmt) : "-"}
+                  {revenueStampAmt > 0 ? fmtUS(revenueStampAmt) : "-"}
                 </td>
                 <td className="border border-black px-1.5 py-0.5 print:py-0.5 text-center font-mono text-slate-400">-</td>
               </tr>
@@ -669,15 +676,15 @@ export default function CashSheet({
                         }`}
                       />
                       <span className="hidden print:inline font-mono font-bold">
-                        {quantities.pendingSlip ? quantities.pendingSlip : "-"}
+                        {quantities.pendingSlip ? quantities.pendingSlip : ""}
                       </span>
                     </>
                   ) : (
-                    <span>{quantities.pendingSlip || "-"}</span>
+                    <span>{quantities.pendingSlip || ""}</span>
                   )}
                 </td>
                 <td className="border border-black px-2.5 py-0.5 sm:py-1 print:py-0.5 text-right font-mono font-semibold">
-                  {pendingSlipAmt > 0 ? fmt(pendingSlipAmt) : "-"}
+                  {pendingSlipAmt > 0 ? fmtUS(pendingSlipAmt) : "-"}
                 </td>
                 <td className="border border-black px-1.5 py-0.5 print:py-0.5 text-center font-mono text-slate-400">-</td>
               </tr>
@@ -686,13 +693,13 @@ export default function CashSheet({
                   Total :
                 </td>
                 <td className="border border-black px-2.5 py-1 print:py-0.5 text-right font-mono font-bold">
-                  {totalDenomination > 0 ? fmt(totalDenomination) : "-"}
+                  {totalDenomination > 0 ? fmtUS(totalDenomination) : "-"}
                 </td>
-                <td className="border border-black px-1.5 py-1 print:py-0.5 text-center font-mono text-slate-400">-</td>
+                <td className="border-0 border-transparent px-1.5 py-1 print:py-0.5 text-center font-mono text-transparent"></td>
               </tr>
             </tbody>
           </table>
-          <div className="mt-1 print:mt-0.5 text-xs print:text-[10.5px] font-semibold text-slate-800">
+          <div className="mt-1 print:mt-0.5 text-xs print:text-[10.5px] font-normal text-slate-800">
             <span className="font-bold">In Word:</span> {numberToWords(totalDenomination)}
           </div>
         </div>
@@ -714,7 +721,7 @@ export default function CashSheet({
                 <th className="w-16 sm:w-20 print:w-20 border border-black px-2 py-1 print:py-0.5 text-center font-bold">
                   PIN
                 </th>
-                <th className="w-28 sm:w-32 print:w-32 border border-black px-2 py-1 print:py-0.5 text-right font-bold">
+                <th className="w-28 sm:w-32 print:w-32 border border-black px-2 py-1 print:py-0.5 text-center font-bold">
                   TK (BDT)
                 </th>
                 <th className="w-28 sm:w-36 print:w-36 border border-black px-2 py-1 print:py-0.5 text-center font-bold">
@@ -728,7 +735,7 @@ export default function CashSheet({
                 <td className="border border-black px-2.5 py-1 print:py-0.5 font-medium">Md Monirul Islam</td>
                 <td className="border border-black px-2 py-1 print:py-0.5 text-center font-mono">621</td>
                 <td className="border border-black px-2.5 py-1 print:py-0.5 text-right font-mono font-bold">
-                  {fmt(officerAmounts.monir)}
+                  {officerAmounts.monir > 0 ? String(officerAmounts.monir) : "-"}
                 </td>
                 <td className="border border-black px-2 py-1 print:py-0.5"></td>
               </tr>
@@ -737,7 +744,7 @@ export default function CashSheet({
                 <td className="border border-black px-2.5 py-1 print:py-1.5 font-medium">Ezaz Sakib</td>
                 <td className="border border-black px-2 py-1 print:py-1.5 text-center font-mono">1086</td>
                 <td className="border border-black px-2.5 py-1 print:py-1.5 text-right font-mono font-bold">
-                  {fmt(officerAmounts.sakib)}
+                  {officerAmounts.sakib > 0 ? String(officerAmounts.sakib) : "-"}
                 </td>
                 <td className="border border-black px-2 py-1 print:py-1.5"></td>
               </tr>
@@ -746,7 +753,7 @@ export default function CashSheet({
                 <td className="border border-black px-2.5 py-1 print:py-1.5 font-medium">Md:Mintu Moholdar</td>
                 <td className="border border-black px-2 py-1 print:py-1.5 text-center font-mono">1189</td>
                 <td className="border border-black px-2.5 py-1 print:py-1.5 text-right font-mono font-bold">
-                  {fmt(officerAmounts.mintu)}
+                  {officerAmounts.mintu > 0 ? String(officerAmounts.mintu) : "-"}
                 </td>
                 <td className="border border-black px-2 py-1 print:py-1.5"></td>
               </tr>
@@ -755,25 +762,25 @@ export default function CashSheet({
                 <td className="border border-black px-2.5 py-1 print:py-1.5 font-medium">Md Alamgir Hossain</td>
                 <td className="border border-black px-2 py-1 print:py-1.5 text-center font-mono">1224</td>
                 <td className="border border-black px-2.5 py-1 print:py-1.5 text-right font-mono font-bold">
-                  {fmt(officerAmounts.alamgir)}
+                  {officerAmounts.alamgir > 0 ? String(officerAmounts.alamgir) : "-"}
                 </td>
                 <td className="border border-black px-2 py-1 print:py-1.5"></td>
               </tr>
               <tr>
                 <td className="border border-black px-2 py-1 print:py-1.5 text-center font-mono">5</td>
                 <td className="border border-black px-2.5 py-1 print:py-1.5 font-medium">Sales of Loan Forms</td>
-                <td className="border border-black px-2 py-1 print:py-1.5 text-center font-mono">-</td>
+                <td className="border border-black px-2 py-1 print:py-1.5 text-center font-mono"></td>
                 <td className="border border-black px-2.5 py-1 print:py-1.5 text-right font-mono font-bold">
-                  {fmt(officerAmounts.loanForms)}
+                  {officerAmounts.loanForms > 0 ? String(officerAmounts.loanForms) : "-"}
                 </td>
                 <td className="border border-black px-2 py-1 print:py-1.5"></td>
               </tr>
               <tr>
                 <td className="border border-black px-2 py-1 print:py-0.5 text-center font-mono">6</td>
                 <td className="border border-black px-2.5 py-1 print:py-0.5 font-medium">Member Welfare Fund</td>
-                <td className="border border-black px-2 py-1 print:py-0.5 text-center font-mono">-</td>
+                <td className="border border-black px-2 py-1 print:py-0.5 text-center font-mono"></td>
                 <td className="border border-black px-2.5 py-1 print:py-0.5 text-right font-mono font-bold">
-                  {fmt(officerAmounts.memberWelfare)}
+                  {officerAmounts.memberWelfare > 0 ? String(officerAmounts.memberWelfare) : "-"}
                 </td>
                 <td className="border border-black px-2 py-1 print:py-0.5"></td>
               </tr>
@@ -782,13 +789,13 @@ export default function CashSheet({
                   Total :
                 </td>
                 <td className="border border-black px-2.5 py-1.5 print:py-0.5 text-right font-mono font-bold">
-                  {fmt(totalOfficersReceived)}
+                  {fmtUS(totalOfficersReceived)}
                 </td>
                 <td className="border border-black px-2.5 py-1.5 print:py-0.5"></td>
               </tr>
             </tbody>
           </table>
-          <div className="mt-1 print:mt-0.5 text-xs print:text-[10.5px] font-semibold text-slate-800">
+          <div className="mt-1 print:mt-0.5 text-xs print:text-[10.5px] font-normal text-slate-800">
             <span className="font-bold">In Word:</span> {numberToWords(totalOfficersReceived)}
           </div>
         </div>
@@ -873,6 +880,10 @@ export default function CashSheet({
           tr {
             page-break-inside: avoid !important;
             break-inside: avoid !important;
+          }
+          /* এক্সেল শিটের মতো: প্রিন্টেও সংখ্যাগুলো টাইমস (serif) ফন্টে */
+          .cash-sheet-print-container .font-mono {
+            font-family: Georgia, "Times New Roman", serif !important;
           }
           .print\\:hidden {
             display: none !important;
