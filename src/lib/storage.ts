@@ -854,9 +854,16 @@ export function getSummary(
       0
     );
 
-    // Disburse loans
+    // Disburse loans (v1.4.58: ফান্ড পেমেন্ট সাব-ক্যাটাগরি থাকলেও ডিসবার্স নয়)
     const disburseLoans = targetPayments.filter((t) => {
       const cat = t.category.toLowerCase().trim();
+      if (
+        cat.includes("fund payment") ||
+        cat.includes("fund transfer") ||
+        (cat.includes("fund") && !cat.includes("receive"))
+      ) {
+        return false;
+      }
       return (
         ["jagoron", "agrossor", "buni", "sufolon", "mfce"].some((k) =>
           cat.includes(k)
@@ -1036,6 +1043,14 @@ export function getReportPageFigures(selectedDate: string): {
   const dCats = getCategories("disburse").map((c) => c.name.toLowerCase().trim());
   const disburseLoans = targetPayments.filter((t) => {
     const cat = t.category.toLowerCase().trim();
+    // v1.4.58: ফান্ড পেমেন্ট সাব-ক্যাটাগরি থাকলেও ডিসবার্স নয়
+    if (
+      cat.includes("fund payment") ||
+      cat.includes("fund transfer") ||
+      (cat.includes("fund") && !cat.includes("receive"))
+    ) {
+      return false;
+    }
     return (
       dCats.includes(cat) ||
       ["jagoron", "agrossor", "buni", "sufolon", "mfce"].some((k) => cat.includes(k)) ||

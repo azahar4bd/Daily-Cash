@@ -264,6 +264,14 @@ export default function CashSheet({
 
     const disburseLoans = datePayment.filter((t) => {
       const cat = t.category.toLowerCase().trim();
+      // v1.4.58: ফান্ড পেমেন্ট সাব-ক্যাটাগরি থাকলেও ডিসবার্স নয় (কল্যাণ/লোন ফর্ম বাড়বে না)
+      if (
+        cat.includes("fund payment") ||
+        cat.includes("fund transfer") ||
+        (cat.includes("fund") && !cat.includes("receive"))
+      ) {
+        return false;
+      }
       return dCats.includes(cat) || Boolean(t.subCategory && t.subCategory.trim().length > 0);
     });
 

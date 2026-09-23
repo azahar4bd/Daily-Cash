@@ -61,6 +61,14 @@ export function getReportDayBalances(date: string): ReportDayBalances {
 
   const disburseLoans = targetPayments.filter((t) => {
     const cat = t.category.toLowerCase().trim();
+    // v1.4.58: ফান্ড পেমেন্ট/ট্রান্সফার সাব-ক্যাটাগরি থাকলেও কখনোই ডিসবার্স নয়
+    if (
+      cat.includes("fund payment") ||
+      cat.includes("fund transfer") ||
+      (cat.includes("fund") && !cat.includes("receive"))
+    ) {
+      return false;
+    }
     return (
       disburseCatList.includes(cat) ||
       cat.includes("jagoron") ||

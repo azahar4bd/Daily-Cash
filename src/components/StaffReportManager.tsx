@@ -453,6 +453,14 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
 
   const disburseLoans = targetPayments.filter((t) => {
     const cat = t.category.toLowerCase().trim();
+    // v1.4.58: ফান্ড পেমেন্ট/ট্রান্সফার সাব-ক্যাটাগরি থাকলেও কখনোই ডিসবার্স নয়
+    if (
+      cat.includes("fund payment") ||
+      cat.includes("fund transfer") ||
+      (cat.includes("fund") && !cat.includes("receive"))
+    ) {
+      return false;
+    }
     return (
       disburseCatList.includes(cat) ||
       cat.includes("jagoron") ||
@@ -902,31 +910,23 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
       </div>
       )}
 
-      {/* 4-Box Dashboard — মার্ক করা ৪ কার্ড এক লাইনে পাশাপাশি (v1.4.57) */}
+      {/* 4-Box Dashboard — ৪ কার্ড এক লাইনে; 💰 ডিনোমিনেশন সবশেষে ছোট আইকন (v1.4.58) */}
       <div className="rounded-2xl border border-slate-200 bg-white p-2.5 sm:p-3 shadow-sm">
-        <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
-          <div className="flex flex-col justify-center rounded-xl bg-emerald-50 border border-emerald-300 p-2 sm:p-3 text-center">
+        <div className="flex items-stretch gap-1.5 sm:gap-2">
+          <div className="flex min-w-0 flex-1 flex-col justify-center rounded-xl bg-emerald-50 border border-emerald-300 p-2 sm:p-3 text-center">
             <span className="text-[10px] sm:text-xs font-bold text-emerald-800">{dayClosed ? "Closing Cash" : "Today Cash"}</span>
             <span className="font-mono text-xs sm:text-xl font-black text-emerald-950 mt-0.5 whitespace-nowrap">
               {fmt(todayCashInHand)}
             </span>
           </div>
-          <div className="flex flex-col justify-center rounded-xl bg-indigo-50 border border-indigo-300 p-2 sm:p-3 text-center">
+          <div className="flex min-w-0 flex-1 flex-col justify-center rounded-xl bg-indigo-50 border border-indigo-300 p-2 sm:p-3 text-center">
             <span className="text-[10px] sm:text-xs font-bold text-indigo-800">{dayClosed ? "Closing Bank" : "Today Bank"}</span>
             <span className="font-mono text-xs sm:text-xl font-black text-indigo-950 mt-0.5 whitespace-nowrap">
               {fmt(todayBankBalance)}
             </span>
           </div>
-          <button
-            type="button"
-            onClick={() => setDenomModalOpen(true)}
-            className="flex flex-col items-center justify-center rounded-xl bg-amber-500 hover:bg-amber-600 border border-amber-600 p-2 sm:p-3 text-slate-950 shadow-xs cursor-pointer text-center"
-          >
-            <span className="text-[10px] sm:text-xs font-bold">💰 Denomination</span>
-            <span className="text-[9px] sm:text-xs font-bold text-amber-950 mt-0.5">Check Diff</span>
-          </button>
-          {/* v1.4.57: নিচে থাকা সামারি কার্ড (Expens/Check/Diferent) — এখন ৪র্থ কার্ড, এক লাইনে */}
-          <div className="flex flex-col justify-center gap-0.5 rounded-xl border-2 border-purple-900 bg-white p-1.5 sm:p-2 overflow-hidden">
+          {/* v1.4.58: Expens/Check/Diferent কার্ড ৩য় স্থানে — প্রশস্ত, পুরো অ্যামাউন্ট পড়া যায় */}
+          <div className="flex min-w-0 flex-1 sm:flex-[1.15] flex-col justify-center gap-0.5 rounded-xl border-2 border-purple-900 bg-white p-1.5 sm:p-2 overflow-hidden">
             <div className="flex items-baseline justify-between gap-1 min-w-0">
               <span className="whitespace-nowrap text-[9px] sm:text-[10px] font-bold text-purple-900">Expens</span>
               <span className="truncate font-mono text-[9px] sm:text-xs font-black text-slate-950">{fmt(checkExpens)}</span>
@@ -940,6 +940,16 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
               <span className="truncate font-mono text-[9px] sm:text-xs font-black text-emerald-950">{fmt(checkDiferent)}</span>
             </div>
           </div>
+          {/* v1.4.58: 💰 ডিনোমিনেশন এখন সবশেষে ছোট আইকন-বাটন (ট্যাপ করলেই চেক-ডিফ খুলবে) */}
+          <button
+            type="button"
+            onClick={() => setDenomModalOpen(true)}
+            title="Denomination — Check Diff"
+            aria-label="Denomination — Check Diff"
+            className="flex w-9 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-amber-600 bg-amber-500 text-base leading-none shadow-xs hover:bg-amber-600 sm:w-11 sm:text-xl"
+          >
+            💰
+          </button>
         </div>
       </div>
 
