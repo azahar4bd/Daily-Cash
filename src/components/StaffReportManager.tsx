@@ -960,23 +960,24 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
             Staff Collection Report Table
           </h3>
           <div className="flex items-center gap-2">
-            <SearchSelect
+            {/* v1.4.59: স্টাফ ফিল্টার টাইপ-সার্চ নয় — প্লেইন ড্রপডাউন (নেটিভ) */}
+            <select
               value={filterStaff}
-              onChange={(v) => setFilterStaff(v)}
-              options={[
-                { value: "", label: "All Staff" },
-                ...allStaffNames.map((st) => ({ value: st, label: titleCase(st) })),
-              ]}
-              placeholder="All Staff"
-              className="rounded bg-white border border-[#d4a373] px-2 py-0.5 text-xs font-semibold text-slate-800 w-32 sm:w-40"
-            />
+              onChange={(e) => setFilterStaff(e.target.value)}
+              className="w-32 cursor-pointer rounded border border-[#d4a373] bg-white px-2 py-1 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-1 focus:ring-[#d4a373] sm:w-40"
+            >
+              <option value="">All Staff</option>
+              {allStaffNames.map((st) => (
+                <option key={st} value={st}>{titleCase(st)}</option>
+              ))}
+            </select>
           </div>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full border-collapse border border-[#d4a373] text-center text-xs sm:text-sm">
             <thead>
               <tr className="bg-[#fdecd2] text-slate-950 font-bold border-b border-[#d4a373]">
-                <th className="border border-[#d4a373] px-2.5 py-2">Name</th>
+                <th className="sticky left-0 z-20 border border-[#d4a373] bg-[#fdecd2] px-2.5 py-2 shadow-[2px_0_0_0_#d4a373]">Name</th>
                 <th className="border border-[#d4a373] px-2 py-2">Loan</th>
                 <th className="border border-[#d4a373] px-2 py-2">Rebate</th>
                 <th className="border border-[#d4a373] px-2 py-2">Total Loan</th>
@@ -1016,7 +1017,7 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
                   const totalReturnRow = adjustVal + nogodVal;
                   return (
                     <tr key={r.id} className="border-b border-[#d4a373] hover:bg-[#fff9f2] bg-white">
-                      <td className="border border-[#d4a373] px-2 py-1.5 font-bold text-left text-slate-900">
+                      <td className="sticky left-0 z-10 border border-[#d4a373] bg-white px-2 py-1.5 font-bold text-left text-slate-900 shadow-[2px_0_0_0_#d4a373]">
                         {r.staffName}
                       </td>
                       <td className="border border-[#d4a373] px-2 py-1.5 text-right font-mono">
@@ -1118,7 +1119,7 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
             {reportsForTable.length > 0 && (
               <tfoot className="bg-[#fdecd2] text-slate-950 font-bold border-t-2 border-[#d4a373]">
                 <tr>
-                  <td className="border border-[#d4a373] px-2 py-2">Total</td>
+                  <td className="sticky left-0 z-10 border border-[#d4a373] bg-[#fdecd2] px-2 py-2 shadow-[2px_0_0_0_#d4a373]">Total</td>
                   <td className="border border-[#d4a373] px-2 py-2 text-right font-mono">{fmt(totalLoanBase)}</td>
                   <td className="border border-[#d4a373] px-2 py-2 text-right font-mono">{fmt(totalRebate)}</td>
                   <td className="border border-[#d4a373] px-2 py-2 text-right font-mono font-black">{fmt(totalLoanGross)}</td>
