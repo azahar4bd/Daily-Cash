@@ -458,6 +458,7 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
               value={form.checkDate}
               onChange={(v) => setForm((f) => ({ ...f, checkDate: v || f.checkDate }))}
               className="py-2 text-sm font-semibold"
+              manualEntry
             />
           </div>
 

@@ -18,20 +18,57 @@ export function formatDisplay(iso: string) {
   return `${pad(d)} ${MONTHS[m - 1]} ${y}`;
 }
 
+/** v1.4.46: হাতে লেখার তারিখ — ISO → DD-MM-YY (2026-09-25 → 25-09-26) */
+export const toDMY = (iso: string) => {
+  if (!iso || !iso.includes("-")) return "";
+  const [y, m, d] = iso.split("-");
+  if (!y || !m || !d) return "";
+  return `${d}-${m}-${y.slice(2)}`;
+};
+
+/** টাইপ করার সাথে সাথে ডিজিট থেকে DD-MM-YY গঠন */
+export const formatDMY = (digits: string) => {
+  const s = String(digits).replace(/\D/g, "").slice(0, 6);
+  if (s.length <= 2) return s;
+  if (s.length <= 4) return `${s.slice(0, 2)}-${s.slice(2)}`;
+  return `${s.slice(0, 2)}-${s.slice(2, 4)}-${s.slice(4)}`;
+};
+
+/** DD-MM-YY (বা ডিজিট) → ISO; বেঠিক হলে null। ২-ডিজিট বছর: ≤50 → 20xx, >50 → 19xx */
+export const parseDMY = (text: string): string | null => {
+  const digits = String(text).replace(/\D/g, "");
+  if (digits.length !== 6) return null;
+  const d = Number(digits.slice(0, 2));
+  const m = Number(digits.slice(2, 4));
+  const yy = Number(digits.slice(4, 6));
+  if (m < 1 || m > 12 || d < 1) return null;
+  const y = yy > 50 ? 1900 + yy : 2000 + yy;
+  if (d > new Date(y, m, 0).getDate()) return null;
+  return toISO(y, m - 1, d);
+};
+
 export default function DatePicker({
   value,
   onChange,
   className = "",
   dropUp = false,
   onOpenTracker,
+  manualEntry = false,
 }: {
   value: string;
   onChange: (iso: string) => void;
   className?: string;
   dropUp?: boolean;
   onOpenTracker?: () => void;
+  /**
+   * v1.4.46: হাতে টাইপ করে তারিখ লেখার ঘর — ফরম্যাট বার-মাস-বছর (DD-MM-YY, যেমন 25-09-26)।
+   * ▼ বাটনে আগের মতোই ক্যালেন্ডার খোলে। Check পেজে চালু; অন্যত্র আগের আচরণই বহাল।
+   */
+  manualEntry?: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  /** হাতে-লেখা ঘরে টাইপ করা টেক্সট (null মানে টাইপ মোডে নেই) */
+  const [manualText, setManualText] = useState<string | null>(null);
   const [popupStyle, setPopupStyle] = useState<React.CSSProperties>({});
   const [dateStatusMap, setDateStatusMap] = useState<Record<string, "closed" | "unclosed" | "blocked">>({});
   const init = value && value.includes("-") ? value : todayISO();
@@ -171,14 +208,50 @@ export default function DatePicker({
 
   return (
     <div ref={ref} className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        className={`flex w-full items-center justify-between rounded border border-slate-300 bg-white px-2.5 py-1.5 text-left font-semibold text-slate-800 focus:border-blue-500 focus:outline-none ${className}`}
-      >
-        <span className="truncate">{formatDisplay(value) || "Select Date"}</span>
-        <span className="ml-1 text-slate-400">▼</span>
-      </button>
+      {manualEntry ? (
+        <div
+          className={`flex w-full items-center gap-0.5 rounded border border-slate-300 bg-white focus-within:border-blue-500 ${className}`}
+        >
+          <input
+            value={manualText !== null ? manualText : toDMY(value)}
+            placeholder="DD-MM-YY"
+            inputMode="numeric"
+            autoComplete="off"
+            onFocus={(e) => {
+              setManualText(toDMY(value));
+              e.target.select();
+            }}
+            onChange={(e) => {
+              const digits = e.target.value.replace(/\D/g, "").slice(0, 6);
+              setManualText(formatDMY(digits));
+              const iso = parseDMY(digits);
+              if (iso) onChange(iso);
+            }}
+            onBlur={() => setManualText(null)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+            }}
+            className="w-full min-w-0 flex-1 bg-transparent px-2 py-1 font-mono font-semibold text-slate-800 focus:outline-none"
+          />
+          <button
+            type="button"
+            onClick={() => setOpen((o) => !o)}
+            title="Pick from calendar"
+            className="shrink-0 cursor-pointer px-2 py-1.5 text-slate-400 hover:text-slate-600"
+          >
+            ▼
+          </button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          className={`flex w-full items-center justify-between rounded border border-slate-300 bg-white px-2.5 py-1.5 text-left font-semibold text-slate-800 focus:border-blue-500 focus:outline-none ${className}`}
+        >
+          <span className="truncate">{formatDisplay(value) || "Select Date"}</span>
+          <span className="ml-1 text-slate-400">▼</span>
+        </button>
+      )}
       {open && (
         <div
           style={popupStyle}
