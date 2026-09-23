@@ -13,6 +13,7 @@ export default function SearchSelect({
   placeholder = "-- Select --",
   disabled = false,
   className = "",
+  noKeyboardOnMobile = false,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -20,10 +21,23 @@ export default function SearchSelect({
   placeholder?: string;
   disabled?: boolean;
   className?: string;
+  /**
+   * v1.4.45: মোবাইলে (টাচ স্ক্রিনে) ঘরে ট্যাপ করলে শুধু তালিকা খুলবে —
+   * সফট কীবোর্ড আর উঠবে না। PC-তে টাইপ করে ছাঁকা আগের মতোই কাজ করে।
+   */
+  noKeyboardOnMobile?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const boxRef = useRef<HTMLDivElement | null>(null);
+  const isCoarsePointer = useMemo(
+    () =>
+      typeof window !== "undefined" &&
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(pointer: coarse)").matches,
+    []
+  );
+  const silentKeyboard = noKeyboardOnMobile && isCoarsePointer;
 
   const opts = useMemo<SearchOption[]>(
     () => options.map((o) => (typeof o === "string" ? { value: o, label: o } : o)),
@@ -70,6 +84,8 @@ export default function SearchSelect({
         className={className}
         autoComplete="off"
         spellCheck={false}
+        readOnly={silentKeyboard}
+        inputMode={silentKeyboard ? "none" : undefined}
       />
       {open && !disabled && (
         <div className="absolute left-0 right-0 top-full z-40 mt-1 max-h-56 overflow-auto rounded-xl border border-slate-300 bg-white shadow-2xl">

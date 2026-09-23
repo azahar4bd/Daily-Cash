@@ -29,6 +29,17 @@ import MemberDatabaseModal from "./MemberDatabaseModal";
 const PROJECT_OPTIONS = ["jagoron", "agrossor"];
 
 /**
+ * v1.4.45: project ঘরে ও তালিকায় দেখাবে বড় হাতের ইংরেজিতে (JAGORON, AGROSSOR) —
+ * সংরক্ষিত মান আগের মতোই ছোট হাতের ইংরেজিতে থাকে।
+ */
+const projectOpts = (extra?: string): { value: string; label: string }[] => {
+  const cur = (extra || "").trim().toLowerCase();
+  const list =
+    cur && !PROJECT_OPTIONS.includes(cur) ? [...PROJECT_OPTIONS, cur] : PROJECT_OPTIONS;
+  return list.map((v) => ({ value: v, label: v.toUpperCase() }));
+};
+
+/**
  * সার্চের সাথে এন্ট্রি মেলে কি না — টেবিল ফিল্টার ও সেভ-পরবর্তী যাচাইয়ে একই নিয়ম।
  * (সেভ/এডিটের পর এন্ট্রিটি ফিল্টারের বাইরে চলে গেলে তা ধরা পড়ে, ফিল্টার সরিয়ে দেওয়া হয়)
  */
@@ -86,6 +97,9 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
 
   const formRef = useRef<HTMLDivElement | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
+  /** v1.4.45: MICR টিকে চেক নম্বর ঘরের ফোকাস/কীবোর্ড হারাবে না */
+  const checkNoRef = useRef<HTMLInputElement | null>(null);
+  const micrFocusRef = useRef(false);
 
   const dayClosed = isDayClosed(form.checkDate);
   const blocked = isIntermediateBlockedDate(form.checkDate);
@@ -503,13 +517,29 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
             <div className="mb-1 flex items-center justify-between gap-2">
               <label className={`${labelCls} mb-0`}>Check No.</label>
               <label
+                onTouchStart={() => {
+                  micrFocusRef.current = document.activeElement === checkNoRef.current;
+                }}
+                onMouseDown={(e) => {
+                  if (document.activeElement === checkNoRef.current) micrFocusRef.current = true;
+                  e.preventDefault();
+                }}
                 className="flex cursor-pointer select-none items-center gap-1 rounded-md border border-emerald-300 bg-emerald-50 px-2 py-0.5 text-[10px] font-black text-emerald-800 transition hover:bg-emerald-100"
                 title="টিক দিলে টেবিলে MICR, টিক না দিলে NON MICR দেখাবে"
               >
                 <input
                   type="checkbox"
                   checked={Boolean(form.micr)}
-                  onChange={(e) => setForm((f) => ({ ...f, micr: e.target.checked }))}
+                  onChange={(e) => {
+                    const checked = e.target.checked;
+                    setForm((f) => ({ ...f, micr: checked }));
+                    if (micrFocusRef.current) {
+                      window.setTimeout(() => {
+                        checkNoRef.current?.focus();
+                        micrFocusRef.current = false;
+                      }, 0);
+                    }
+                  }}
                   className="h-3.5 w-3.5 cursor-pointer accent-emerald-600"
                 />
                 <span>MICR</span>
@@ -519,6 +549,7 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
               </label>
             </div>
             <input
+              ref={checkNoRef}
               value={form.checkNo}
               onChange={(e) => setForm((f) => ({ ...f, checkNo: e.target.value }))}
               className={inputCls}
@@ -550,14 +581,10 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
             <SearchSelect
               value={(form.project || "").trim().toLowerCase()}
               onChange={(v) => setForm((f) => ({ ...f, project: v.trim().toLowerCase() }))}
-              options={(() => {
-                const cur = (form.project || "").trim().toLowerCase();
-                return cur && !PROJECT_OPTIONS.includes(cur)
-                  ? [...PROJECT_OPTIONS, cur]
-                  : PROJECT_OPTIONS;
-              })()}
+              options={projectOpts(form.project)}
               placeholder="-- select project --"
-              className={`${inputCls} cursor-pointer lowercase`}
+              className={`${inputCls} cursor-pointer uppercase`}
+              noKeyboardOnMobile
             />
           </div>
         </div>
@@ -604,8 +631,8 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
                       </span>
                     )}
                     {e.project && (
-                      <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-600 lowercase">
-                        {String(e.project).trim().toLowerCase()}
+                      <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-600 uppercase">
+                        {String(e.project).trim().toUpperCase()}
                       </span>
                     )}
                     <span
@@ -908,7 +935,7 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
                         </td>
                         <td className="px-3 py-2 text-xs font-semibold text-slate-800">
                           {row.project ? (
-                            <span className="lowercase">{String(row.project).trim().toLowerCase()}</span>
+                            <span className="uppercase">{String(row.project).trim().toUpperCase()}</span>
                           ) : (
                             <span className="text-slate-300">—</span>
                           )}
