@@ -7,12 +7,12 @@ import { getStoredSyncState, type NeonSyncState } from "@/lib/neon";
 import { isDayOpen, isDayClosed } from "@/lib/storage";
 
 const pages = [
-  { id: "receive", label: "Receive", labelBn: "জমা (Receive)", icon: "📥" },
-  { id: "payment", label: "Payment", labelBn: "পেমেন্ট (Payment)", icon: "📤" },
-  { id: "rebate", label: "Rebate", labelBn: "রিবেট (Rebate)", icon: "🏷️" },
-  { id: "report", label: "Report", labelBn: "স্টাফ রিপোর্ট", icon: "📊" },
-  { id: "cashbook", label: "Cashbook", labelBn: "ক্যাশ বহি (Cashbook)", icon: "📖" },
-  { id: "check", label: "Check", labelBn: "চেক (Check)", icon: "🧾" },
+  { id: "receive", label: "Receive", icon: "📥" },
+  { id: "payment", label: "Payment", icon: "📤" },
+  { id: "rebate", label: "Rebate", icon: "🏷️" },
+  { id: "report", label: "Report", icon: "📊" },
+  { id: "cashbook", label: "Cashbook", icon: "📖" },
+  { id: "check", label: "Check", icon: "🧾" },
 ];
 
 export default function BottomMenu({
@@ -125,7 +125,7 @@ export default function BottomMenu({
                 type="button"
                 onClick={() => onDateChange(today)}
                 className="shrink-0 rounded-lg bg-blue-600 hover:bg-blue-500 active:bg-blue-700 px-1.5 py-1 text-[10px] sm:px-2 sm:text-xs font-bold text-white transition cursor-pointer whitespace-nowrap"
-                title="আজকের তারিখে ফিরে যান"
+                title="Back to today's date"
               >
                 <span className="hidden xs:inline">Today</span>
                 <span className="xs:hidden">📆</span>
@@ -136,21 +136,21 @@ export default function BottomMenu({
             {isDayClosed(selectedDate) ? (
               <span
                 className="shrink-0 rounded-lg bg-rose-950/80 border border-rose-700/80 px-2 py-1 text-[10px] font-bold text-rose-300 whitespace-nowrap"
-                title="দিন সমাপ্ত (Day Closed)"
+                title="Day Closed"
               >
                 🔒 <span className="hidden sm:inline">Closed</span>
               </span>
             ) : isDayOpen(selectedDate) ? (
               <span
                 className="shrink-0 rounded-lg bg-emerald-950/80 border border-emerald-700/80 px-2 py-1 text-[10px] font-bold text-emerald-300 whitespace-nowrap"
-                title="কর্মদিবস চালু (Day Open)"
+                title="Day Open"
               >
                 ☀️ <span className="hidden sm:inline">Open</span>
               </span>
             ) : (
               <span
                 className="shrink-0 rounded-lg bg-amber-950/80 border border-amber-700/80 px-2 py-1 text-[10px] font-bold text-amber-300 whitespace-nowrap"
-                title="কর্মদিবস এখনও শুরু করা হয়নি"
+                title="Working day not opened yet"
               >
                 ⏳ <span className="hidden sm:inline">Not Opened</span>
               </span>
@@ -160,10 +160,10 @@ export default function BottomMenu({
               type="button"
               onClick={onOpenTracker}
               className="rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 px-1.5 py-1 text-xs text-amber-400 font-bold transition cursor-pointer hidden sm:flex items-center gap-1"
-              title="সকল তারিখের অডিট ট্র্যাকার খুলুন"
+              title="Open audit tracker for all dates"
             >
               <span>📅</span>
-              <span className="text-[10px]">অডিট</span>
+              <span className="text-[10px]">Audit</span>
             </button>
           </div>
 
@@ -194,8 +194,8 @@ export default function BottomMenu({
               type="button"
               onClick={() => setThreeLineMenuOpen(!threeLineMenuOpen)}
               className="lg:hidden flex shrink-0 items-center gap-1 rounded-xl bg-slate-800 hover:bg-slate-700 active:bg-slate-600 border border-slate-700 px-2 py-1.5 text-xs font-black text-white transition shadow-sm cursor-pointer"
-              title={`মেনু খুলুন — বর্তমান: ${activePage.labelBn}`}
-              aria-label={`মেনু খুলুন (${activePage.label})`}
+              title={`Open menu — current: ${activePage.label}`}
+              aria-label={`Open menu (${activePage.label})`}
             >
               <div className="flex w-3 flex-col gap-0.5 items-center justify-center">
                 <span className="block h-0.5 w-3 bg-amber-400 rounded-full"></span>
@@ -236,10 +236,10 @@ export default function BottomMenu({
                 </div>
                 <div>
                   <h3 className="text-sm font-black text-white tracking-tight">
-                    নেভিগেশন মেনু (Menu)
+                    Navigation Menu
                   </h3>
                   <p className="text-[10px] text-slate-400">
-                    যে পেজে যেতে চান সিলেক্ট করুন
+                    Select the page you want to open
                   </p>
                 </div>
               </div>
@@ -270,10 +270,7 @@ export default function BottomMenu({
                     <div className="flex items-center gap-3">
                       <span className="text-lg">{p.icon}</span>
                       <div>
-                        <span className="text-sm block">{p.labelBn}</span>
-                        <span className="text-[10px] opacity-70 block font-normal">
-                          {p.label} Page
-                        </span>
+                        <span className="text-sm block">{p.label}</span>
                       </div>
                     </div>
                     {isCurrent && (
@@ -289,7 +286,7 @@ export default function BottomMenu({
             {/* Extra Tools Section */}
             <div className="border-t border-slate-800 pt-3 space-y-2">
               <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block px-1">
-                টুলস ও ক্লাউড ডাটাবেজ
+                Tools & Cloud Database
               </span>
               <div className="grid grid-cols-2 gap-2">
                 <button
@@ -302,7 +299,7 @@ export default function BottomMenu({
                   className="col-span-2 flex items-center justify-center gap-2 rounded-xl bg-amber-900/60 hover:bg-amber-800/80 border border-amber-700/50 p-2.5 text-xs font-bold text-amber-200 transition cursor-pointer"
                 >
                   <span className="text-base">📅</span>
-                  <span>কর্মদিবস ও লেনদেন অডিট ট্র্যাকার</span>
+                  <span>Working-Day & Transaction Audit Tracker</span>
                 </button>
 
                 <button
@@ -338,7 +335,7 @@ export default function BottomMenu({
                   className="col-span-2 flex items-center justify-center gap-2 rounded-xl bg-indigo-900/60 hover:bg-indigo-800/80 border border-indigo-700/50 p-2.5 text-xs font-bold text-indigo-200 transition cursor-pointer"
                 >
                   <span className="text-base">📱</span>
-                  <span>অ্যাপ ইনস্টল ও APK ডাউনলোড</span>
+                  <span>Install App & Download APK</span>
                 </button>
               </div>
             </div>
