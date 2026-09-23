@@ -35,6 +35,11 @@ export type CheckEntry = {
   micr?: boolean;
   /** ↩ Return টিক (v1.4.47) — টিক দিলে এন্ট্রিটি চেক লিস্ট থেকে Return টেবিলে সরে যায়, টিক তুললে ফিরে আসে */
   returned?: boolean;
+  /**
+   * 🏦 অতিরিক্ত ব্যাংক + চেক নম্বরের জোড়া (v1.4.48) — এক এন্ট্রিতে একাধিক ব্যাংক/চেক।
+   * প্রথম ব্যাংক/চেক নম্বর bankName/checkNo-তেই থাকে; টেবিলে এক সারিতেই দেখায়।
+   */
+  extraBanks?: { bankName: string; checkNo: string }[];
   /** ডাটাবেজে পাওয়া গিয়েছিল কি না */
   foundInDb?: boolean;
   createdAt?: string;

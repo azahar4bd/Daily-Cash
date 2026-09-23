@@ -56,6 +56,17 @@ const TABLE_HEADERS = [
   "Action",
 ];
 
+/** v1.4.48: এন্ট্রির সব ব্যাংক/চেক নম্বরের জোড়া — প্রথম জোড়া মূল ঘর থেকে, বাকিগুলো extraBanks থেকে */
+const allBankPairs = (e: CheckEntry): { bankName: string; checkNo: string }[] => {
+  const list = [{ bankName: e.bankName || "", checkNo: e.checkNo || "" }];
+  for (const b of e.extraBanks || []) {
+    if (b && ((b.bankName || "").trim() || (b.checkNo || "").trim())) {
+      list.push({ bankName: b.bankName || "", checkNo: b.checkNo || "" });
+    }
+  }
+  return list;
+};
+
 /**
  * সার্চের সাথে এন্ট্রি মেলে কি না — টেবিল ফিল্টার ও সেভ-পরবর্তী যাচাইয়ে একই নিয়ম।
  * (সেভ/এডিটের পর এন্ট্রিটি ফিল্টারের বাইরে চলে গেলে তা ধরা পড়ে, ফিল্টার সরিয়ে দেওয়া হয়)
@@ -73,6 +84,15 @@ const entryMatches = (e: CheckEntry, rawQuery: string): boolean => {
   if ((e.bankName || "").toLowerCase().includes(q)) return true;
   if ((e.disbursse || "").toLowerCase().includes(q)) return true;
   if ((e.project || "").toLowerCase().includes(q)) return true;
+  if (
+    (e.extraBanks || []).some(
+      (b) =>
+        (b?.bankName || "").toLowerCase().includes(q) ||
+        (b?.checkNo || "").toLowerCase().includes(q) ||
+        (nq && normCode(b?.checkNo || "").includes(nq))
+    )
+  )
+    return true;
   if (q.includes("micr")) {
     const wantsNon = q.includes("non");
     if (wantsNon ? !e.micr : Boolean(e.micr)) return true;
@@ -92,6 +112,8 @@ const emptyForm = (date: string) => ({
   project: "",
   /** ✔ MICR চেক কি না */
   micr: false,
+  /** 🏦 অতিরিক্ত ব্যাংক + চেক নম্বরের জোড়া (v1.4.48) */
+  extraBanks: [] as { bankName: string; checkNo: string }[],
 });
 
 export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
@@ -112,6 +134,8 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
   const [page, setPage] = useState(1);
   /** v1.4.47: Return টেবিলের নিজস্ব পেজ */
   const [retPage, setRetPage] = useState(1);
+  /** v1.4.48: সার্চ ফলাফলের ফুল-স্ক্রিন কার্ড ভিউ */
+  const [viewOpen, setViewOpen] = useState(false);
   const PAGE_SIZE = 25;
 
   const formRef = useRef<HTMLDivElement | null>(null);
@@ -226,9 +250,24 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
       if (!form.centreName.trim()) return setStatus({ kind: "err", text: "সেন্টার নাম দিন (ডাটাবেজে পাওয়া যায়নি)।" });
     }
 
-    if (isDuplicateCheck(form.bankName, form.checkNo, edit?.id)) {
+    // v1.4.48: অতিরিক্ত ব্যাংক জোড়া — আংশিক পূরণ করা জোড়া সেভ হবে না
+    const cleanExtras = form.extraBanks
+      .map((b) => ({ bankName: (b.bankName || "").trim(), checkNo: (b.checkNo || "").trim() }))
+      .filter((b) => b.bankName || b.checkNo);
+    for (let i = 0; i < cleanExtras.length; i++) {
+      if (!cleanExtras[i].bankName)
+        return setStatus({ kind: "err", text: `ব্যাংক #${i + 2}-এর নাম দিন (না হলে ✕ দিয়ে জোড়াটি বাদ দিন)।` });
+      if (!cleanExtras[i].checkNo)
+        return setStatus({ kind: "err", text: `ব্যাংক #${i + 2}-এর চেক নম্বর দিন (না হলে ✕ দিয়ে জোড়াটি বাদ দিন)।` });
+    }
+
+    const dupPair = [{ bankName: form.bankName, checkNo: form.checkNo }, ...cleanExtras].find(
+      (p) =>
+        p.bankName.trim() && p.checkNo.trim() && isDuplicateCheck(p.bankName, p.checkNo, edit?.id)
+    );
+    if (dupPair) {
       const ok = confirm(
-        `⚠️ ${form.bankName} ব্যাংকের ${form.checkNo} নম্বর চেকটি আগেও এন্ট্রি করা আছে।\n\nতবুও সেভ করতে চান?`
+        `⚠️ ${dupPair.bankName} ব্যাংকের ${dupPair.checkNo} নম্বর চেকটি আগেও এন্ট্রি করা আছে।\n\nতবুও সেভ করতে চান?`
       );
       if (!ok) return;
     }
@@ -257,6 +296,7 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
       disbursse: form.disbursse.trim(),
       project: form.project.trim().toLowerCase(),
       micr: Boolean(form.micr),
+      extraBanks: cleanExtras,
       foundInDb: found,
     };
 
@@ -314,6 +354,10 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
       disbursse: row.disbursse || "",
       project: (row.project || "").trim().toLowerCase(),
       micr: Boolean(row.micr),
+      extraBanks: (row.extraBanks || []).map((b) => ({
+        bankName: b?.bankName || "",
+        checkNo: b?.checkNo || "",
+      })),
     });
     // ডাটাবেজে আছে কি না যাচাই
     const m = findMemberByCode(row.memberCode);
@@ -448,6 +492,17 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
     });
   };
 
+  /* v1.4.48: একাধিক ব্যাংক + চেক নম্বরের জোড়া — ＋ বাটনে যোগ, ✕ বাটনে বাদ */
+  const addBankPair = () =>
+    setForm((f) => ({ ...f, extraBanks: [...f.extraBanks, { bankName: "", checkNo: "" }] }));
+  const updateExtraBank = (i: number, key: "bankName" | "checkNo", v: string) =>
+    setForm((f) => ({
+      ...f,
+      extraBanks: f.extraBanks.map((b, bi) => (bi === i ? { ...b, [key]: v } : b)),
+    }));
+  const removeExtraBank = (i: number) =>
+    setForm((f) => ({ ...f, extraBanks: f.extraBanks.filter((_, bi) => bi !== i) }));
+
   /** দুই টেবিলের জন্য একই সারি-রেন্ডারার — চেহারা হুবহু এক */
   const renderCheckRow = (row: CheckEntry, sr: number, zebra: number) => {
     const rowLocked = isDayClosed(row.checkDate);
@@ -478,9 +533,21 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
           {row.centreCode}
         </td>
         <td className="px-3 py-2 text-xs font-semibold text-slate-900">{row.centreName}</td>
-        <td className="px-3 py-2 text-xs font-semibold text-slate-800">{row.bankName}</td>
-        <td className="whitespace-nowrap px-3 py-2 font-mono text-xs font-black text-slate-900">
-          {row.checkNo}
+        <td className="px-3 py-2 text-xs font-semibold text-slate-800">
+          <div className="flex flex-col gap-0.5">
+            {allBankPairs(row).map((b, bi) => (
+              <span key={bi}>{b.bankName || "—"}</span>
+            ))}
+          </div>
+        </td>
+        <td className="px-3 py-2 font-mono text-xs font-black text-slate-900">
+          <div className="flex flex-col gap-0.5">
+            {allBankPairs(row).map((b, bi) => (
+              <span key={bi} className="whitespace-nowrap">
+                {b.checkNo || "—"}
+              </span>
+            ))}
+          </div>
         </td>
         <td className="whitespace-nowrap px-3 py-2 text-center">
           {row.micr ? (
@@ -661,7 +728,17 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
           </div>
 
           <div>
-            <label className={labelCls}>Bank Name (ব্যাংকের নাম)</label>
+            <div className="mb-1 flex items-center justify-between gap-2">
+              <label className={`${labelCls} mb-0`}>Bank Name (ব্যাংকের নাম)</label>
+              <button
+                type="button"
+                onClick={addBankPair}
+                title="আরেকটি ব্যাংক + চেক নম্বর যোগ করুন (টেবিলে এক সারিতেই থাকবে)"
+                className="flex h-6 w-7 shrink-0 cursor-pointer items-center justify-center rounded-md border border-emerald-400 bg-emerald-100 text-sm font-black text-emerald-800 transition hover:bg-emerald-200"
+              >
+                ＋
+              </button>
+            </div>
             <BankNameInput
               value={form.bankName}
               onChange={(v) => setForm((f) => ({ ...f, bankName: v }))}
@@ -746,6 +823,53 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
           </div>
         </div>
 
+        {/* ══ v1.4.48: অতিরিক্ত ব্যাংক + চেক নম্বরের জোড়া — টেবিলে এক সারিতেই থাকবে ══ */}
+        {form.extraBanks.length > 0 && (
+          <div className="mt-3 space-y-2">
+            {form.extraBanks.map((b, bi) => (
+              <div
+                key={bi}
+                className="grid grid-cols-1 items-end gap-2 rounded-xl border border-emerald-300 bg-emerald-50/60 p-2 sm:grid-cols-[1fr_1fr_auto]"
+              >
+                <div>
+                  <span className="mb-1 block text-[10px] font-black tracking-wide text-emerald-800">
+                    ব্যাংক #{bi + 2}
+                  </span>
+                  <BankNameInput
+                    value={b.bankName}
+                    onChange={(v) => updateExtraBank(bi, "bankName", v)}
+                    className={inputCls}
+                    extras={pastBanks}
+                    placeholder="Bank name"
+                  />
+                </div>
+                <div>
+                  <span className="mb-1 block text-[10px] font-black tracking-wide text-emerald-800">
+                    চেক নম্বর #{bi + 2}
+                  </span>
+                  <input
+                    value={b.checkNo}
+                    onChange={(e) => updateExtraBank(bi, "checkNo", e.target.value)}
+                    className={inputCls}
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    placeholder="Check No."
+                    autoComplete="off"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => removeExtraBank(bi)}
+                  title="এই ব্যাংক জোড়া মুছুন"
+                  className="h-9 w-9 shrink-0 cursor-pointer rounded-lg border border-rose-300 bg-rose-50 text-sm font-black text-rose-700 transition hover:bg-rose-100"
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* ══ এই মেম্বার কোডের আগের চেক এন্ট্রি — এখানেই এডিট / ডিলিট ══ */}
         {memberEntries.length > 0 && (
           <div className="mt-3 rounded-xl border border-indigo-300 bg-indigo-50/70 p-3">
@@ -778,9 +902,12 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
                     <span className="font-mono text-[11px] font-black text-slate-700">
                       {formatDisplay(e.checkDate) || e.checkDate}
                     </span>
-                    <span className="text-[11px] font-bold text-slate-600">{e.bankName}</span>
+                    <span className="text-[11px] font-bold text-slate-600">{allBankPairs(e).map((b) => b.bankName).filter(Boolean).join(", ")}</span>
                     <span className="font-mono text-[11px] font-black text-slate-900">
-                      #{e.checkNo}
+                      {allBankPairs(e)
+                        .map((b) => (b.checkNo ? `#${b.checkNo}` : ""))
+                        .filter(Boolean)
+                        .join(", ")}
                     </span>
                     {e.disbursse && (
                       <span className="font-mono text-[11px] font-bold text-emerald-700">
@@ -989,9 +1116,19 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search — মেম্বার কোড, সেন্টার কোড, তারিখ, নাম, চেক নম্বর…"
-            className="w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-10 pr-10 text-sm font-semibold text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+            className="w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-10 pr-28 text-sm font-semibold text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
             autoComplete="off"
           />
+          {search.trim() && filtered.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setViewOpen(true)}
+              title="মিলে যাওয়া এন্ট্রিগুলো কার্ড আকারে ফুল স্ক্রিনে দেখুন — এডিট/ডিলিট/Return সহ"
+              className="absolute right-11 top-1/2 -translate-y-1/2 whitespace-nowrap rounded-lg border border-blue-300 bg-blue-50 px-2 py-1 text-[11px] font-black text-blue-700 transition hover:bg-blue-100 cursor-pointer"
+            >
+              👁 View ({filtered.length})
+            </button>
+          )}
           {search && (
             <button
               type="button"
@@ -1138,6 +1275,157 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
           </div>
         )}
       </div>
+
+      {/* ══════════════ 👁 VIEW — সার্চের ফল কার্ড আকারে ফুল স্ক্রিন, এক পৃষ্ঠায় (স্ক্রলিং নেই) ══════════════ */}
+      {viewOpen && (
+        <div className="fixed inset-0 z-[60] overflow-hidden bg-slate-950/80 backdrop-blur-sm">
+          <div className="flex h-full flex-col overflow-hidden bg-slate-50 shadow-2xl sm:m-2 sm:rounded-2xl">
+            {/* Header */}
+            <div className="flex shrink-0 items-center justify-between gap-2 border-b border-slate-200 bg-white px-3 py-2 sm:px-4">
+              <div className="flex min-w-0 items-center gap-2">
+                <span className="text-xl">👁</span>
+                <div className="min-w-0">
+                  <h3 className="truncate text-sm font-black text-slate-900">
+                    সার্চ ফলাফল — “{search}”
+                  </h3>
+                  <p className="text-[10px] font-bold text-slate-500">
+                    {filtered.length}টি এন্ট্রি • চেক লিস্ট: {listFiltered.length} • Return:{" "}
+                    {returnFiltered.length}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setViewOpen(false)}
+                className="shrink-0 cursor-pointer rounded-xl bg-rose-600 px-3.5 py-2 text-sm font-black text-white shadow transition hover:bg-rose-700"
+              >
+                ✕ ক্লোজ
+              </button>
+            </div>
+
+            {/* Cards — অ্যাডাপটিভ গ্রিড, এক পৃষ্ঠায়, স্ক্রলিং নেই */}
+            <div className="min-h-0 flex-1 overflow-hidden p-2 sm:p-3">
+              {filtered.length === 0 ? (
+                <div className="flex h-full items-center justify-center text-sm font-bold text-slate-500">
+                  কোনো এন্ট্রি নেই
+                </div>
+              ) : (
+                <div
+                  className="grid h-full gap-2 sm:gap-2.5"
+                  style={{
+                    gridTemplateColumns: `repeat(${
+                      filtered.length <= 1 ? 1 : filtered.length <= 4 ? 2 : filtered.length <= 9 ? 3 : 4
+                    }, minmax(0, 1fr))`,
+                    gridAutoRows: "minmax(0, 1fr)",
+                  }}
+                >
+                  {filtered.map((row) => {
+                    const rowLocked = isDayClosed(row.checkDate);
+                    return (
+                      <div
+                        key={row.id}
+                        className={`flex min-h-0 flex-col overflow-hidden rounded-xl border p-2 shadow-sm sm:p-2.5 ${
+                          row.returned ? "border-amber-300 bg-amber-50" : "border-slate-200 bg-white"
+                        }`}
+                      >
+                        <div className="flex shrink-0 items-start justify-between gap-1">
+                          <div className="min-w-0">
+                            <p className="truncate text-xs font-black text-indigo-700">
+                              {row.memberCode}
+                              {row.foundInDb === false && (
+                                <span className="ml-1 rounded bg-amber-100 px-1 text-[8px] font-black text-amber-800">
+                                  NEW
+                                </span>
+                              )}
+                            </p>
+                            <p className="truncate text-[11px] font-bold text-slate-900">{row.memberName}</p>
+                          </div>
+                          <div className="flex shrink-0 items-center gap-1">
+                            {row.returned && (
+                              <span className="rounded border border-amber-400 bg-amber-100 px-1.5 py-0.5 text-[9px] font-black text-amber-800">
+                                ↩ RETURN
+                              </span>
+                            )}
+                            {rowLocked && (
+                              <span className="text-xs" title="দিন সমাপ্ত (Day Closed)">
+                                🔒
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="mt-1 min-h-0 flex-1 space-y-0.5 overflow-hidden text-[10px] font-semibold text-slate-600">
+                          <p className="truncate">
+                            📅 {formatDisplay(row.checkDate) || row.checkDate} • {row.centreCode} — {row.centreName}
+                          </p>
+                          {allBankPairs(row).map((b, bi) => (
+                            <p key={bi} className="truncate">
+                              🏦 {b.bankName || "—"} •{" "}
+                              <span className="font-mono font-black text-slate-900">#{b.checkNo || "—"}</span>
+                            </p>
+                          ))}
+                          <p className="truncate">
+                            💵 {row.disbursse ? `৳${fmtAmt(row.disbursse)}` : "—"}
+                            {row.project ? ` • ${String(row.project).trim().toUpperCase()}` : ""} •{" "}
+                            {row.micr ? "MICR" : "NON MICR"}
+                          </p>
+                        </div>
+                        <div className="mt-1.5 flex shrink-0 items-center justify-between gap-1">
+                          <label
+                            className={`flex items-center gap-1 rounded-lg border px-1.5 py-1 text-[10px] font-black ${
+                              row.returned
+                                ? "border-amber-400 bg-amber-100 text-amber-900"
+                                : "border-slate-300 bg-slate-100 text-slate-700"
+                            } ${rowLocked ? "opacity-50" : "cursor-pointer"}`}
+                            title={
+                              rowLocked
+                                ? "দিন সমাপ্ত (Day Closed) — Return টিক বদলানো যাবে না"
+                                : row.returned
+                                ? "টিক তুললে এন্ট্রিটি চেক লিস্টে ফিরে যাবে"
+                                : "টিক দিলে এন্ট্রিটি Return টেবিলে চলে যাবে"
+                            }
+                          >
+                            <input
+                              type="checkbox"
+                              checked={Boolean(row.returned)}
+                              disabled={rowLocked}
+                              onChange={() => toggleReturned(row)}
+                              className="h-3.5 w-3.5 accent-amber-600 disabled:cursor-not-allowed"
+                            />
+                            ↩ Return
+                          </label>
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              disabled={rowLocked}
+                              onClick={() => {
+                                setViewOpen(false);
+                                handleEdit(row);
+                              }}
+                              title={rowLocked ? "দিন সমাপ্ত — এডিট করা যাবে না" : "এডিট করুন"}
+                              className="cursor-pointer rounded-lg border border-blue-200 bg-blue-50 px-2 py-1 text-xs text-blue-700 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-40"
+                            >
+                              ✏️
+                            </button>
+                            <button
+                              type="button"
+                              disabled={rowLocked}
+                              onClick={() => handleDelete(row)}
+                              title={rowLocked ? "দিন সমাপ্ত — মুছে ফেলা যাবে না" : "মুছে ফেলুন"}
+                              className="cursor-pointer rounded-lg border border-rose-200 bg-rose-50 px-2 py-1 text-xs text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-40"
+                            >
+                              🗑️
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ══════════════ MEMBER DATABASE POPUP ══════════════ */}
       {dbBrowseOpen && (

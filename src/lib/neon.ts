@@ -618,7 +618,7 @@ const CORE_TABLES = [
  * ALTER সব ডিভাইসের স্কিমাতে একবার করে চালানোর জন্য। সব স্টেটমেন্ট idempotent
  * (IF NOT EXISTS), তাই পুরনো ডিভাইসেও আবার চালানো নিরাপদ।
  */
-const SCHEMA_FLAG_KEY = "gobra_neon_schema_ready_v2";
+const SCHEMA_FLAG_KEY = "gobra_neon_schema_ready_v3";
 
 /** প্রতিটি DDL আলাদা স্টেটমেন্ট (এক রিকোয়েস্টে একাধিক কমান্ড Postgres নেয় না) */
 const checkEntriesDdl = (sch: string): string[] => [
@@ -636,10 +636,12 @@ const checkEntriesDdl = (sch: string): string[] => [
     micr BOOLEAN DEFAULT FALSE,
     found_in_db BOOLEAN DEFAULT FALSE,
     returned BOOLEAN DEFAULT FALSE,
+    extra_banks TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
   )`,
   `ALTER TABLE "${sch}".check_entries ADD COLUMN IF NOT EXISTS returned BOOLEAN DEFAULT FALSE`,
+  `ALTER TABLE "${sch}".check_entries ADD COLUMN IF NOT EXISTS extra_banks TEXT`,
   `CREATE INDEX IF NOT EXISTS check_entries_date_idx ON "${sch}".check_entries (check_date)`,
   `CREATE INDEX IF NOT EXISTS check_entries_member_idx ON "${sch}".check_entries (member_code)`,
 ];
@@ -697,12 +699,27 @@ export async function ensureBranchSchema(force = false): Promise<void> {
  * ✅ চেক এন্ট্রি — ক্লাউড সংরক্ষণ (প্রতি অফিসে আলাদা)
  * ══════════════════════════════════════════════════════════════ */
 
+/** v1.4.48: extra_banks JSON টেক্সট → ব্যাংক/চেক নম্বরের জোড়ার তালিকা (নষ্ট/খালি মান নিরাপদে উপেক্ষা) */
+const parseExtraBanks = (raw: any): { bankName: string; checkNo: string }[] | undefined => {
+  if (!raw) return undefined;
+  try {
+    const arr = JSON.parse(String(raw));
+    if (!Array.isArray(arr)) return undefined;
+    const list = arr
+      .map((b: any) => ({ bankName: String(b?.bankName || ""), checkNo: String(b?.checkNo || "") }))
+      .filter((b) => b.bankName || b.checkNo);
+    return list.length > 0 ? list : undefined;
+  } catch {
+    return undefined;
+  }
+};
+
 export async function fetchCheckEntriesFromNeon(): Promise<CheckEntry[]> {
   try {
     await ensureBranchSchema();
     const rows: any = await sql`
       SELECT id, check_date, member_code, member_name, centre_code, centre_name,
-             bank_name, check_no, disbursse, project, micr, found_in_db, returned, created_at
+             bank_name, check_no, disbursse, project, micr, found_in_db, returned, extra_banks, created_at
       FROM ${tbl("check_entries")}
       ORDER BY check_date DESC, id DESC
     `;
@@ -720,6 +737,7 @@ export async function fetchCheckEntriesFromNeon(): Promise<CheckEntry[]> {
       micr: r.micr === true,
       foundInDb: r.found_in_db === true,
       returned: r.returned === true,
+      extraBanks: parseExtraBanks(r.extra_banks),
       createdAt: r.created_at ? new Date(r.created_at).toISOString() : undefined,
     }));
   } catch (e) {
@@ -735,11 +753,12 @@ export async function upsertCheckEntryInNeon(e: CheckEntry): Promise<void> {
   await sql`
     INSERT INTO ${tbl("check_entries")}
       (id, check_date, member_code, member_name, centre_code, centre_name,
-       bank_name, check_no, disbursse, project, micr, found_in_db, returned, created_at, updated_at)
+       bank_name, check_no, disbursse, project, micr, found_in_db, returned, extra_banks, created_at, updated_at)
     VALUES (
       ${id}, ${e.checkDate || ""}, ${e.memberCode || ""}, ${e.memberName || ""},
       ${e.centreCode || ""}, ${e.centreName || ""}, ${e.bankName || ""}, ${e.checkNo || ""},
       ${e.disbursse || ""}, ${e.project || ""}, ${e.micr === true}, ${e.foundInDb === true}, ${e.returned === true},
+      ${JSON.stringify(e.extraBanks || [])},
       ${e.createdAt ? new Date(e.createdAt).toISOString() : new Date().toISOString()}, NOW()
     )
     ON CONFLICT (id) DO UPDATE SET
@@ -755,6 +774,7 @@ export async function upsertCheckEntryInNeon(e: CheckEntry): Promise<void> {
       micr = EXCLUDED.micr,
       found_in_db = EXCLUDED.found_in_db,
       returned = EXCLUDED.returned,
+      extra_banks = EXCLUDED.extra_banks,
       updated_at = NOW();
   `;
 }
