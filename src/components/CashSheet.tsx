@@ -807,9 +807,10 @@ export default function CashSheet({
           <div className="h-10 sm:h-12 print:h-8"></div>
           <div className="w-32 sm:w-36 border-t border-black pt-1">Accountant</div>
         </div>
+        {/* Manager স্বাক্ষর — এক্সেল শিটের মতো আরও ডান প্রান্তের দিকে */}
         <div className="text-center">
           <div className="h-10 sm:h-12 print:h-8"></div>
-          <div className="w-32 sm:w-36 border-t border-black pt-1">Manager</div>
+          <div className="w-32 sm:w-36 ml-auto border-t border-black pt-1">Manager</div>
         </div>
       </div>
     </div>
