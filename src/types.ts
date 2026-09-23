@@ -40,6 +40,13 @@ export type CheckEntry = {
    * প্রথম ব্যাংক/চেক নম্বর bankName/checkNo-তেই থাকে; টেবিলে এক সারিতেই দেখায়।
    */
   extraBanks?: { bankName: string; checkNo: string }[];
+  /**
+   * 🔁 রি-ইস্যু লিংক (v1.4.49):
+   * • `reissuedTo` — পুরনো এন্ট্রিতে বসে: চেকটি রি-ইস্যু হয়েছে (নতুন এন্ট্রির আইডি, রি-ইস্যুর তারিখ, নতুন চেক নম্বর)
+   * • `reissuedFrom` — নতুন এন্ট্রিতে বসে: এটি পুরনো চেকের রি-ইস্যু (পুরনো আইডি, পুরনো চেক নম্বর, পুরনো তারিখ)
+   */
+  reissuedTo?: { id: number; date: string; checkNo: string };
+  reissuedFrom?: { id: number; checkNo: string; checkDate: string };
   /** ডাটাবেজে পাওয়া গিয়েছিল কি না */
   foundInDb?: boolean;
   createdAt?: string;

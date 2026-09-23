@@ -93,6 +93,9 @@ const entryMatches = (e: CheckEntry, rawQuery: string): boolean => {
     )
   )
     return true;
+  // v1.4.49: রি-ইস্যু লিংক — পুরনো চেক নম্বর দিয়ে নতুন এন্ট্রি (ও উল্টোটা) খোঁজে
+  if (nq && normCode(e.reissuedTo?.checkNo || "").includes(nq)) return true;
+  if (nq && normCode(e.reissuedFrom?.checkNo || "").includes(nq)) return true;
   if (q.includes("micr")) {
     const wantsNon = q.includes("non");
     if (wantsNon ? !e.micr : Boolean(e.micr)) return true;
@@ -136,6 +139,12 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
   const [retPage, setRetPage] = useState(1);
   /** v1.4.48: সার্চ ফলাফলের ফুল-স্ক্রিন কার্ড ভিউ */
   const [viewOpen, setViewOpen] = useState(false);
+  /** v1.4.49: 🔁 রি-ইস্যু পপআপ — কোন এন্ট্রিটি রি-ইস্যু হচ্ছে + তার ফর্ম */
+  const [reissueFor, setReissueFor] = useState<CheckEntry | null>(null);
+  const [rForm, setRForm] = useState(emptyForm(todayISO()));
+  const [rMatchInfo, setRMatchInfo] = useState<"idle" | "found" | "notfound">("idle");
+  const [rStatus, setRStatus] = useState<{ kind: "ok" | "warn" | "err"; text: string } | null>(null);
+  const rLookupTimer = useRef<number | null>(null);
   const PAGE_SIZE = 25;
 
   const formRef = useRef<HTMLDivElement | null>(null);
@@ -503,6 +512,167 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
   const removeExtraBank = (i: number) =>
     setForm((f) => ({ ...f, extraBanks: f.extraBanks.filter((_, bi) => bi !== i) }));
 
+  /* ───────── v1.4.49: 🔁 চেক রি-ইস্যু ─────────
+   * পুরনো চেক অপরিবর্তিত থাকে (শুধু রি-ইস্যুর সিল বসে) — নতুন এন্ট্রি তৈরি হয় পুরনো চেকের রেফারেন্সসহ।
+   * পুরনো এন্ট্রির দিন Day Closed থাকলেও রি-ইস্যু করা যায় (পুরনো চেক রি-ইস্যুই তো সাধারণত পরে হয়);
+   * তবে নতুন এন্ট্রির তারিখ অবশ্যই খোলা দিনের হতে হবে। */
+  const openReissue = (row: CheckEntry) => {
+    setStatus(null);
+    setRForm({
+      ...emptyForm(baseDate),
+      memberCode: row.memberCode || "",
+      memberName: row.memberName || "",
+      centreCode: row.centreCode || "",
+      centreName: row.centreName || "",
+      bankName: row.bankName || "",
+      checkNo: "", // নতুন চেক নম্বর লিখতে হবে
+      disbursse: row.disbursse || "",
+      project: (row.project || "").trim().toLowerCase(),
+      micr: Boolean(row.micr),
+      // একাধিক ব্যাংক থাকলে ব্যাংকের নামগুলো থেকে যাবে, চেক নম্বর ফাঁকা (নতুন নম্বর লাগবে)
+      extraBanks: (row.extraBanks || [])
+        .filter((b) => (b?.bankName || "").trim() || (b?.checkNo || "").trim())
+        .map((b) => ({ bankName: b?.bankName || "", checkNo: "" })),
+    });
+    const m = findMemberByCode(row.memberCode);
+    setRMatchInfo(m ? "found" : "notfound");
+    setRStatus(null);
+    setReissueFor(row);
+  };
+
+  /** পপআপে মেম্বার কোড বদলালে ডাটাবেজ লুকআপ (মূল ফর্মের মতোই ডিবাউন্স) */
+  const handleRMemberCode = (raw: string) => {
+    const val = String(raw || "").replace(/[^0-9]/g, "").slice(0, 20);
+    setRForm((f) => ({ ...f, memberCode: val }));
+    setRMatchInfo("idle");
+    if (rLookupTimer.current) window.clearTimeout(rLookupTimer.current);
+    if (!val) return;
+    rLookupTimer.current = window.setTimeout(() => {
+      const m = findMemberByCode(val);
+      if (m) {
+        setRMatchInfo("found");
+        setRForm((f) => ({
+          ...f,
+          memberName: m.memberName || f.memberName,
+          centreCode: m.centreCode || f.centreCode,
+          centreName: m.centreName || f.centreName,
+        }));
+      } else {
+        setRMatchInfo("notfound");
+      }
+    }, 350);
+  };
+
+  const addRBankPair = () =>
+    setRForm((f) => ({ ...f, extraBanks: [...f.extraBanks, { bankName: "", checkNo: "" }] }));
+  const updateRExtraBank = (i: number, key: "bankName" | "checkNo", v: string) =>
+    setRForm((f) => ({
+      ...f,
+      extraBanks: f.extraBanks.map((b, bi) => (bi === i ? { ...b, [key]: v } : b)),
+    }));
+  const removeRExtraBank = (i: number) =>
+    setRForm((f) => ({ ...f, extraBanks: f.extraBanks.filter((_, bi) => bi !== i) }));
+
+  const handleReissueSubmit = () => {
+    const orig = reissueFor;
+    if (!orig) return;
+    if (!rForm.checkDate) {
+      setRStatus({ kind: "err", text: "রি-ইস্যুর তারিখ নির্বাচন করুন।" });
+      return;
+    }
+    if (isDayClosed(rForm.checkDate)) {
+      setRStatus({
+        kind: "err",
+        text: `🔒 ${formatDisplay(rForm.checkDate) || rForm.checkDate} তারিখের দিন সমাপ্ত (Day Closed) — এই তারিখে রি-ইস্যু করা যাবে না।`,
+      });
+      return;
+    }
+    const rBlocked = isIntermediateBlockedDate(rForm.checkDate);
+    if (rBlocked.blocked) {
+      setRStatus({ kind: "err", text: `🚫 ${rBlocked.reason || "এই তারিখটি ব্লকড।"}` });
+      return;
+    }
+    if (!rForm.memberCode.trim()) return setRStatus({ kind: "err", text: "মেম্বার কোড দিন।" });
+    if (!rForm.bankName.trim()) return setRStatus({ kind: "err", text: "ব্যাংকের নাম দিন।" });
+    if (!rForm.checkNo.trim())
+      return setRStatus({ kind: "err", text: "নতুন চেক নম্বর দিন (পুরনো এন্ট্রিতে দেখানো চেক নম্বরটি নয়)।" });
+    const rNeedsAll = rMatchInfo !== "found";
+    if (rNeedsAll) {
+      if (!rForm.memberName.trim()) return setRStatus({ kind: "err", text: "মেম্বার নাম দিন (ডাটাবেজে পাওয়া যায়নি)।" });
+      if (!rForm.centreCode.trim()) return setRStatus({ kind: "err", text: "সেন্টার কোড দিন (ডাটাবেজে পাওয়া যায়নি)।" });
+      if (!rForm.centreName.trim()) return setRStatus({ kind: "err", text: "সেন্টার নাম দিন (ডাটাবেজে পাওয়া যায়নি)।" });
+    }
+    const cleanExtras = rForm.extraBanks
+      .map((b) => ({ bankName: (b.bankName || "").trim(), checkNo: (b.checkNo || "").trim() }))
+      .filter((b) => b.bankName || b.checkNo);
+    for (let i = 0; i < cleanExtras.length; i++) {
+      if (!cleanExtras[i].bankName)
+        return setRStatus({ kind: "err", text: `ব্যাংক #${i + 2}-এর নাম দিন (না হলে ✕ দিয়ে জোড়াটি বাদ দিন)।` });
+      if (!cleanExtras[i].checkNo)
+        return setRStatus({ kind: "err", text: `ব্যাংক #${i + 2}-এর নতুন চেক নম্বর দিন (না হলে ✕ দিয়ে জোড়াটি বাদ দিন)।` });
+    }
+    const dupPair = [{ bankName: rForm.bankName, checkNo: rForm.checkNo }, ...cleanExtras].find(
+      (p) => p.bankName.trim() && p.checkNo.trim() && isDuplicateCheck(p.bankName, p.checkNo)
+    );
+    if (dupPair) {
+      const okDup = confirm(
+        `⚠️ ${dupPair.bankName} ব্যাংকের ${dupPair.checkNo} নম্বর চেকটি আগেও এন্ট্রি করা আছে।\n\nতবুও রি-ইস্যু করতে চান?`
+      );
+      if (!okDup) return;
+    }
+    if (rNeedsAll) {
+      upsertMember({
+        memberCode: rForm.memberCode,
+        memberName: rForm.memberName,
+        centreCode: rForm.centreCode,
+        centreName: rForm.centreName,
+        bankName: rForm.bankName,
+        checkNo: rForm.checkNo,
+        source: "auto",
+      });
+    }
+    // ১) নতুন এন্ট্রি — পুরনো চেকের রেফারেন্সসহ (reissuedFrom)
+    const newEntry = saveCheckEntry({
+      checkDate: rForm.checkDate,
+      memberCode: rForm.memberCode.trim(),
+      memberName: rForm.memberName.trim(),
+      centreCode: rForm.centreCode.trim(),
+      centreName: rForm.centreName.trim(),
+      bankName: rForm.bankName.trim(),
+      checkNo: rForm.checkNo.trim(),
+      disbursse: rForm.disbursse.trim(),
+      project: rForm.project.trim().toLowerCase(),
+      micr: Boolean(rForm.micr),
+      extraBanks: cleanExtras,
+      foundInDb: rMatchInfo === "found",
+      reissuedFrom: {
+        id: Number(orig.id),
+        checkNo: orig.checkNo || "",
+        checkDate: orig.checkDate || "",
+      },
+    });
+    // ২) পুরনো এন্ট্রিতে সিল — কোন তারিখে রি-ইস্যু হলো + নতুন চেক নম্বর (বাকি সব ডেটা অক্ষত)
+    const latest =
+      getCheckEntries().find((x) => Number(x.id) === Number(orig.id)) || orig;
+    updateCheckEntry({
+      ...latest,
+      reissuedTo: { id: Number(newEntry.id), date: newEntry.checkDate, checkNo: newEntry.checkNo },
+    });
+    setReissueFor(null);
+    setViewOpen(false);
+    if (search.trim() && !entryMatches(newEntry, search)) {
+      setSearch("");
+      setPage(1);
+    }
+    setStatus({
+      kind: "ok",
+      text: `✓ চেক #${orig.checkNo} রি-ইস্যু হয়েছে → নতুন চেক #${newEntry.checkNo} (${
+        formatDisplay(newEntry.checkDate) || newEntry.checkDate
+      })। পুরনো এন্ট্রিতে রি-ইস্যুর তারিখ দেখানো হচ্ছে — কোনো এন্ট্রি মুছে যায়নি।`,
+    });
+    reload();
+  };
+
   /** দুই টেবিলের জন্য একই সারি-রেন্ডারার — চেহারা হুবহু এক */
   const renderCheckRow = (row: CheckEntry, sr: number, zebra: number) => {
     const rowLocked = isDayClosed(row.checkDate);
@@ -548,6 +718,23 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
               </span>
             ))}
           </div>
+          {row.reissuedTo && (
+            <span
+              className="mt-1 inline-block rounded border border-teal-300 bg-teal-50 px-1.5 py-0.5 text-[9px] font-black text-teal-800"
+              title={`এই চেকটি রি-ইস্যু হয়েছে — নতুন চেক #${row.reissuedTo.checkNo} (এন্ট্রি #${row.reissuedTo.id})`}
+            >
+              🔁 Reissued {formatDisplay(row.reissuedTo.date) || row.reissuedTo.date} → #{row.reissuedTo.checkNo}
+            </span>
+          )}
+          {row.reissuedFrom && (
+            <span
+              className="mt-1 inline-block rounded border border-orange-300 bg-orange-50 px-1.5 py-0.5 text-[9px] font-black text-orange-800"
+              title={`পুরনো চেক #${row.reissuedFrom.checkNo} (${formatDisplay(row.reissuedFrom.checkDate) || row.reissuedFrom.checkDate})-এর রি-ইস্যু`}
+            >
+              🔁 Reissue — পুরনো চেক #{row.reissuedFrom.checkNo} (
+              {formatDisplay(row.reissuedFrom.checkDate) || row.reissuedFrom.checkDate})
+            </span>
+          )}
         </td>
         <td className="whitespace-nowrap px-3 py-2 text-center">
           {row.micr ? (
@@ -600,6 +787,14 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
                 🔒
               </span>
             )}
+            <button
+              type="button"
+              onClick={() => openReissue(row)}
+              title="চেক রি-ইস্যু করুন — নতুন এন্ট্রি হবে, পুরনো এন্ট্রিতে রি-ইস্যুর তারিখ দেখা যাবে (দিন সমাপ্ত থাকলেও রি-ইস্যু করা যায়)"
+              className="rounded-lg border border-teal-300 bg-teal-50 px-2 py-1 text-xs text-teal-700 transition hover:bg-teal-100"
+            >
+              🔁
+            </button>
             <button
               type="button"
               onClick={() => handleEdit(row)}
@@ -1363,6 +1558,18 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
                               <span className="font-mono font-black text-slate-900">#{b.checkNo || "—"}</span>
                             </p>
                           ))}
+                          {row.reissuedTo && (
+                            <p className="truncate font-black text-teal-700">
+                              🔁 Reissued {formatDisplay(row.reissuedTo.date) || row.reissuedTo.date} → #
+                              {row.reissuedTo.checkNo}
+                            </p>
+                          )}
+                          {row.reissuedFrom && (
+                            <p className="truncate font-black text-orange-700">
+                              🔁 পুরনো চেক #{row.reissuedFrom.checkNo} (
+                              {formatDisplay(row.reissuedFrom.checkDate) || row.reissuedFrom.checkDate})
+                            </p>
+                          )}
                           <p className="truncate">
                             💵 {row.disbursse ? `৳${fmtAmt(row.disbursse)}` : "—"}
                             {row.project ? ` • ${String(row.project).trim().toUpperCase()}` : ""} •{" "}
@@ -1396,6 +1603,17 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
                           <div className="flex items-center gap-1">
                             <button
                               type="button"
+                              onClick={() => {
+                                setViewOpen(false);
+                                openReissue(row);
+                              }}
+                              title="চেক রি-ইস্যু করুন"
+                              className="cursor-pointer rounded-lg border border-teal-300 bg-teal-50 px-2 py-1 text-xs text-teal-700 transition hover:bg-teal-100"
+                            >
+                              🔁
+                            </button>
+                            <button
+                              type="button"
                               disabled={rowLocked}
                               onClick={() => {
                                 setViewOpen(false);
@@ -1422,6 +1640,276 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
                   })}
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ══════════════ v1.4.49: 🔁 CHECK REISSUE POPUP ══════════════ */}
+      {reissueFor && (
+        <div className="fixed inset-0 z-[70] flex items-start justify-center overflow-y-auto bg-slate-950/70 p-2 backdrop-blur-sm sm:items-center sm:p-4">
+          <div className="my-auto w-full max-w-3xl rounded-2xl border border-teal-300 bg-white shadow-2xl">
+            {/* Header — পুরনো চেকের পরিচয় */}
+            <div className="flex items-start justify-between gap-2 rounded-t-2xl border-b border-teal-200 bg-teal-50 px-4 py-3">
+              <div className="min-w-0">
+                <h3 className="flex items-center gap-2 text-base font-black text-teal-900">
+                  <span>🔁</span> <span>চেক রি-ইস্যু</span>
+                </h3>
+                <p className="mt-0.5 text-[11px] font-bold text-teal-800">
+                  পুরনো চেক: <span className="font-mono">#{reissueFor.checkNo}</span> •{" "}
+                  {reissueFor.bankName || "—"} • তারিখ{" "}
+                  {formatDisplay(reissueFor.checkDate) || reissueFor.checkDate} • মেম্বার{" "}
+                  <span className="font-mono">{reissueFor.memberCode}</span>
+                </p>
+                {reissueFor.reissuedTo && (
+                  <p className="mt-0.5 text-[10px] font-black text-orange-700">
+                    ⚠ এই চেকটি আগেও রি-ইস্যু হয়েছে ({formatDisplay(reissueFor.reissuedTo.date) || reissueFor.reissuedTo.date} → #
+                    {reissueFor.reissuedTo.checkNo}) — আবার রি-ইস্যু করলে সিলটি নতুন তথ্যে বদলে যাবে।
+                  </p>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => setReissueFor(null)}
+                className="shrink-0 cursor-pointer rounded-xl bg-rose-600 px-3 py-1.5 text-sm font-black text-white shadow transition hover:bg-rose-700"
+              >
+                ✕ ক্লোজ
+              </button>
+            </div>
+
+            {/* ফর্ম — চেক এন্ট্রির সব ঘর */}
+            <div className="max-h-[70vh] space-y-3 overflow-y-auto p-4">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <div>
+                  <label className={labelCls}>রি-ইস্যুর তারিখ (Date)</label>
+                  <DatePicker
+                    value={rForm.checkDate}
+                    onChange={(v) => setRForm((f) => ({ ...f, checkDate: v || f.checkDate }))}
+                    className="py-2 text-sm font-semibold"
+                    manualEntry
+                  />
+                </div>
+
+                <div>
+                  <label className={labelCls}>Member Code (মেম্বার কোড)</label>
+                  <input
+                    value={rForm.memberCode}
+                    onChange={(e) => handleRMemberCode(e.target.value)}
+                    className={inputCls}
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    autoComplete="off"
+                  />
+                  {rMatchInfo !== "idle" && (
+                    <p
+                      className={`mt-1 text-[10px] font-black ${
+                        rMatchInfo === "found" ? "text-emerald-700" : "text-amber-700"
+                      }`}
+                    >
+                      {rMatchInfo === "found"
+                        ? "✓ ডাটাবেজে আছে — নাম/সেন্টার নিচেই আছে"
+                        : "⚠ ডাটাবেজে নেই — নাম/সেন্টার ঘর পূরণ করুন"}
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <label className={labelCls}>Bank Name (ব্যাংকের নাম)</label>
+                  <div className="flex items-start gap-1">
+                    <BankNameInput
+                      value={rForm.bankName}
+                      onChange={(v) => setRForm((f) => ({ ...f, bankName: v }))}
+                      className={inputCls}
+                      extras={pastBanks}
+                    />
+                    <button
+                      type="button"
+                      onClick={addRBankPair}
+                      title="আরেকটি ব্যাংক + চেক নম্বর যোগ করুন"
+                      className="flex h-[38px] w-9 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-emerald-400 bg-emerald-100 text-sm font-black text-emerald-800 transition hover:bg-emerald-200"
+                    >
+                      ＋
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className={labelCls}>
+                    নতুন Check No. <span className="text-rose-600">*</span>
+                  </label>
+                  <input
+                    value={rForm.checkNo}
+                    onChange={(e) => setRForm((f) => ({ ...f, checkNo: e.target.value }))}
+                    className={inputCls}
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    placeholder="নতুন চেক নম্বর"
+                    autoComplete="off"
+                  />
+                </div>
+
+                <div>
+                  <label className={labelCls}>Member Name</label>
+                  <input
+                    value={rForm.memberName}
+                    onChange={(e) => setRForm((f) => ({ ...f, memberName: e.target.value }))}
+                    className={inputCls}
+                    placeholder="মেম্বারের নাম"
+                    autoComplete="off"
+                  />
+                </div>
+
+                <div>
+                  <label className={labelCls}>Centre Code</label>
+                  <input
+                    value={rForm.centreCode}
+                    onChange={(e) => setRForm((f) => ({ ...f, centreCode: e.target.value }))}
+                    className={inputCls}
+                    placeholder="সেন্টার কোড"
+                    autoComplete="off"
+                  />
+                </div>
+
+                <div>
+                  <label className={labelCls}>Centre Name</label>
+                  <input
+                    value={rForm.centreName}
+                    onChange={(e) => setRForm((f) => ({ ...f, centreName: e.target.value }))}
+                    className={inputCls}
+                    placeholder="সেন্টারের নাম"
+                    autoComplete="off"
+                  />
+                </div>
+
+                <div>
+                  <label className={labelCls}>Disbursse (Amount)</label>
+                  <input
+                    value={rForm.disbursse}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      if (/^-?\d*\.?\d*$/.test(v)) setRForm((f) => ({ ...f, disbursse: v }));
+                    }}
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    className={`${inputCls} text-right font-mono`}
+                    autoComplete="off"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-[11px] font-black tracking-wide text-slate-600">
+                    project
+                  </label>
+                  <SearchSelect
+                    value={(rForm.project || "").trim().toLowerCase()}
+                    onChange={(v) => setRForm((f) => ({ ...f, project: v.trim().toLowerCase() }))}
+                    options={projectOpts(rForm.project)}
+                    placeholder="-- select project --"
+                    className={`${inputCls} cursor-pointer uppercase`}
+                    noKeyboardOnMobile
+                  />
+                </div>
+
+                <div className="flex items-end pb-1">
+                  <label className="flex cursor-pointer select-none items-center gap-1.5 rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-2 text-[11px] font-black text-emerald-800">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(rForm.micr)}
+                      onChange={(e) => setRForm((f) => ({ ...f, micr: e.target.checked }))}
+                      className="h-4 w-4 cursor-pointer accent-emerald-600"
+                    />
+                    <span>MICR</span>
+                    <span className="rounded bg-white px-1 text-[9px] font-black text-slate-500">
+                      {rForm.micr ? "MICR" : "NON MICR"}
+                    </span>
+                  </label>
+                </div>
+              </div>
+
+              {/* অতিরিক্ত ব্যাংক + নতুন চেক নম্বরের জোড়া */}
+              {rForm.extraBanks.length > 0 && (
+                <div className="space-y-2">
+                  {rForm.extraBanks.map((b, bi) => (
+                    <div
+                      key={bi}
+                      className="grid grid-cols-1 items-end gap-2 rounded-xl border border-emerald-300 bg-emerald-50/60 p-2 sm:grid-cols-[1fr_1fr_auto]"
+                    >
+                      <div>
+                        <span className="mb-1 block text-[10px] font-black tracking-wide text-emerald-800">
+                          ব্যাংক #{bi + 2}
+                        </span>
+                        <BankNameInput
+                          value={b.bankName}
+                          onChange={(v) => updateRExtraBank(bi, "bankName", v)}
+                          className={inputCls}
+                          extras={pastBanks}
+                          placeholder="Bank name"
+                        />
+                      </div>
+                      <div>
+                        <span className="mb-1 block text-[10px] font-black tracking-wide text-emerald-800">
+                          নতুন চেক নম্বর #{bi + 2}
+                        </span>
+                        <input
+                          value={b.checkNo}
+                          onChange={(e) => updateRExtraBank(bi, "checkNo", e.target.value)}
+                          className={inputCls}
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          placeholder="Check No."
+                          autoComplete="off"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeRExtraBank(bi)}
+                        title="এই ব্যাংক জোড়া মুছুন"
+                        className="h-9 w-9 shrink-0 cursor-pointer rounded-lg border border-rose-300 bg-rose-50 text-sm font-black text-rose-700 transition hover:bg-rose-100"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {rStatus && (
+                <p
+                  className={`rounded-lg border px-3 py-2 text-xs font-black ${
+                    rStatus.kind === "err"
+                      ? "border-rose-300 bg-rose-50 text-rose-800"
+                      : rStatus.kind === "warn"
+                      ? "border-amber-300 bg-amber-50 text-amber-800"
+                      : "border-emerald-300 bg-emerald-50 text-emerald-800"
+                  }`}
+                >
+                  {rStatus.text}
+                </p>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-b-2xl border-t border-teal-200 bg-teal-50/60 px-4 py-3">
+              <p className="text-[10px] font-bold text-teal-800">
+                রি-ইস্যু করলে নতুন এন্ট্রি তৈরি হবে (পুরনো চেকের রেফারেন্সসহ) এবং পুরনো এন্ট্রিতে রি-ইস্যুর
+                তারিখ দেখা যাবে — কোনো এন্ট্রি মুছে যাবে না।
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setReissueFor(null)}
+                  className="cursor-pointer rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-sm font-black text-slate-700 transition hover:bg-slate-100"
+                >
+                  বাতিল
+                </button>
+                <button
+                  type="button"
+                  onClick={handleReissueSubmit}
+                  className="cursor-pointer rounded-xl bg-teal-600 px-4 py-2 text-sm font-black text-white shadow transition hover:bg-teal-700"
+                >
+                  🔁 রি-ইস্যু সেভ করুন
+                </button>
+              </div>
             </div>
           </div>
         </div>

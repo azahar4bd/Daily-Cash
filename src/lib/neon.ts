@@ -618,7 +618,7 @@ const CORE_TABLES = [
  * ALTER সব ডিভাইসের স্কিমাতে একবার করে চালানোর জন্য। সব স্টেটমেন্ট idempotent
  * (IF NOT EXISTS), তাই পুরনো ডিভাইসেও আবার চালানো নিরাপদ।
  */
-const SCHEMA_FLAG_KEY = "gobra_neon_schema_ready_v3";
+const SCHEMA_FLAG_KEY = "gobra_neon_schema_ready_v4";
 
 /** প্রতিটি DDL আলাদা স্টেটমেন্ট (এক রিকোয়েস্টে একাধিক কমান্ড Postgres নেয় না) */
 const checkEntriesDdl = (sch: string): string[] => [
@@ -637,11 +637,15 @@ const checkEntriesDdl = (sch: string): string[] => [
     found_in_db BOOLEAN DEFAULT FALSE,
     returned BOOLEAN DEFAULT FALSE,
     extra_banks TEXT,
+    reissued_to TEXT,
+    reissued_from TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
   )`,
   `ALTER TABLE "${sch}".check_entries ADD COLUMN IF NOT EXISTS returned BOOLEAN DEFAULT FALSE`,
   `ALTER TABLE "${sch}".check_entries ADD COLUMN IF NOT EXISTS extra_banks TEXT`,
+  `ALTER TABLE "${sch}".check_entries ADD COLUMN IF NOT EXISTS reissued_to TEXT`,
+  `ALTER TABLE "${sch}".check_entries ADD COLUMN IF NOT EXISTS reissued_from TEXT`,
   `CREATE INDEX IF NOT EXISTS check_entries_date_idx ON "${sch}".check_entries (check_date)`,
   `CREATE INDEX IF NOT EXISTS check_entries_member_idx ON "${sch}".check_entries (member_code)`,
 ];
@@ -714,12 +718,29 @@ const parseExtraBanks = (raw: any): { bankName: string; checkNo: string }[] | un
   }
 };
 
+/** v1.4.49: reissued_to / reissued_from JSON → রি-ইস্যু লিংক অবজেক্ট (নষ্ট/খালি মান নিরাপদে উপেক্ষা) */
+const parseReissueLink = (raw: any): any => {
+  if (!raw) return undefined;
+  try {
+    const o = JSON.parse(String(raw));
+    if (!o || typeof o !== "object" || !Number.isFinite(Number(o?.id))) return undefined;
+    const link: any = { id: Number(o.id) };
+    if (o.date != null) link.date = String(o.date);
+    if (o.checkNo != null) link.checkNo = String(o.checkNo);
+    if (o.checkDate != null) link.checkDate = String(o.checkDate);
+    return link;
+  } catch {
+    return undefined;
+  }
+};
+
 export async function fetchCheckEntriesFromNeon(): Promise<CheckEntry[]> {
   try {
     await ensureBranchSchema();
     const rows: any = await sql`
       SELECT id, check_date, member_code, member_name, centre_code, centre_name,
-             bank_name, check_no, disbursse, project, micr, found_in_db, returned, extra_banks, created_at
+             bank_name, check_no, disbursse, project, micr, found_in_db, returned, extra_banks,
+             reissued_to, reissued_from, created_at
       FROM ${tbl("check_entries")}
       ORDER BY check_date DESC, id DESC
     `;
@@ -738,6 +759,8 @@ export async function fetchCheckEntriesFromNeon(): Promise<CheckEntry[]> {
       foundInDb: r.found_in_db === true,
       returned: r.returned === true,
       extraBanks: parseExtraBanks(r.extra_banks),
+      reissuedTo: parseReissueLink(r.reissued_to),
+      reissuedFrom: parseReissueLink(r.reissued_from),
       createdAt: r.created_at ? new Date(r.created_at).toISOString() : undefined,
     }));
   } catch (e) {
@@ -753,12 +776,14 @@ export async function upsertCheckEntryInNeon(e: CheckEntry): Promise<void> {
   await sql`
     INSERT INTO ${tbl("check_entries")}
       (id, check_date, member_code, member_name, centre_code, centre_name,
-       bank_name, check_no, disbursse, project, micr, found_in_db, returned, extra_banks, created_at, updated_at)
+       bank_name, check_no, disbursse, project, micr, found_in_db, returned, extra_banks,
+       reissued_to, reissued_from, created_at, updated_at)
     VALUES (
       ${id}, ${e.checkDate || ""}, ${e.memberCode || ""}, ${e.memberName || ""},
       ${e.centreCode || ""}, ${e.centreName || ""}, ${e.bankName || ""}, ${e.checkNo || ""},
       ${e.disbursse || ""}, ${e.project || ""}, ${e.micr === true}, ${e.foundInDb === true}, ${e.returned === true},
       ${JSON.stringify(e.extraBanks || [])},
+      ${e.reissuedTo ? JSON.stringify(e.reissuedTo) : ""}, ${e.reissuedFrom ? JSON.stringify(e.reissuedFrom) : ""},
       ${e.createdAt ? new Date(e.createdAt).toISOString() : new Date().toISOString()}, NOW()
     )
     ON CONFLICT (id) DO UPDATE SET
@@ -775,6 +800,8 @@ export async function upsertCheckEntryInNeon(e: CheckEntry): Promise<void> {
       found_in_db = EXCLUDED.found_in_db,
       returned = EXCLUDED.returned,
       extra_banks = EXCLUDED.extra_banks,
+      reissued_to = EXCLUDED.reissued_to,
+      reissued_from = EXCLUDED.reissued_from,
       updated_at = NOW();
   `;
 }
