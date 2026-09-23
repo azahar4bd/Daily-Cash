@@ -560,10 +560,10 @@ export default function CashSheet({
                         <span className="font-mono font-bold">{qty > 0 ? qty : ""}</span>
                       )}
                     </td>
-                    <td className="border border-black px-2.5 py-0.5 sm:py-1 print:py-1 text-right font-mono font-semibold">
+                    <td className="border border-black px-2.5 py-0.5 sm:py-1 print:py-0.5 text-right font-mono font-semibold">
                       {rowTk > 0 ? fmtUS(rowTk) : "-"}
                     </td>
-                    <td className="border border-black px-1.5 py-0.5 print:py-1 text-center font-mono text-slate-400">-</td>
+                    <td className="border border-black px-1.5 py-0.5 print:py-0.5 text-center font-mono text-slate-400">-</td>
                   </tr>
                 );
               })}
@@ -740,40 +740,40 @@ export default function CashSheet({
                 <td className="border border-black px-2 py-1 print:py-0.5"></td>
               </tr>
               <tr>
-                <td className="border border-black px-2 py-1 print:py-1.5 text-center font-mono">2</td>
-                <td className="border border-black px-2.5 py-1 print:py-1.5 font-medium">Ezaz Sakib</td>
-                <td className="border border-black px-2 py-1 print:py-1.5 text-center font-mono">1086</td>
-                <td className="border border-black px-2.5 py-1 print:py-1.5 text-right font-mono font-bold">
+                <td className="border border-black px-2 py-1 print:py-0.5 text-center font-mono">2</td>
+                <td className="border border-black px-2.5 py-1 print:py-0.5 font-medium">Ezaz Sakib</td>
+                <td className="border border-black px-2 py-1 print:py-0.5 text-center font-mono">1086</td>
+                <td className="border border-black px-2.5 py-1 print:py-0.5 text-right font-mono font-bold">
                   {officerAmounts.sakib > 0 ? String(officerAmounts.sakib) : "-"}
                 </td>
-                <td className="border border-black px-2 py-1 print:py-1.5"></td>
+                <td className="border border-black px-2 py-1 print:py-0.5"></td>
               </tr>
               <tr>
-                <td className="border border-black px-2 py-1 print:py-1.5 text-center font-mono">3</td>
-                <td className="border border-black px-2.5 py-1 print:py-1.5 font-medium">Md:Mintu Moholdar</td>
-                <td className="border border-black px-2 py-1 print:py-1.5 text-center font-mono">1189</td>
-                <td className="border border-black px-2.5 py-1 print:py-1.5 text-right font-mono font-bold">
+                <td className="border border-black px-2 py-1 print:py-0.5 text-center font-mono">3</td>
+                <td className="border border-black px-2.5 py-1 print:py-0.5 font-medium">Md:Mintu Moholdar</td>
+                <td className="border border-black px-2 py-1 print:py-0.5 text-center font-mono">1189</td>
+                <td className="border border-black px-2.5 py-1 print:py-0.5 text-right font-mono font-bold">
                   {officerAmounts.mintu > 0 ? String(officerAmounts.mintu) : "-"}
                 </td>
-                <td className="border border-black px-2 py-1 print:py-1.5"></td>
+                <td className="border border-black px-2 py-1 print:py-0.5"></td>
               </tr>
               <tr>
-                <td className="border border-black px-2 py-1 print:py-1.5 text-center font-mono">4</td>
-                <td className="border border-black px-2.5 py-1 print:py-1.5 font-medium">Md Alamgir Hossain</td>
-                <td className="border border-black px-2 py-1 print:py-1.5 text-center font-mono">1224</td>
-                <td className="border border-black px-2.5 py-1 print:py-1.5 text-right font-mono font-bold">
+                <td className="border border-black px-2 py-1 print:py-0.5 text-center font-mono">4</td>
+                <td className="border border-black px-2.5 py-1 print:py-0.5 font-medium">Md Alamgir Hossain</td>
+                <td className="border border-black px-2 py-1 print:py-0.5 text-center font-mono">1224</td>
+                <td className="border border-black px-2.5 py-1 print:py-0.5 text-right font-mono font-bold">
                   {officerAmounts.alamgir > 0 ? String(officerAmounts.alamgir) : "-"}
                 </td>
-                <td className="border border-black px-2 py-1 print:py-1.5"></td>
+                <td className="border border-black px-2 py-1 print:py-0.5"></td>
               </tr>
               <tr>
-                <td className="border border-black px-2 py-1 print:py-1.5 text-center font-mono">5</td>
-                <td className="border border-black px-2.5 py-1 print:py-1.5 font-medium">Sales of Loan Forms</td>
-                <td className="border border-black px-2 py-1 print:py-1.5 text-center font-mono"></td>
-                <td className="border border-black px-2.5 py-1 print:py-1.5 text-right font-mono font-bold">
+                <td className="border border-black px-2 py-1 print:py-0.5 text-center font-mono">5</td>
+                <td className="border border-black px-2.5 py-1 print:py-0.5 font-medium">Sales of Loan Forms</td>
+                <td className="border border-black px-2 py-1 print:py-0.5 text-center font-mono"></td>
+                <td className="border border-black px-2.5 py-1 print:py-0.5 text-right font-mono font-bold">
                   {officerAmounts.loanForms > 0 ? String(officerAmounts.loanForms) : "-"}
                 </td>
-                <td className="border border-black px-2 py-1 print:py-1.5"></td>
+                <td className="border border-black px-2 py-1 print:py-0.5"></td>
               </tr>
               <tr>
                 <td className="border border-black px-2 py-1 print:py-0.5 text-center font-mono">6</td>
@@ -863,10 +863,10 @@ export default function CashSheet({
           }
           /* নির্দিষ্ট উচ্চতা → রো-গুলো সমান ভাগে লম্বা হয়ে পেজ ভরাট করবে */
           table.fill-b {
-            height: 130mm !important;
+            height: 100mm !important;
           }
           table.fill-c {
-            height: 62mm !important;
+            height: 44mm !important;
           }
           /* স্বাক্ষর ব্লক প্রিন্টেও ২ কলামেই থাকবে — Accountant বামে, Manager ডানে (একই সারিতে)
              উপরের block রুলটা শুধু কনটেন্ট ফ্লোর জন্য, এটা যেন না ভাঙে */
