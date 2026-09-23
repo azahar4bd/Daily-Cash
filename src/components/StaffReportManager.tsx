@@ -902,18 +902,18 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
       </div>
       )}
 
-      {/* 3-Box Dashboard */}
+      {/* 4-Box Dashboard — মার্ক করা ৪ কার্ড এক লাইনে পাশাপাশি (v1.4.57) */}
       <div className="rounded-2xl border border-slate-200 bg-white p-2.5 sm:p-3 shadow-sm">
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
           <div className="flex flex-col justify-center rounded-xl bg-emerald-50 border border-emerald-300 p-2 sm:p-3 text-center">
             <span className="text-[10px] sm:text-xs font-bold text-emerald-800">{dayClosed ? "Closing Cash" : "Today Cash"}</span>
-            <span className="font-mono text-sm sm:text-xl font-black text-emerald-950 mt-0.5">
+            <span className="font-mono text-xs sm:text-xl font-black text-emerald-950 mt-0.5 whitespace-nowrap">
               {fmt(todayCashInHand)}
             </span>
           </div>
           <div className="flex flex-col justify-center rounded-xl bg-indigo-50 border border-indigo-300 p-2 sm:p-3 text-center">
             <span className="text-[10px] sm:text-xs font-bold text-indigo-800">{dayClosed ? "Closing Bank" : "Today Bank"}</span>
-            <span className="font-mono text-sm sm:text-xl font-black text-indigo-950 mt-0.5">
+            <span className="font-mono text-xs sm:text-xl font-black text-indigo-950 mt-0.5 whitespace-nowrap">
               {fmt(todayBankBalance)}
             </span>
           </div>
@@ -925,6 +925,21 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
             <span className="text-[10px] sm:text-xs font-bold">💰 Denomination</span>
             <span className="text-[9px] sm:text-xs font-bold text-amber-950 mt-0.5">Check Diff</span>
           </button>
+          {/* v1.4.57: নিচে থাকা সামারি কার্ড (Expens/Check/Diferent) — এখন ৪র্থ কার্ড, এক লাইনে */}
+          <div className="flex flex-col justify-center gap-0.5 rounded-xl border-2 border-purple-900 bg-white p-1.5 sm:p-2 overflow-hidden">
+            <div className="flex items-baseline justify-between gap-1 min-w-0">
+              <span className="whitespace-nowrap text-[9px] sm:text-[10px] font-bold text-purple-900">Expens</span>
+              <span className="truncate font-mono text-[9px] sm:text-xs font-black text-slate-950">{fmt(checkExpens)}</span>
+            </div>
+            <div className="flex items-baseline justify-between gap-1 min-w-0">
+              <span className="whitespace-nowrap text-[9px] sm:text-[10px] font-bold text-purple-900">Check</span>
+              <span className="truncate font-mono text-[9px] sm:text-xs font-black text-slate-950">{fmt(checkWithdraw)}</span>
+            </div>
+            <div className="mt-0.5 flex min-w-0 items-baseline justify-between gap-1 rounded-md border border-emerald-700 bg-emerald-400 px-1 py-0.5">
+              <span className="whitespace-nowrap text-[9px] sm:text-[10px] font-black text-emerald-950">Diferent</span>
+              <span className="truncate font-mono text-[9px] sm:text-xs font-black text-emerald-950">{fmt(checkDiferent)}</span>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1211,30 +1226,6 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
                 <td className="border border-amber-200 px-3 py-2 text-right font-mono">{fmt(todayAllReportTotalExpenditure)}</td>
               </tr>
             </tfoot>
-          </table>
-        </div>
-      </div>
-
-      {/* Bottom Summary Bar */}
-      <div className="flex justify-center p-2">
-        <div className="rounded-xl border-2 border-purple-900 bg-white shadow-sm overflow-hidden inline-block">
-          <table className="border-collapse text-center text-xs sm:text-sm">
-            <thead>
-              <tr className="bg-[#fdecd2] border-b-2 border-purple-900">
-                <th className="px-4 py-1.5 font-bold text-black min-w-[90px]">Expens</th>
-                <th className="px-4 py-1.5 font-bold text-black min-w-[90px]">Check</th>
-                <th className="px-4 py-1.5 font-bold text-black min-w-[110px]">Check Diferent</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr className="bg-emerald-400">
-                <td className="px-4 py-2 font-black text-black font-mono text-right">{fmt(checkExpens)}</td>
-                <td className="px-4 py-2 font-black text-black font-mono text-right">{fmt(checkWithdraw)}</td>
-                <td className="px-4 py-2 font-black text-black font-mono text-right border-2 border-blue-600">
-                  {fmt(checkDiferent)}
-                </td>
-              </tr>
-            </tbody>
           </table>
         </div>
       </div>
