@@ -120,6 +120,9 @@ const emptyForm = (date: string) => ({
   extraBanks: [] as { bankName: string; checkNo: string; micr: boolean }[],
 });
 
+/** 📅 v1.4.55: ফিল্টার বাটনের সংক্ষিপ্ত তারিখ — "18-09" */
+const shortDM = (iso: string) => (iso ? `${iso.slice(8, 10)}-${iso.slice(5, 7)}` : "");
+
 export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
   const baseDate = selectedDate || todayISO();
 
@@ -140,6 +143,11 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
   const [retPage, setRetPage] = useState(1);
   /** v1.4.48: সার্চ ফলাফলের ফুল-স্ক্রিন কার্ড ভিউ */
   const [viewOpen, setViewOpen] = useState(false);
+  /** 📅 v1.4.55: তারিখ হতে তারিখ ফিল্টার (সার্চের পাশের বাটন) */
+  const [dateRange, setDateRange] = useState<{ from: string; to: string } | null>(null);
+  const [rangeOpen, setRangeOpen] = useState(false);
+  const [rangeFrom, setRangeFrom] = useState("");
+  const [rangeTo, setRangeTo] = useState("");
   /** v1.4.49: 🔁 রি-ইস্যু পপআপ — কোন এন্ট্রিটি রি-ইস্যু হচ্ছে + তার ফর্ম */
   const [reissueFor, setReissueFor] = useState<CheckEntry | null>(null);
   const [rForm, setRForm] = useState(emptyForm(todayISO()));
@@ -467,6 +475,15 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
     [entries, search]
   );
 
+  /** 📅 v1.4.55: তারিখ হতে তারিখ — সার্চ ফলাফলের উপর প্রয়োগ হয় (দুই প্রান্তই অন্তর্ভুক্ত) */
+  const rangedFiltered = useMemo(
+    () =>
+      dateRange
+        ? filtered.filter((e) => e.checkDate >= dateRange.from && e.checkDate <= dateRange.to)
+        : filtered,
+    [filtered, dateRange]
+  );
+
   /** ফর্মে লেখা মেম্বার কোডের সেভ করা চেক এন্ট্রি — সার্চ করলেই এডিট/ডিলিট করা যাবে */
   const memberEntries = useMemo(() => {
     const key = normCode(form.memberCode);
@@ -477,11 +494,32 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
   useEffect(() => {
     setPage(1);
     setRetPage(1);
-  }, [search]);
+  }, [search, dateRange]);
+
+  /** 📅 তারিখ ফিল্টার প্রয়োগ — এক প্রান্ত খালি থাকলে সেই দিনটিই; উল্টো দিলে অটো-সয়াপ */
+  const applyDateRange = () => {
+    if (!rangeFrom && !rangeTo) {
+      setStatus({ kind: "warn", text: "কমপক্ষে একটি তারিখ লিখুন (হতে বা পর্যন্ত)।" });
+      return;
+    }
+    let from = rangeFrom || rangeTo;
+    let to = rangeTo || rangeFrom;
+    if (from > to) [from, to] = [to, from];
+    setDateRange({ from, to });
+    setRangeOpen(false);
+  };
+
+  /** 📅 তারিখ ফিল্টার মুছে ফেলা — পুরো তালিকা ফেরত */
+  const clearDateRange = () => {
+    setDateRange(null);
+    setRangeFrom("");
+    setRangeTo("");
+    setRangeOpen(false);
+  };
 
   /* v1.4.47: একই সার্চ-ফিল্টার করা তালিকা Return টিক অনুযায়ী দুই টেবিলে ভাগ হয় */
-  const listFiltered = useMemo(() => filtered.filter((e) => !e.returned), [filtered]);
-  const returnFiltered = useMemo(() => filtered.filter((e) => Boolean(e.returned)), [filtered]);
+  const listFiltered = useMemo(() => rangedFiltered.filter((e) => !e.returned), [rangedFiltered]);
+  const returnFiltered = useMemo(() => rangedFiltered.filter((e) => Boolean(e.returned)), [rangedFiltered]);
   const returnedCount = entries.reduce((n, e) => n + (e.returned ? 1 : 0), 0);
   const totalPages = Math.max(1, Math.ceil(listFiltered.length / PAGE_SIZE));
   const pageRows = listFiltered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
@@ -1335,19 +1373,20 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
             <span className="rounded-lg border border-amber-300 bg-amber-50 px-2 py-1 text-amber-800">
               ↩ Return: <span className="font-mono">{returnedCount.toLocaleString("en-IN")}</span>
             </span>
-            {search && (
+            {(search || dateRange) && (
               <span className="rounded-lg border border-blue-200 bg-blue-50 px-2 py-1 text-blue-800">
-                ফিল্টার: <span className="font-mono">{filtered.length}</span>
+                ফিল্টার: <span className="font-mono">{rangedFiltered.length}</span>
               </span>
             )}
           </div>
         </div>
 
-        {/* Search box */}
-        <div className="relative mb-3">
-          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
-            🔍
-          </span>
+        {/* Search box + 📅 তারিখ হতে তারিখ ফিল্টার — একই লাইনে (v1.4.55) */}
+        <div className="mb-3 flex items-stretch gap-2">
+          <div className="relative min-w-0 flex-1">
+            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+              🔍
+            </span>
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -1355,14 +1394,14 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
             className="w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-10 pr-28 text-sm font-semibold text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
             autoComplete="off"
           />
-          {search.trim() && filtered.length > 0 && (
+          {(search.trim() || dateRange) && rangedFiltered.length > 0 && (
             <button
               type="button"
               onClick={() => setViewOpen(true)}
               title="মিলে যাওয়া এন্ট্রিগুলো কার্ড আকারে ফুল স্ক্রিনে দেখুন — এডিট/ডিলিট/Return সহ"
               className="absolute right-11 top-1/2 -translate-y-1/2 whitespace-nowrap rounded-lg border border-blue-300 bg-blue-50 px-2 py-1 text-[11px] font-black text-blue-700 transition hover:bg-blue-100 cursor-pointer"
             >
-              👁 View ({filtered.length})
+              👁 View ({rangedFiltered.length})
             </button>
           )}
           {search && (
@@ -1374,6 +1413,75 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
               ✕
             </button>
           )}
+          </div>
+          {/* 📅 তারিখ হতে তারিখ ফিল্টার বাটন + পপ-আপ (v1.4.55) */}
+          <div className="relative shrink-0">
+            <button
+              type="button"
+              onClick={() => {
+                setRangeFrom(dateRange?.from || "");
+                setRangeTo(dateRange?.to || "");
+                setRangeOpen((v) => !v);
+              }}
+              title="তারিখ হতে তারিখ ফিল্টার — নির্দিষ্ট সীমার চেক এন্ট্রি দেখুন"
+              className={`flex h-full cursor-pointer items-center gap-1 whitespace-nowrap rounded-xl border px-3 py-2 text-[11px] font-black transition ${
+                dateRange
+                  ? "border-sky-600 bg-sky-600 text-white shadow"
+                  : "border-slate-300 bg-white text-slate-700 hover:border-sky-400 hover:text-sky-700"
+              }`}
+            >
+              📅 {dateRange ? `${shortDM(dateRange.from)} → ${shortDM(dateRange.to)}` : "তারিখ"}
+            </button>
+            {rangeOpen && (
+              <div className="absolute right-0 top-full z-40 mt-1.5 w-64 rounded-2xl border border-slate-200 bg-white p-3 shadow-2xl">
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="text-xs font-black text-slate-800">📅 তারিখ হতে তারিখ</span>
+                  <button
+                    type="button"
+                    onClick={() => setRangeOpen(false)}
+                    className="rounded px-1.5 text-sm font-black text-slate-400 hover:text-slate-700"
+                  >
+                    ✕
+                  </button>
+                </div>
+                <div className="mb-2">
+                  <label className="mb-1 block text-[10px] font-black text-slate-600">হতে</label>
+                  <DatePicker
+                    value={rangeFrom}
+                    onChange={setRangeFrom}
+                    manualEntry
+                    className="px-2.5 py-1.5 text-xs"
+                  />
+                </div>
+                <div className="mb-3">
+                  <label className="mb-1 block text-[10px] font-black text-slate-600">পর্যন্ত</label>
+                  <DatePicker
+                    value={rangeTo}
+                    onChange={setRangeTo}
+                    manualEntry
+                    className="px-2.5 py-1.5 text-xs"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={applyDateRange}
+                    className="flex-1 rounded-lg bg-emerald-600 px-3 py-1.5 text-[11px] font-black text-white transition hover:bg-emerald-700"
+                  >
+                    ✔ প্রয়োগ
+                  </button>
+                  <button
+                    type="button"
+                    onClick={clearDateRange}
+                    disabled={!dateRange && !rangeFrom && !rangeTo}
+                    className="rounded-lg bg-rose-50 px-3 py-1.5 text-[11px] font-black text-rose-700 transition hover:bg-rose-100 disabled:opacity-40"
+                  >
+                    ✕ মুছুন
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Table */}
@@ -1541,7 +1649,7 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
 
             {/* Cards — অ্যাডাপটিভ গ্রিড, এক পৃষ্ঠায়, স্ক্রলিং নেই */}
             <div className="min-h-0 flex-1 overflow-hidden p-2 sm:p-3">
-              {filtered.length === 0 ? (
+              {rangedFiltered.length === 0 ? (
                 <div className="flex h-full items-center justify-center text-sm font-bold text-slate-500">
                   কোনো এন্ট্রি নেই
                 </div>
@@ -1550,12 +1658,12 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
                   className="grid h-full gap-2 sm:gap-2.5"
                   style={{
                     gridTemplateColumns: `repeat(${
-                      filtered.length <= 1 ? 1 : filtered.length <= 4 ? 2 : filtered.length <= 9 ? 3 : 4
+                      rangedFiltered.length <= 1 ? 1 : rangedFiltered.length <= 4 ? 2 : rangedFiltered.length <= 9 ? 3 : 4
                     }, minmax(0, 1fr))`,
                     gridAutoRows: "minmax(0, 1fr)",
                   }}
                 >
-                  {filtered.map((row) => {
+                  {rangedFiltered.map((row) => {
                     const rowLocked = isDayClosed(row.checkDate);
                     return (
                       <div

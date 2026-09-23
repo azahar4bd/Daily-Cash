@@ -224,6 +224,11 @@ export default function DatePicker({
             onChange={(e) => {
               const digits = e.target.value.replace(/\D/g, "").slice(0, 6);
               setManualText(formatDMY(digits));
+              // v1.4.55: ঘর পুরো খালি করলে মানও খালি হয়ে যাবে (আগে আগের মানই থেকে যেত)
+              if (!digits) {
+                onChange("");
+                return;
+              }
               const iso = parseDMY(digits);
               if (iso) onChange(iso);
             }}
