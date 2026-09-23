@@ -471,7 +471,8 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
                   if (e.key === "Enter") (e.target as HTMLInputElement).blur();
                 }}
                 className={inputCls}
-                inputMode="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
                 autoComplete="off"
               />
               {matchInfo !== "idle" && (
@@ -535,7 +536,8 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
                 const v = e.target.value;
                 if (/^-?\d*\.?\d*$/.test(v)) setForm((f) => ({ ...f, disbursse: v }));
               }}
-              inputMode="decimal"
+              inputMode="numeric"
+              pattern="[0-9]*"
               className={`${inputCls} text-right font-mono`}
               autoComplete="off"
             />
