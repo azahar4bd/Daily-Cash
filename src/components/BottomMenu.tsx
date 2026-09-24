@@ -196,7 +196,7 @@ export default function BottomMenu({
       <button
         type="button"
         onClick={() => setThreeLineMenuOpen(!threeLineMenuOpen)}
-        className="fixed bottom-20 right-3 z-50 flex h-12 w-12 cursor-pointer flex-col items-center justify-center gap-1 rounded-full border-2 border-amber-400/70 bg-slate-800 shadow-xl shadow-slate-950/40 transition hover:bg-slate-700 active:scale-95 lg:hidden"
+        className="fixed bottom-20 right-3 z-30 flex h-12 w-12 cursor-pointer flex-col items-center justify-center gap-1 rounded-full border-2 border-amber-400/70 bg-slate-800 shadow-xl shadow-slate-950/40 transition hover:bg-slate-700 active:scale-95 lg:hidden"
         title={`Open menu — current: ${activePage.label}`}
         aria-label={`Open menu (${activePage.label})`}
       >
