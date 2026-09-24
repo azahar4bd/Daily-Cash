@@ -898,14 +898,14 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
     "w-full rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-900";
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 lg:mx-auto lg:max-w-5xl xl:max-w-6xl 2xl:max-w-7xl lg:space-y-3.5">
       {/* ══════════════ ENTRY FORM ══════════════ */}
       <div
         ref={formRef}
-        className="rounded-2xl border border-slate-200 border-t-4 border-t-indigo-500 bg-white p-4 shadow-sm sm:p-5"
+        className="rounded-2xl border border-slate-200 border-t-4 border-t-indigo-500 bg-white p-4 shadow-sm sm:p-4 lg:p-3.5"
       >
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-3">
-          <h1 className="flex flex-wrap items-center gap-2 text-lg font-black text-slate-900 sm:text-xl">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-3 sm:mb-3 sm:pb-2">
+          <h1 className="flex flex-wrap items-center gap-2 text-lg font-black text-slate-900 sm:text-lg">
             <span>🧾</span>
             <span>Check Entry</span>
             {dayClosed && (
@@ -1360,7 +1360,7 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
       </div>
 
       {/* ══════════════ SEARCH + TABLE ══════════════ */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-4 lg:p-3.5">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-base font-black text-slate-900 sm:text-lg">🧾 Check List</h2>
           <div className="flex flex-wrap items-center gap-2 text-[11px] font-bold text-slate-600">
@@ -1528,7 +1528,7 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
       </div>
 
       {/* ══════════════ ↩ RETURN TABLE — চেক লিস্টের ঠিক নিচে, হুবহু একই গঠন ══════════════ */}
-      <div className="mt-5 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+      <div className="mt-5 lg:mt-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-4 lg:p-3.5">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-base font-black text-slate-900 sm:text-lg">↩ Return Table</h2>
           <div className="flex flex-wrap items-center gap-2 text-[11px] font-bold text-slate-600">
