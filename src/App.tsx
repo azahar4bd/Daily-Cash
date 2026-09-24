@@ -16,7 +16,7 @@ import DayCloseModal from "./components/DayCloseModal";
 import { todayISO } from "./components/DatePicker";
 import { initNeonSync } from "./lib/neonSync";
 import { seedMemberDatabase } from "./lib/memberDb";
-import { forceFreshReload, APP_VERSION } from "./lib/version";
+import { forceFreshReload, dismissUpdateToast, APP_VERSION } from "./lib/version";
 import AuthScreen from "./components/AuthScreen";
 import { setBranch } from "./lib/branchScope";
 import { isDefaultBranch } from "./lib/branchScope";
@@ -216,7 +216,7 @@ export default function App() {
             </button>
             <button
               type="button"
-              onClick={() => setUpdateReady(false)}
+              onClick={() => { dismissUpdateToast(); setUpdateReady(false); }}
               className="text-slate-400 hover:text-white text-sm font-bold px-1 cursor-pointer"
             >
               ✕

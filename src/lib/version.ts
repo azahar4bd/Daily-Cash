@@ -2,7 +2,7 @@
  * App version + hard cache-busting guard.
  * পুরনো Service Worker ক্যাশে যাতে কখনো পুরনো ভার্সন না দেখায়।
  */
-export const APP_VERSION = "1.4.66";
+export const APP_VERSION = "1.4.67";
 
 async function clearAllCachesAndSW() {
   try {
@@ -17,6 +17,16 @@ async function clearAllCachesAndSW() {
   } catch (e) {
     console.warn("[version] clear failed", e);
   }
+}
+
+/** ✕ দিয়ে বন্ধ করলে এই সেশনে ঐ সার্ভার-ভার্সনের জন্য টোস্ট আর দেখাবে না */
+const DISMISS_KEY = "gobra_update_dismissed_for";
+let lastServerVersion = "";
+
+export function dismissUpdateToast() {
+  try {
+    if (lastServerVersion) sessionStorage.setItem(DISMISS_KEY, lastServerVersion);
+  } catch {}
 }
 
 export async function forceFreshReload() {
@@ -36,6 +46,10 @@ export function installVersionGuard(onUpdateFound: () => void) {
       if (!res.ok) return;
       const data = await res.json();
       if (data && data.version && data.version !== APP_VERSION) {
+        lastServerVersion = data.version;
+        try {
+          if (sessionStorage.getItem(DISMISS_KEY) === data.version) return; // ইউজার ✕ দিয়েছে
+        } catch {}
         onUpdateFound();
       }
     } catch {}
@@ -77,6 +91,7 @@ export function installVersionGuard(onUpdateFound: () => void) {
       if (!res.ok) return;
       const data = await res.json();
       if (data && data.version && data.version !== APP_VERSION) {
+        lastServerVersion = data.version;
         sessionStorage.setItem(FLAG, "1");
         await forceFreshReload();
       }
