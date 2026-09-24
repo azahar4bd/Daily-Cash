@@ -188,30 +188,22 @@ export default function BottomMenu({
               ))}
             </div>
 
-            {/* Mobile Three-Line Menu Button (থ্রি লাইন মেনু ☰)
-                ছোট ফোনেও অন্তত প্রথম ৩ অক্ষর সবসময় দেখা যাবে */}
-            <button
-              type="button"
-              onClick={() => setThreeLineMenuOpen(!threeLineMenuOpen)}
-              className="lg:hidden flex shrink-0 items-center gap-1 rounded-xl bg-slate-800 hover:bg-slate-700 active:bg-slate-600 border border-slate-700 px-2 py-1.5 text-xs font-black text-white transition shadow-sm cursor-pointer"
-              title={`Open menu — current: ${activePage.label}`}
-              aria-label={`Open menu (${activePage.label})`}
-            >
-              <div className="flex w-3 flex-col gap-0.5 items-center justify-center">
-                <span className="block h-0.5 w-3 bg-amber-400 rounded-full"></span>
-                <span className="block h-0.5 w-3 bg-amber-400 rounded-full"></span>
-                <span className="block h-0.5 w-3 bg-amber-400 rounded-full"></span>
-              </div>
-              <span className="xs:hidden text-amber-400 font-black text-[11px] tracking-tight">
-                {activePage.label.slice(0, 3)}
-              </span>
-              <span className="hidden xs:inline text-amber-400 font-bold truncate max-w-[52px] sm:max-w-[72px]">
-                {activePage.label}
-              </span>
-            </button>
           </div>
         </div>
       </nav>
+
+      {/* v1.4.66: মোবাইল মেনু বাটন — নিচে ডান কোণায় ফ্লোটিং FAB (ন্যাভ-বারে জায়গা দখল করে না) */}
+      <button
+        type="button"
+        onClick={() => setThreeLineMenuOpen(!threeLineMenuOpen)}
+        className="fixed bottom-20 right-3 z-50 flex h-12 w-12 cursor-pointer flex-col items-center justify-center gap-1 rounded-full border-2 border-amber-400/70 bg-slate-800 shadow-xl shadow-slate-950/40 transition hover:bg-slate-700 active:scale-95 lg:hidden"
+        title={`Open menu — current: ${activePage.label}`}
+        aria-label={`Open menu (${activePage.label})`}
+      >
+        <span className="block h-0.5 w-5 rounded-full bg-amber-400"></span>
+        <span className="block h-0.5 w-5 rounded-full bg-amber-400"></span>
+        <span className="block h-0.5 w-5 rounded-full bg-amber-400"></span>
+      </button>
 
       {/* ========================================================================= */}
       {/* THREE-LINE HAMBURGER SLIDE-UP DRAWER (থ্রি লাইন মেনু প্যানেল)             */}

@@ -925,7 +925,7 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
 
   const inputCls =
     "w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200";
-  const labelCls = "mb-1 block text-[11px] font-black uppercase tracking-wide text-slate-600";
+  const labelCls = "mb-1 block h-[24px] truncate leading-[24px] text-[11px] font-black uppercase tracking-wide text-slate-600"; // v1.4.66: সব লেবেল-সারি সমানউচ্চ — ঘর এলোমেলো দেখাবে না
   const readOnlyCls =
     "w-full rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-900";
 
@@ -974,8 +974,8 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
           </div>
 
           <div>
-            <div className="mb-1 flex items-center justify-between gap-2">
-              <label className={`${labelCls} mb-0`}>Member Code (মেম্বার কোড)</label>
+            <div className="mb-1 flex h-[24px] items-center justify-between gap-2">
+              <label className={`${labelCls} !mb-0`}>Member Code (মেম্বার কোড)</label>
               <button
                 type="button"
                 onClick={() => setDbBrowseOpen(true)}
@@ -1016,8 +1016,8 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
           </div>
 
           <div>
-            <div className="mb-1 flex items-center justify-between gap-2">
-              <label className={`${labelCls} mb-0`}>Bank Name (ব্যাংকের নাম)</label>
+            <div className="mb-1 flex h-[24px] items-center justify-between gap-2">
+              <label className={`${labelCls} !mb-0`}>Bank Name (ব্যাংকের নাম)</label>
               {/* v1.4.65: এই ＋ শুধু অতিরিক্ত জোড়া না থাকলে — যোগ হলে ＋ সর্বশেষ জোড়ার উপরে সরে যায় */}
               {form.extraBanks.length === 0 && (
               <button
@@ -1039,8 +1039,8 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
           </div>
 
           <div>
-            <div className="mb-1 flex items-center justify-between gap-2">
-              <label className={`${labelCls} mb-0`}>Check No.</label>
+            <div className="mb-1 flex h-[24px] items-center justify-between gap-2">
+              <label className={`${labelCls} !mb-0`}>Check No.</label>
               <label
                 data-micr-toggle="main"
                 onMouseDown={(e) => {
@@ -1098,7 +1098,7 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
           </div>
 
           <div>
-            <label className="mb-1 block text-[11px] font-black tracking-wide text-slate-600">
+            <label className="mb-1 block h-[24px] truncate leading-[24px] text-[11px] font-black tracking-wide text-slate-600">
               project
             </label>
             <SearchSelect
@@ -1146,7 +1146,7 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
                   />
                 </div>
                 <div>
-                  <div className="mb-1 flex items-center justify-between gap-2">
+                  <div className="mb-1 flex h-[24px] items-center justify-between gap-2">
                     <span className="block text-[10px] font-black tracking-wide text-emerald-800">
                       চেক নম্বর #{bi + 2}
                     </span>
@@ -1659,10 +1659,10 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
               <div className="flex min-w-0 items-center gap-2">
                 <span className="text-xl">👁</span>
                 <div className="min-w-0">
-                  <h3 className="truncate text-sm font-black text-slate-900">
+                  <h3 className="truncate text-base font-black text-slate-900">
                     সার্চ ফলাফল — “{search}”
                   </h3>
-                  <p className="text-[10px] font-bold text-slate-500">
+                  <p className="text-xs font-bold text-slate-500">
                     {filtered.length}টি এন্ট্রি • চেক লিস্ট: {listFiltered.length} • Return:{" "}
                     {returnFiltered.length}
                   </p>
@@ -1704,19 +1704,19 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
                       >
                         <div className="flex shrink-0 items-start justify-between gap-1">
                           <div className="min-w-0">
-                            <p className="truncate text-xs font-black text-indigo-700">
+                            <p className="truncate text-sm font-black text-indigo-700 sm:text-base">
                               {row.memberCode}
                               {row.foundInDb === false && (
-                                <span className="ml-1 rounded bg-amber-100 px-1 text-[8px] font-black text-amber-800">
+                                <span className="ml-1 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-black text-amber-800">
                                   NEW
                                 </span>
                               )}
                             </p>
-                            <p className="truncate text-[11px] font-bold text-slate-900">{row.memberName}</p>
+                            <p className="truncate text-sm font-bold text-slate-900">{row.memberName}</p>
                           </div>
                           <div className="flex shrink-0 items-center gap-1">
                             {row.returned && (
-                              <span className="rounded border border-amber-400 bg-amber-100 px-1.5 py-0.5 text-[9px] font-black text-amber-800">
+                              <span className="rounded border border-amber-400 bg-amber-100 px-1.5 py-0.5 text-[11px] font-black text-amber-800">
                                 ↩ RETURN
                               </span>
                             )}
@@ -1727,7 +1727,7 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
                             )}
                           </div>
                         </div>
-                        <div className="mt-1 min-h-0 flex-1 space-y-0.5 overflow-hidden text-[10px] font-semibold text-slate-600">
+                        <div className="mt-1.5 min-h-0 flex-1 space-y-1 overflow-hidden text-[13px] font-semibold text-slate-600">
                           <p className="truncate">
                             📅 {formatDisplay(row.checkDate) || row.checkDate} • {row.centreCode} — {row.centreName}
                           </p>
@@ -1736,7 +1736,7 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
                               🏦 {b.bankName || "—"} •{" "}
                               <span className="font-mono font-black text-slate-900">#{b.checkNo || "—"}</span>{" "}
                               <span
-                                className={`rounded border px-1 text-[8px] font-black ${
+                                className={`rounded border px-1.5 py-0.5 text-[10px] font-black ${
                                   b.micr
                                     ? "border-emerald-300 bg-emerald-100 text-emerald-800"
                                     : "border-slate-300 bg-slate-100 text-slate-600"
@@ -1765,7 +1765,7 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
                         </div>
                         <div className="mt-1.5 flex shrink-0 items-center justify-between gap-1">
                           <label
-                            className={`flex items-center gap-1 rounded-lg border px-1.5 py-1 text-[10px] font-black ${
+                            className={`flex items-center gap-1.5 rounded-lg border px-2 py-1 text-xs font-black ${
                               row.returned
                                 ? "border-amber-400 bg-amber-100 text-amber-900"
                                 : "border-slate-300 bg-slate-100 text-slate-700"
@@ -1984,7 +1984,7 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
                 </div>
 
                 <div>
-                  <label className="mb-1 block text-[11px] font-black tracking-wide text-slate-600">
+                  <label className="mb-1 block h-[24px] truncate leading-[24px] text-[11px] font-black tracking-wide text-slate-600">
                     project
                   </label>
                   <SearchSelect
@@ -2034,7 +2034,7 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
                         />
                       </div>
                       <div>
-                        <div className="mb-1 flex items-center justify-between gap-2">
+                        <div className="mb-1 flex h-[24px] items-center justify-between gap-2">
                           <span className="block text-[10px] font-black tracking-wide text-emerald-800">
                             নতুন চেক নম্বর #{bi + 2}
                           </span>
