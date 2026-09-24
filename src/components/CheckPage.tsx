@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import DatePicker, { todayISO } from "./DatePicker";
 import {
   findMemberByCode,
@@ -1018,6 +1018,8 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
           <div>
             <div className="mb-1 flex items-center justify-between gap-2">
               <label className={`${labelCls} mb-0`}>Bank Name (ব্যাংকের নাম)</label>
+              {/* v1.4.65: এই ＋ শুধু অতিরিক্ত জোড়া না থাকলে — যোগ হলে ＋ সর্বশেষ জোড়ার উপরে সরে যায় */}
+              {form.extraBanks.length === 0 && (
               <button
                 type="button"
                 onClick={addBankPair}
@@ -1026,6 +1028,7 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
               >
                 ＋
               </button>
+              )}
             </div>
             <BankNameInput
               value={form.bankName}
@@ -1113,10 +1116,23 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
         {form.extraBanks.length > 0 && (
           <div className="mt-3 space-y-2">
             {form.extraBanks.map((b, bi) => (
-              <div
-                key={bi}
-                className="grid grid-cols-1 items-end gap-2 rounded-xl border border-emerald-300 bg-emerald-50/60 p-2 sm:grid-cols-[1fr_1fr_auto]"
-              >
+              <Fragment key={bi}>
+                {/* v1.4.65: ＋ আইকন সবসময় সর্বশেষ যোগ-হওয়া জোড়ার ঠিক উপরে; ব্যাংক-নাম ও চেক-নং মোবাইলেও এক লাইনে */}
+                {bi === form.extraBanks.length - 1 && (
+                  <div className="mb-1 flex justify-end">
+                    <button
+                      type="button"
+                      onClick={addBankPair}
+                      title="আরেকটি ব্যাংক + চেক নম্বর যোগ করুন (টেবিলে এক সারিতেই থাকবে)"
+                      className="flex h-6 w-7 cursor-pointer items-center justify-center rounded-md border border-emerald-400 bg-emerald-100 text-sm font-black text-emerald-800 transition hover:bg-emerald-200"
+                    >
+                      ＋
+                    </button>
+                  </div>
+                )}
+                <div
+                  className="grid grid-cols-[1fr_1fr_auto] items-end gap-2 rounded-xl border border-emerald-300 bg-emerald-50/60 p-2"
+                >
                 <div>
                   <span className="mb-1 block text-[10px] font-black tracking-wide text-emerald-800">
                     ব্যাংক #{bi + 2}
@@ -1171,7 +1187,8 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
                 >
                   ✕
                 </button>
-              </div>
+                </div>
+              </Fragment>
             ))}
           </div>
         )}
