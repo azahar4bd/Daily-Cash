@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { suggestBanks, type BankName } from "@/lib/banks";
 
 /**
@@ -25,17 +25,9 @@ export default function BankNameInput({
 
   const items = useMemo(() => suggestBanks(value, extras), [value, extras]);
 
-  useEffect(() => {
-    const onDocDown = (e: MouseEvent | TouchEvent) => {
-      if (boxRef.current && !boxRef.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener("mousedown", onDocDown);
-    document.addEventListener("touchstart", onDocDown);
-    return () => {
-      document.removeEventListener("mousedown", onDocDown);
-      document.removeEventListener("touchstart", onDocDown);
-    };
-  }, []);
+  /* v1.4.64: বাইরতল টাচ/স্ক্রলে সাজেস্ট হারে না — আগে ডকুমেন্ট-লেভেল
+     mousedown/touchstart শুনে বন্ধ হতো। এখন শুধু বাছাই (pick) / পিসিতে Esc-এ বন্ধ হয়,
+     টাইপ করলে/ফোকাসে আবার খোলে — সব মসৃণ। */
 
   const pick = (b: BankName, lang: "en" | "bn") => {
     onChange(lang === "bn" ? b.bn : b.en);

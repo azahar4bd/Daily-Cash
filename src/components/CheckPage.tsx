@@ -162,6 +162,38 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
   const checkNoRef = useRef<HTMLInputElement | null>(null);
   const micrFocusRef = useRef(false);
 
+  // v1.4.64: MICR ঘরে টাচ — নেটিভ (নন-প্যাসিভ) লিসেনারে চুপ টগল।
+  // React-এর রুট-লিসেনার প্যাসিভ, তাই onTouchStart-এ preventDefault কাজ করে নি —
+  // এ কারণেই টিক দিতে গেলে ফোকাস সরে কীবোর্ড হারাত। এখন ডিফল্ট বন্ধ → ট্যাপে ফোকাস
+  // বদলায় না, কীবোর্ড হারায় না/আসেও না — কোনো প্রতিক্রিয়া নেই। (পিসিতে ক্লিক/মাউস আগের মতোই)
+  useEffect(() => {
+    const root = formRef.current;
+    if (!root) return;
+    const onNativeTouch = (e: Event) => {
+      const el = (e.target as HTMLElement | null)?.closest?.("[data-micr-toggle]") as
+        | HTMLElement
+        | null;
+      if (!el) return;
+      e.preventDefault();
+      const key = el.getAttribute("data-micr-toggle");
+      if (key === "main") {
+        setForm((f) => ({ ...f, micr: !Boolean(f.micr) }));
+      } else {
+        const bi = Number(key);
+        if (Number.isInteger(bi)) {
+          setForm((f) => ({
+            ...f,
+            extraBanks: f.extraBanks.map((x, xi) =>
+              xi === bi ? { ...x, micr: !Boolean(x.micr) } : x
+            ),
+          }));
+        }
+      }
+    };
+    root.addEventListener("touchstart", onNativeTouch, { passive: false });
+    return () => root.removeEventListener("touchstart", onNativeTouch);
+  }, []);
+
   const dayClosed = isDayClosed(form.checkDate);
   const blocked = isIntermediateBlockedDate(form.checkDate);
 
@@ -1007,9 +1039,7 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
             <div className="mb-1 flex items-center justify-between gap-2">
               <label className={`${labelCls} mb-0`}>Check No.</label>
               <label
-                onTouchStart={() => {
-                  micrFocusRef.current = document.activeElement === checkNoRef.current;
-                }}
+                data-micr-toggle="main"
                 onMouseDown={(e) => {
                   if (document.activeElement === checkNoRef.current) micrFocusRef.current = true;
                   e.preventDefault();
@@ -1106,6 +1136,8 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
                     </span>
                     {/* v1.4.50: প্রতি ব্যাংক জোড়ার নিজস্ব MICR চেকবক্স — চেক নম্বরের ঠিক উপরে */}
                     <label
+                      data-micr-toggle={String(bi)}
+                      onMouseDown={(e) => e.preventDefault()}
                       className="flex cursor-pointer select-none items-center gap-1 rounded-md border border-emerald-300 bg-emerald-50 px-1.5 py-0.5 text-[9px] font-black text-emerald-800 transition hover:bg-emerald-100"
                       title="টিক দিলে এই চেকটি MICR, টিক না দিলে NON MICR"
                     >
