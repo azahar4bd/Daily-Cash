@@ -929,8 +929,8 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
           </span>
         </div>
 
-        {/* Step 1 — date + member code */}
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {/* Step 1 — মোবাইলে ২ ঘর প্রতি লাইনে: তারিখ+মেম্বার | ব্যাংক+চেকনং | ডিসবার্স+প্রকল্প (v1.4.63) */}
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-2 sm:gap-3 lg:grid-cols-4">
           <div>
             <label className={labelCls}>Date (তারিখ)</label>
             <DatePicker
