@@ -521,8 +521,8 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
   const listFiltered = useMemo(() => rangedFiltered.filter((e) => !e.returned), [rangedFiltered]);
   const returnFiltered = useMemo(() => rangedFiltered.filter((e) => Boolean(e.returned)), [rangedFiltered]);
   const returnedCount = entries.reduce((n, e) => n + (e.returned ? 1 : 0), 0);
-  const totalPages = Math.max(1, Math.ceil(listFiltered.length / PAGE_SIZE));
-  const pageRows = listFiltered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  // v1.4.60: চেক লিস্টে পেজ সিস্টেম বাদ — সব এন্ট্রি একসাথে; max-h স্ক্রল-উইন্ডোতে সব দেখা যায়
+  const pageRows = listFiltered;
   const retTotalPages = Math.max(1, Math.ceil(returnFiltered.length / PAGE_SIZE));
   const retPageRows = returnFiltered.slice((retPage - 1) * PAGE_SIZE, retPage * PAGE_SIZE);
 
@@ -1510,38 +1510,19 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
                     </td>
                   </tr>
                 ) : (
-                  pageRows.map((row, i) => renderCheckRow(row, (page - 1) * PAGE_SIZE + i + 1, i))
+                  pageRows.map((row, i) => renderCheckRow(row, i + 1, i))
                 )}
               </tbody>
             </table>
           </div>
         </div>
 
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-            <span className="text-[11px] font-bold text-slate-600">
-              পেজ <span className="font-mono">{page}</span> / <span className="font-mono">{totalPages}</span> —{" "}
-              মোট <span className="font-mono">{listFiltered.length}</span> রেকর্ড
+        {/* v1.4.60: পেজিনেশন বাদ — মোট রেকর্ড-সংখ্যা + স্ক্রল-ইঙ্গিত */}
+        {listFiltered.length > 0 && (
+          <div className="mt-3 flex items-center justify-center">
+            <span className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-[11px] font-bold text-slate-600">
+              মোট <span className="font-mono">{listFiltered.length}</span> টি চেক — ↕ স্ক্রল করে সব এন্ট্রি দেখুন
             </span>
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page === 1}
-                className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 transition hover:bg-slate-100 disabled:opacity-40"
-              >
-                ‹ আগের
-              </button>
-              <button
-                type="button"
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                disabled={page === totalPages}
-                className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 transition hover:bg-slate-100 disabled:opacity-40"
-              >
-                পরের ›
-              </button>
-            </div>
           </div>
         )}
       </div>
