@@ -733,11 +733,11 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
           zebra % 2 ? "bg-slate-50/70" : "bg-white"
         } hover:bg-blue-50/60`}
       >
-        <td className="px-3 py-2 font-mono text-[11px] font-bold text-slate-500">{sr}</td>
-        <td className="whitespace-nowrap px-3 py-2 font-mono text-xs font-bold text-slate-800">
+        <td className="px-2 py-1.5 font-mono text-[11px] font-bold text-slate-500">{sr}</td>
+        <td className="whitespace-nowrap px-2 py-1.5 font-mono text-xs font-bold text-slate-800">
           {formatDisplay(row.checkDate) || row.checkDate}
         </td>
-        <td className="whitespace-nowrap px-3 py-2 font-mono text-xs font-black text-indigo-700">
+        <td className="whitespace-nowrap px-2 py-1.5 font-mono text-xs font-black text-indigo-700">
           {row.memberCode}
           {row.foundInDb === false && (
             <span
@@ -748,19 +748,19 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
             </span>
           )}
         </td>
-        <td className="px-3 py-2 text-xs font-semibold text-slate-900">{row.memberName}</td>
-        <td className="whitespace-nowrap px-3 py-2 font-mono text-xs font-bold text-slate-700">
+        <td className="px-2 py-1.5 text-xs font-semibold text-slate-900">{row.memberName}</td>
+        <td className="whitespace-nowrap px-2 py-1.5 font-mono text-xs font-bold text-slate-700">
           {row.centreCode}
         </td>
-        <td className="px-3 py-2 text-xs font-semibold text-slate-900">{row.centreName}</td>
-        <td className="px-3 py-2 text-xs font-semibold text-slate-800">
+        <td className="px-2 py-1.5 text-xs font-semibold text-slate-900">{row.centreName}</td>
+        <td className="px-2 py-1.5 text-xs font-semibold text-slate-800">
           <div className="flex flex-col gap-0.5">
             {allBankPairs(row).map((b, bi) => (
               <span key={bi}>{b.bankName || "—"}</span>
             ))}
           </div>
         </td>
-        <td className="px-3 py-2 font-mono text-xs font-black text-slate-900">
+        <td className="px-2 py-1.5 font-mono text-xs font-black text-slate-900">
           <div className="flex flex-col gap-0.5">
             {allBankPairs(row).map((b, bi) => (
               <span key={bi} className="whitespace-nowrap">
@@ -786,7 +786,7 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
             </span>
           )}
         </td>
-        <td className="whitespace-nowrap px-3 py-2 text-center">
+        <td className="whitespace-nowrap px-2 py-1.5 text-center">
           {/* v1.4.50: প্রতি ব্যাংক-জোড়ার নিজস্ব MICR ব্যাজ — ব্যাংক/চেক নম্বরের স্ট্যাকের সাথে মিল রেখে */}
           <div className="flex flex-col items-center gap-0.5">
             {allBankPairs(row).map((b, bi) =>
@@ -808,21 +808,21 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
             )}
           </div>
         </td>
-        <td className="whitespace-nowrap px-3 py-2 text-right font-mono text-xs font-black text-slate-900">
+        <td className="whitespace-nowrap px-2 py-1.5 text-right font-mono text-xs font-black text-slate-900">
           {row.disbursse ? (
             fmtAmt(row.disbursse)
           ) : (
             <span className="text-slate-300">—</span>
           )}
         </td>
-        <td className="px-3 py-2 text-xs font-semibold text-slate-800">
+        <td className="px-2 py-1.5 text-xs font-semibold text-slate-800">
           {row.project ? (
             <span className="uppercase">{String(row.project).trim().toUpperCase()}</span>
           ) : (
             <span className="text-slate-300">—</span>
           )}
         </td>
-        <td className="whitespace-nowrap px-3 py-2 text-center">
+        <td className="whitespace-nowrap px-2 py-1.5 text-center">
           <input
             type="checkbox"
             checked={Boolean(row.returned)}
@@ -838,7 +838,7 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
             className="h-4 w-4 cursor-pointer accent-amber-600 disabled:cursor-not-allowed disabled:opacity-40"
           />
         </td>
-        <td className="whitespace-nowrap px-3 py-2">
+        <td className="whitespace-nowrap px-2 py-1.5">
           <div className="flex items-center gap-1">
             {rowLocked && (
               <span
@@ -1486,14 +1486,14 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
 
         {/* Table */}
         <div className="overflow-hidden rounded-xl border border-slate-200">
-          <div className="max-h-[60vh] overflow-auto">
-            <table className="w-full min-w-[1180px] border-collapse text-sm">
+          <div className="max-h-[80vh] overflow-auto">
+            <table className="w-full min-w-[980px] border-collapse text-sm">
               <thead className="sticky top-0 z-10 bg-slate-800 text-white">
                 <tr>
                   {TABLE_HEADERS.map((h) => (
                     <th
                       key={h}
-                      className="whitespace-nowrap border-r border-slate-700 px-3 py-2.5 text-left text-[11px] font-black uppercase tracking-wide last:border-r-0"
+                      className="whitespace-nowrap border-r border-slate-700 px-2 py-2 text-left text-[11px] font-black uppercase tracking-wide last:border-r-0"
                     >
                       {h}
                     </th>
@@ -1542,14 +1542,14 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
         </div>
 
         <div className="overflow-hidden rounded-xl border border-slate-200">
-          <div className="max-h-[60vh] overflow-auto">
-            <table className="w-full min-w-[1180px] border-collapse text-sm">
+          <div className="max-h-[80vh] overflow-auto">
+            <table className="w-full min-w-[980px] border-collapse text-sm">
               <thead className="sticky top-0 z-10 bg-slate-800 text-white">
                 <tr>
                   {TABLE_HEADERS.map((h) => (
                     <th
                       key={h}
-                      className="whitespace-nowrap border-r border-slate-700 px-3 py-2.5 text-left text-[11px] font-black uppercase tracking-wide last:border-r-0"
+                      className="whitespace-nowrap border-r border-slate-700 px-2 py-2 text-left text-[11px] font-black uppercase tracking-wide last:border-r-0"
                     >
                       {h}
                     </th>
