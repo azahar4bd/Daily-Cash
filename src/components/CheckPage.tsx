@@ -58,11 +58,11 @@ const TABLE_HEADERS = [
 ];
 
 /** v1.4.48: এন্ট্রির সব ব্যাংক/চেক নম্বরের জোড়া — প্রথম জোড়া মূল ঘর থেকে, বাকিগুলো extraBanks থেকে */
-const allBankPairs = (e: CheckEntry): { bankName: string; checkNo: string; micr: boolean }[] => {
-  const list = [{ bankName: e.bankName || "", checkNo: e.checkNo || "", micr: e.micr === true }];
+const allBankPairs = (e: CheckEntry): { bankName: string; checkNo: string; micr: boolean; accountNo?: string; accountType?: string }[] => {
+  const list = [{ bankName: e.bankName || "", checkNo: e.checkNo || "", micr: e.micr === true, accountNo: e.accountNo || "", accountType: e.accountType || "" }];
   for (const b of e.extraBanks || []) {
     if (b && ((b.bankName || "").trim() || (b.checkNo || "").trim())) {
-      list.push({ bankName: b.bankName || "", checkNo: b.checkNo || "", micr: b.micr === true });
+      list.push({ bankName: b.bankName || "", checkNo: b.checkNo || "", micr: b.micr === true, accountNo: b.accountNo || "", accountType: b.accountType || "" });
     }
   }
   return list;
@@ -307,6 +307,8 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
         bankName: (b.bankName || "").trim(),
         checkNo: (b.checkNo || "").trim(),
         micr: Boolean(b.micr),
+        accountNo: (b.accountNo || "").trim(),
+        accountType: b.accountType || "",
       }))
       .filter((b) => b.bankName || b.checkNo);
     for (let i = 0; i < cleanExtras.length; i++) {
@@ -415,6 +417,8 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
         bankName: b?.bankName || "",
         checkNo: b?.checkNo || "",
         micr: b?.micr === true,
+        accountNo: b?.accountNo || "",
+        accountType: b?.accountType || "",
       })),
     });
     // ডাটাবেজে আছে কি না যাচাই
@@ -582,8 +586,8 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
 
   /* v1.4.48: একাধিক ব্যাংক + চেক নম্বরের জোড়া — ＋ বাটনে যোগ, ✕ বাটনে বাদ */
   const addBankPair = () =>
-    setForm((f) => ({ ...f, extraBanks: [...f.extraBanks, { bankName: "", checkNo: "", micr: false }] }));
-  const updateExtraBank = (i: number, key: "bankName" | "checkNo" | "micr", v: string | boolean) =>
+    setForm((f) => ({ ...f, extraBanks: [...f.extraBanks, { bankName: "", checkNo: "", micr: false, accountNo: "", accountType: "" }] }));
+  const updateExtraBank = (i: number, key: "bankName" | "checkNo" | "micr" | "accountNo" | "accountType", v: string | boolean) =>
     setForm((f) => ({
       ...f,
       extraBanks: f.extraBanks.map((b, bi) => (bi === i ? { ...b, [key]: v } : b)),
@@ -611,7 +615,7 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
       // একাধিক ব্যাংক থাকলে ব্যাংকের নামগুলো থেকে যাবে, চেক নম্বর ফাঁকা (নতুন নম্বর লাগবে)
       extraBanks: (row.extraBanks || [])
         .filter((b) => (b?.bankName || "").trim() || (b?.checkNo || "").trim())
-        .map((b) => ({ bankName: b?.bankName || "", checkNo: "", micr: b?.micr === true })),
+        .map((b) => ({ bankName: b?.bankName || "", checkNo: "", micr: b?.micr === true, accountNo: b?.accountNo || "", accountType: b?.accountType || "" })),
     });
     const m = findMemberByCode(row.memberCode);
     setRMatchInfo(m ? "found" : "notfound");
@@ -643,7 +647,7 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
   };
 
   const addRBankPair = () =>
-    setRForm((f) => ({ ...f, extraBanks: [...f.extraBanks, { bankName: "", checkNo: "", micr: false }] }));
+    setRForm((f) => ({ ...f, extraBanks: [...f.extraBanks, { bankName: "", checkNo: "", micr: false, accountNo: "", accountType: "" }] }));
   const updateRExtraBank = (i: number, key: "bankName" | "checkNo" | "micr", v: string | boolean) =>
     setRForm((f) => ({
       ...f,
@@ -686,6 +690,8 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
         bankName: (b.bankName || "").trim(),
         checkNo: (b.checkNo || "").trim(),
         micr: Boolean(b.micr),
+        accountNo: (b.accountNo || "").trim(),
+        accountType: b.accountType || "",
       }))
       .filter((b) => b.bankName || b.checkNo);
     for (let i = 0; i < cleanExtras.length; i++) {
@@ -859,21 +865,29 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
             <span className="text-slate-300">—</span>
           )}
         </td>
-        {/* 🏦 v1.4.74: হিসাব নং + ক্যাটাগরি ব্যাজ — পুরনো এন্ট্রিতে ফাঁকা (—) */}
+        {/* 🏦 v1.4.74/75: হিসাব নং + ক্যাটাগরি — ব্যাংক-জোড়ার স্ট্যাকের সাথে মিলিয়ে; পুরনো এন্ট্রিতে ফাঁকা (—) */}
         <td className="whitespace-nowrap px-2 py-1.5">
-          {row.accountNo ? (
+          {allBankPairs(row).some((b) => b.accountNo || b.accountType) ? (
             <div className="flex flex-col gap-0.5">
-              <span className="font-mono text-xs font-black text-slate-900">{row.accountNo}</span>
-              {row.accountType && (
-                <span
-                  className={`w-max rounded px-1 py-0.5 text-[9px] font-black ${
-                    row.accountType === "মেম্বার"
-                      ? "bg-indigo-100 text-indigo-800"
-                      : "bg-teal-100 text-teal-800"
-                  }`}
-                >
-                  {row.accountType}
-                </span>
+              {allBankPairs(row).map((b, bi) =>
+                b.accountNo || b.accountType ? (
+                  <span key={bi} className="inline-flex items-center gap-1">
+                    <span className="font-mono text-xs font-black text-slate-900">
+                      {b.accountNo || "—"}
+                    </span>
+                    {b.accountType && (
+                      <span
+                        className={`rounded px-1 py-0.5 text-[9px] font-black ${
+                          b.accountType === "মেম্বার"
+                            ? "bg-indigo-100 text-indigo-800"
+                            : "bg-teal-100 text-teal-800"
+                        }`}
+                      >
+                        {b.accountType}
+                      </span>
+                    )}
+                  </span>
+                ) : null
               )}
             </div>
           ) : (
@@ -1242,6 +1256,39 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
                 >
                   ✕
                 </button>
+                {/* 🏦 v1.4.75: এই জোড়ার নিজস্ব হিসাব নং + ক্যাটাগরি */}
+                <div className="col-span-3 grid grid-cols-2 gap-2 border-t border-emerald-200/70 pt-2">
+                  <div>
+                    <span className="mb-1 block text-[10px] font-black tracking-wide text-emerald-800">
+                      হিসাব নং #{bi + 2}
+                    </span>
+                    <input
+                      value={b.accountNo || ""}
+                      onChange={(e) => updateExtraBank(bi, "accountNo", e.target.value)}
+                      className={inputCls}
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      placeholder="অ্যাকাউন্ট নম্বর"
+                      autoComplete="off"
+                    />
+                  </div>
+                  <div>
+                    <span className="mb-1 block text-[10px] font-black tracking-wide text-emerald-800">
+                      ক্যাটাগরি #{bi + 2}
+                    </span>
+                    <select
+                      value={b.accountType || ""}
+                      onChange={(e) => updateExtraBank(bi, "accountType", e.target.value)}
+                      className={`${inputCls} cursor-pointer`}
+                      title="হিসাবটি কার — মেম্বার নাকি জামিনদার"
+                    >
+                      <option value="">-- Select --</option>
+                      <option value="মেম্বার">মেম্বার</option>
+                      <option value="জামিনদার-১">জামিনদার-১</option>
+                      <option value="জামিনদার-২">জামিনদার-২</option>
+                    </select>
+                  </div>
+                </div>
                 </div>
               </Fragment>
             ))}

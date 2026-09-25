@@ -44,7 +44,7 @@ export type CheckEntry = {
    * প্রথম ব্যাংক/চেক নম্বর bankName/checkNo-তেই থাকে; টেবিলে এক সারিতেই দেখায়।
    * v1.4.50: প্রতি জোড়ার নিজস্ব MICR টিক (micr) — প্রথম জোড়ারটি এন্ট্রির micr ফিল্ডে।
    */
-  extraBanks?: { bankName: string; checkNo: string; micr?: boolean }[];
+  extraBanks?: { bankName: string; checkNo: string; micr?: boolean; accountNo?: string; accountType?: string }[];
   /**
    * 🔁 রি-ইস্যু লিংক (v1.4.49):
    * • `reissuedTo` — পুরনো এন্ট্রিতে বসে: চেকটি রি-ইস্যু হয়েছে (নতুন এন্ট্রির আইডি, রি-ইস্যুর তারিখ, নতুন চেক নম্বর)
