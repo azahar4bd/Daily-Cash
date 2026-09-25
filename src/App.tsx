@@ -169,8 +169,9 @@ export default function App() {
         </div>
 
         {/* ⭐ SINGLE WORKING-DAY CONTROL PLACE (Day Open + Day Close together)
-            ক্যাশবুক পেজে কোনো Open/Close কন্ট্রোল নেই — শুধু এখানেই। */}
-        {currentTab !== "cashbook" && (
+            ক্যাশবুক পেজে কোনো Open/Close কন্ট্রোল নেই — শুধু এখানেই।
+            v1.4.72: 🎉 Entertainment সম্পূর্ণ স্বতন্ত্র পেজ — কোনো Day Open/Closed ব্যানারও দেখাবে না */}
+        {currentTab !== "cashbook" && currentTab !== "entertainment" && (
           <div className="print:hidden">
             <DayStateBanner
               selectedDate={selectedDate}
