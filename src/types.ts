@@ -76,6 +76,8 @@ export type Cat = {
   id: number;
   type: string;
   name: string;
+  /** v1.4.79: Manager-এর ↑↓ দিয়ে সাজানো ইউজারের নিজের ক্রম (১ থেকে); পুরনো ডেটায় অনুপস্থিত */
+  sortOrder?: number;
 };
 
 export type ScRate = {

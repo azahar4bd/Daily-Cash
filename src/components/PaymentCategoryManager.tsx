@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { titleCase } from "@/lib/categories";
 import type { Cat } from "@/types";
-import { addCategory, updateCategory, deleteCategory } from "@/lib/storage";
+import { addCategory, updateCategory, deleteCategory, moveCategory } from "@/lib/storage";
 
 export default function PaymentCategoryManager({
   disburseCats,
@@ -46,6 +46,12 @@ export default function PaymentCategoryManager({
   const del = (id: number) => {
     if (!confirm("Delete this category?")) return;
     deleteCategory(id);
+    onChanged();
+  };
+
+  // v1.4.79: চালু ট্যাবের ভেতরে ↑↓ সাজানো (ড্রপডাউনেও এই ক্রমই আসবে)
+  const move = (id: number, dir: -1 | 1) => {
+    moveCategory(activeTab, id, dir);
     onChanged();
   };
 
@@ -120,11 +126,12 @@ export default function PaymentCategoryManager({
             </button>
           </div>
           {err && <p className="mt-1 text-xs text-rose-600 font-semibold">{err}</p>}
-          <ul className="mt-4 max-h-64 divide-y rounded-xl border border-slate-200 overflow-auto">
+          <p className="mt-3 text-[11px] font-semibold text-slate-400">↑↓ চেপে ক্যাটাগরি নিজের মতো সাজান — ড্রপডাউনেও এই ক্রমই আসবে</p>
+          <ul className="mt-1 max-h-64 divide-y rounded-xl border border-slate-200 overflow-auto">
             {currentCats.length === 0 ? (
               <li className="px-3 py-6 text-center text-xs text-slate-400">No categories</li>
             ) : (
-              currentCats.map((c) => (
+              currentCats.map((c, cIdx) => (
                 <li key={c.id} className="flex items-center gap-2 px-3 py-2 hover:bg-slate-50">
                   {editId === c.id ? (
                     <>
@@ -145,6 +152,26 @@ export default function PaymentCategoryManager({
                   ) : (
                     <>
                       <span className="flex-1 text-sm font-semibold text-slate-800">{titleCase(c.name)}</span>
+                      <span className="flex items-center gap-0.5 shrink-0">
+                        <button
+                          type="button"
+                          title="এক ঘর উপরে"
+                          disabled={cIdx === 0}
+                          onClick={() => move(c.id, -1)}
+                          className="rounded-md bg-slate-200 px-1.5 py-1 text-xs font-black text-slate-700 hover:bg-slate-300 disabled:opacity-30 disabled:cursor-not-allowed"
+                        >
+                          ↑
+                        </button>
+                        <button
+                          type="button"
+                          title="এক ঘর নিচে"
+                          disabled={cIdx === currentCats.length - 1}
+                          onClick={() => move(c.id, 1)}
+                          className="rounded-md bg-slate-200 px-1.5 py-1 text-xs font-black text-slate-700 hover:bg-slate-300 disabled:opacity-30 disabled:cursor-not-allowed"
+                        >
+                          ↓
+                        </button>
+                      </span>
                       <button
                         type="button"
                         onClick={() => {

@@ -8,6 +8,7 @@ import {
   fetchCategoriesFromNeon,
   upsertCategoryInNeon,
   deleteCategoryFromNeon,
+  updateCategoryOrderInNeon,
   fetchScRatesFromNeon,
   upsertScRateInNeon,
   deleteScRateFromNeon,
@@ -72,7 +73,7 @@ interface SyncQueueItem {
   type:
     | "tx" | "tx_del" | "sr" | "sr_del" | "cat" | "cat_del" | "sc" | "sc_del"
     | "subcat" | "subcat_del" | "kallyan" | "day_close" | "day_reopen" | "day_open" | "setting"
-    | "check" | "check_del" | "member" | "member_dirty" | "member_del" | "member_clear";
+    | "check" | "check_del" | "member" | "member_dirty" | "member_del" | "member_clear" | "cat_order";
   payload: any;
 }
 
@@ -131,6 +132,19 @@ export async function flushNeonQueue(): Promise<void> {
         await upsertCategoryInNeon(item.payload);
       } else if (item.type === "cat_del") {
         await deleteCategoryFromNeon(item.payload);
+      } else if (item.type === "cat_order") {
+        // স্থানীয় সর্বশেষ ক্রমটাই ক্লাউডে পুশ — শেষ মুভটাই জেতে
+        const t = String(item.payload?.type || "");
+        let orderIds: number[] = [];
+        try {
+          const rawC = localStorage.getItem(CAT_KEY);
+          const list: Cat[] = rawC ? JSON.parse(rawC) : [];
+          orderIds = list
+            .filter((c) => c.type === t)
+            .sort((a, b) => (a.sortOrder ?? 9e9) - (b.sortOrder ?? 9e9))
+            .map((c) => Number(c.id));
+        } catch {}
+        if (orderIds.length) await updateCategoryOrderInNeon(t, orderIds);
       } else if (item.type === "sc") {
         await upsertScRateInNeon(item.payload);
       } else if (item.type === "sc_del") {

@@ -385,7 +385,12 @@ export function getCategories(type: string): Cat[] {
       localStorage.setItem(CAT_KEY, JSON.stringify(initial));
       all = initial;
     }
-    return all.filter((c) => c.type === type);
+    const typed = all.filter((c) => c.type === type);
+    // v1.4.79: sortOrder থাকলে সেই ক্রমে (ইউজারের ↑↓ সাজানো); না থাকলে আগের সন্নিবেশ-ক্রমই থাকে
+    if (typed.some((c) => c.sortOrder != null)) {
+      typed.sort((a, b) => (a.sortOrder ?? 9e9) - (b.sortOrder ?? 9e9));
+    }
+    return typed;
   } catch {
     return (DEFAULT_CATEGORIES[type] || []).map((name, i) => ({
       id: i + 1,
@@ -399,7 +404,10 @@ export function addCategory(type: string, name: string): Cat {
   const raw = localStorage.getItem(CAT_KEY);
   const all: Cat[] = raw ? JSON.parse(raw) : [];
   const clean = name.trim().toLowerCase();
-  const newCat: Cat = { id: Date.now(), type, name: clean };
+  const maxSo = all
+    .filter((c) => c.type === type)
+    .reduce((m, c) => Math.max(m, c.sortOrder ?? 0), 0);
+  const newCat: Cat = { id: Date.now(), type, name: clean, sortOrder: maxSo + 1 };
   all.push(newCat);
   localStorage.setItem(CAT_KEY, JSON.stringify(all));
   enqueueNeonAction({ type: "cat", payload: newCat });
@@ -428,6 +436,29 @@ export function deleteCategory(id: number): void {
   localStorage.setItem(CAT_KEY, JSON.stringify(filtered));
   enqueueNeonAction({ type: "cat_del", payload: id });
   window.dispatchEvent(new CustomEvent("categories-changed", { detail: { action: "delete", id } }));
+}
+
+/**
+ * v1.4.79: একই টাইপের ভেতরে ক্যাটাগরিকে এক ঘর উপরে/নিচে (dir: -1 = উপরে, +1 = নিচে)।
+ * Manager-এর ↑↓ বাটন থেকে ডাকা হয়; মাত্র দুটোর অবস্থান বদলায়, বাকিদের অক্ষত রাখে।
+ */
+export function moveCategory(type: string, id: number, dir: -1 | 1): void {
+  const seq = getCategories(type);
+  const i = seq.findIndex((c) => c.id === id);
+  const j = i + dir;
+  if (i < 0 || j < 0 || j >= seq.length) return; // প্রান্তের বাইরে নয়
+  const t = seq[i];
+  seq[i] = seq[j];
+  seq[j] = t;
+  const raw = localStorage.getItem(CAT_KEY);
+  const all: Cat[] = raw ? JSON.parse(raw) : [];
+  seq.forEach((c, k) => {
+    const g = all.find((x) => x.id === c.id);
+    if (g) g.sortOrder = k + 1;
+  });
+  localStorage.setItem(CAT_KEY, JSON.stringify(all));
+  enqueueNeonAction({ type: "cat_order", payload: { type } });
+  window.dispatchEvent(new CustomEvent("categories-changed", { detail: { action: "reorder", type } }));
 }
 
 export const DEFAULT_SC_RATES: ScRate[] = [

@@ -49,9 +49,8 @@ export default function PaymentCategoryDropdown({
         map.set(key, c);
       }
     });
-    return Array.from(map.values()).sort((a, b) =>
-      a.name.localeCompare(b.name, "bn", { sensitivity: "base" })
-    );
+    // v1.4.79: আর বর্ণক্রমে সাজাই না — আগে Disburse তারপর Expense, ভেতরে Manager-এর ↑↓ ক্রম
+    return Array.from(map.values());
   }, [disburseCats, expenseCats]);
 
   // v1.4.78: সার্চ বাদ — সবসময়ই পুরো তালিকা

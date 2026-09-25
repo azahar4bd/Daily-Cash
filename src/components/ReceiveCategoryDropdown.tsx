@@ -47,9 +47,8 @@ export default function ReceiveCategoryDropdown({
         names.add(name.trim().toLowerCase());
       }
     });
-    return Array.from(names).sort((a, b) =>
-      a.localeCompare(b, "bn", { sensitivity: "base" })
-    );
+    // v1.4.79: আর বর্ণক্রমে সাজাই না — Manager-এর ↑↓ ক্রমেই (storage-এর sortOrder) দেখাই
+    return Array.from(names);
   }, [cats]);
 
   // v1.4.78: সার্চ বাদ — সবসময়ই পুরো তালিকা

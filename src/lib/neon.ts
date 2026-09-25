@@ -210,11 +210,12 @@ export async function deleteStaffReportFromNeon(id: number | string): Promise<vo
  * Fetch categories from Neon
  */
 export async function fetchCategoriesFromNeon(): Promise<Cat[]> {
-  const rows = await sql`SELECT id, type, name FROM ${tbl("categories")} ORDER BY id ASC`;
+  const rows = await sql`SELECT id, type, name, sort_order FROM ${tbl("categories")} ORDER BY sort_order ASC NULLS LAST, id ASC`;
   return rows.map((r: any) => ({
     id: Number(r.id),
     type: r.type,
     name: r.name,
+    ...(r.sort_order != null ? { sortOrder: Number(r.sort_order) } : {}),
   }));
 }
 
@@ -223,12 +224,22 @@ export async function fetchCategoriesFromNeon(): Promise<Cat[]> {
  */
 export async function upsertCategoryInNeon(cat: Cat): Promise<void> {
   await sql`
-    INSERT INTO ${tbl("categories")} (id, type, name)
-    VALUES (${cat.id}, ${cat.type}, ${cat.name})
+    INSERT INTO ${tbl("categories")} AS c (id, type, name, sort_order)
+    VALUES (${cat.id}, ${cat.type}, ${cat.name}, ${cat.sortOrder ?? null})
     ON CONFLICT (id) DO UPDATE SET
       type = EXCLUDED.type,
-      name = EXCLUDED.name;
+      name = EXCLUDED.name,
+      sort_order = COALESCE(EXCLUDED.sort_order, c.sort_order);
   `;
+}
+
+/** v1.4.79: এক টাইপের ক্যাটাগরির পুরো ক্রম ক্লাউডে পুশ — ids ক্রমানুসারে sort_order 1..n */
+export async function updateCategoryOrderInNeon(type: string, ids: number[]): Promise<void> {
+  if (!ids.length) return;
+  const qs = ids.map(
+    (id, i) => sql`UPDATE ${tbl("categories")} SET sort_order = ${i + 1} WHERE id = ${id} AND type = ${type}`
+  );
+  await (sql as any).transaction(qs);
 }
 
 /**
@@ -618,7 +629,7 @@ const CORE_TABLES = [
  * ALTER সব ডিভাইসের স্কিমাতে একবার করে চালানোর জন্য। সব স্টেটমেন্ট idempotent
  * (IF NOT EXISTS), তাই পুরনো ডিভাইসেও আবার চালানো নিরাপদ।
  */
-const SCHEMA_FLAG_KEY = "gobra_neon_schema_ready_v5";
+const SCHEMA_FLAG_KEY = "gobra_neon_schema_ready_v6"; // v1.4.79: categories.sort_order
 
 /** প্রতিটি DDL আলাদা স্টেটমেন্ট (এক রিকোয়েস্টে একাধিক কমান্ড Postgres নেয় না) */
 const checkEntriesDdl = (sch: string): string[] => [
@@ -652,6 +663,11 @@ const checkEntriesDdl = (sch: string): string[] => [
   `ALTER TABLE "${sch}".check_entries ADD COLUMN IF NOT EXISTS account_type TEXT`,
   `CREATE INDEX IF NOT EXISTS check_entries_date_idx ON "${sch}".check_entries (check_date)`,
   `CREATE INDEX IF NOT EXISTS check_entries_member_idx ON "${sch}".check_entries (member_code)`,
+];
+
+/** v1.4.79: ক্যাটাগরির ইউজার-সাজানো ক্রম (পুরনো টেবিলে কলাম যোগ — idempotent) */
+const categoriesDdl = (sch: string): string[] => [
+  `ALTER TABLE "${sch}".categories ADD COLUMN IF NOT EXISTS sort_order INTEGER`,
 ];
 
 const membersDdl = (sch: string): string[] => [
@@ -690,7 +706,7 @@ export async function ensureBranchSchema(force = false): Promise<void> {
           stmts.push(`CREATE TABLE IF NOT EXISTS "${sch}"."${t}" (LIKE "public"."${t}" INCLUDING ALL)`);
         }
       }
-      stmts.push(...checkEntriesDdl(sch), ...membersDdl(sch));
+      stmts.push(...checkEntriesDdl(sch), ...membersDdl(sch), ...categoriesDdl(sch));
       // এক HTTP রিকোয়েস্টে সব DDL (ট্রানজেকশন অ্যারে)
       await (sql as any).transaction(stmts.map((q) => (sql as any).query(q)));
       try {

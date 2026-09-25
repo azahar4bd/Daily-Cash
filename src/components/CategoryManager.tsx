@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { titleCase } from "@/lib/categories";
 import type { Cat } from "@/types";
-import { addCategory, updateCategory, deleteCategory } from "@/lib/storage";
+import { addCategory, updateCategory, deleteCategory, moveCategory } from "@/lib/storage";
 
 export default function CategoryManager({
   type,
@@ -43,6 +43,12 @@ export default function CategoryManager({
     onChanged();
   };
 
+  // v1.4.79: ↑↓ দিয়ে নিজের ক্রমে সাজানো (ড্রপডাউনেও এই ক্রমই আসবে)
+  const move = (id: number, dir: -1 | 1) => {
+    moveCategory(type, id, dir);
+    onChanged();
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-3 sm:p-4">
       <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl overflow-hidden border border-slate-300">
@@ -69,8 +75,9 @@ export default function CategoryManager({
             </button>
           </div>
           {err && <p className="mt-1 text-xs text-rose-600 font-semibold">{err}</p>}
-          <ul className="mt-4 max-h-72 divide-y rounded-xl border border-slate-200 overflow-auto">
-            {cats.map((c) => (
+          <p className="mt-3 text-[11px] font-semibold text-slate-400">↑↓ চেপে ক্যাটাগরি নিজের মতো সাজান — ড্রপডাউনেও এই ক্রমই আসবে</p>
+          <ul className="mt-1 max-h-72 divide-y rounded-xl border border-slate-200 overflow-auto">
+            {cats.map((c, idx) => (
               <li key={c.id} className="flex items-center gap-2 px-3 py-2 hover:bg-slate-50">
                 {editId === c.id ? (
                   <>
@@ -91,6 +98,24 @@ export default function CategoryManager({
                 ) : (
                   <>
                     <span className="flex-1 text-sm font-semibold text-slate-800">{titleCase(c.name)}</span>
+                    <span className="flex items-center gap-0.5 shrink-0">
+                      <button
+                        title="এক ঘর উপরে"
+                        disabled={idx === 0}
+                        onClick={() => move(c.id, -1)}
+                        className="rounded-md bg-slate-200 px-1.5 py-1 text-xs font-black text-slate-700 hover:bg-slate-300 disabled:opacity-30 disabled:cursor-not-allowed"
+                      >
+                        ↑
+                      </button>
+                      <button
+                        title="এক ঘর নিচে"
+                        disabled={idx === cats.length - 1}
+                        onClick={() => move(c.id, 1)}
+                        className="rounded-md bg-slate-200 px-1.5 py-1 text-xs font-black text-slate-700 hover:bg-slate-300 disabled:opacity-30 disabled:cursor-not-allowed"
+                      >
+                        ↓
+                      </button>
+                    </span>
                     <button
                       onClick={() => {
                         setEditId(c.id);
