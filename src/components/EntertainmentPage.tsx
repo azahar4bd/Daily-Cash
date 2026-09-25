@@ -111,6 +111,16 @@ export default function EntertainmentPage() {
       .map(([ym, r]) => ({ ym, ...r, balance: r.deposit - r.expense }));
   }, [filtered]);
 
+  /** সামগ্রিক বর্তমান স্থিতি — ফিল্টার-নির্বিশেষে পুরো খাতার হিসাব (স্টিকি কার্ডে) */
+  const overall = useMemo(() => {
+    let j = 0, k = 0;
+    for (const e of entries) {
+      if (e.category === "জমা") j += Number(e.amount) || 0;
+      else k += Number(e.amount) || 0;
+    }
+    return { joma: j, khoroch: k, sthiti: j - k };
+  }, [entries]);
+
   const totals = useMemo(() => {
     let j = 0, k = 0;
     for (const e of filtered) {
@@ -127,6 +137,27 @@ export default function EntertainmentPage() {
 
   return (
     <div className="space-y-4">
+      {/* ══ 🎉 বর্তমান স্থিতি — সবসময় ভিজিবল স্টিকি কার্ড (v1.4.73; পুরো খাতার, ফিল্টার-নিরপেক্ষ) ══ */}
+      <div className="sticky top-2 z-30 rounded-2xl border-2 border-violet-300/80 bg-gradient-to-r from-violet-700 via-violet-600 to-indigo-600 px-4 py-3 shadow-xl">
+        <div className="flex items-center justify-between gap-2">
+          <div className="min-w-0">
+            <div className="text-[10px] font-black uppercase tracking-wider text-violet-200">🎉 বর্তমান স্থিতি</div>
+            <div className="truncate text-2xl font-black font-mono text-white">
+              {fmt(overall.sthiti)} <span className="text-sm font-bold text-violet-200">৳</span>
+            </div>
+          </div>
+          <div className="shrink-0 rounded-xl bg-white/15 px-2.5 py-1.5 text-right backdrop-blur-sm">
+            <div className="text-[10px] font-bold text-emerald-200">
+              জমা <span className="font-mono">{fmt(overall.joma)}</span>
+            </div>
+            <div className="text-[10px] font-bold text-rose-200">
+              খরচ <span className="font-mono">{fmt(overall.khoroch)}</span>
+            </div>
+            <div className="text-[9px] font-bold text-violet-200">{entries.length}টি এন্ট্রি</div>
+          </div>
+        </div>
+      </div>
+
       <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
         {/* হেডার */}
         <div className="mb-3 flex items-center justify-between border-b border-slate-100 pb-2.5">
