@@ -20,9 +20,7 @@ export default function PaymentCategoryDropdown({
   disabled = false,
 }: PaymentCategoryDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState("");
   const containerRef = useRef<HTMLDivElement>(null);
-  const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Close dropdown on click outside
   useEffect(() => {
@@ -40,16 +38,6 @@ export default function PaymentCategoryDropdown({
     };
   }, []);
 
-  // Focus search input when opened
-  useEffect(() => {
-    if (isOpen) {
-      setSearchTerm("");
-      setTimeout(() => {
-        searchInputRef.current?.focus();
-      }, 60);
-    }
-  }, [isOpen]);
-
   const normValue = (value || "").trim().toLowerCase();
 
   // Combine all categories into a single unified list without disburse / expense separation
@@ -66,11 +54,8 @@ export default function PaymentCategoryDropdown({
     );
   }, [disburseCats, expenseCats]);
 
-  const filteredCategories = useMemo(() => {
-    const q = searchTerm.trim().toLowerCase();
-    if (!q) return allCategories;
-    return allCategories.filter((c) => c.name.toLowerCase().includes(q));
-  }, [allCategories, searchTerm]);
+  // v1.4.78: সার্চ বাদ — সবসময়ই পুরো তালিকা
+  const filteredCategories = allCategories;
 
   const handleSelect = (catName: string) => {
     onChange(catName);
@@ -129,30 +114,14 @@ export default function PaymentCategoryDropdown({
       {isOpen && (
         <div className="absolute left-0 right-0 z-50 mt-1.5 rounded-2xl border border-slate-200 bg-white shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150 flex flex-col max-h-80">
           
-          {/* Header with Search */}
-          <div className="p-2.5 border-b border-slate-100 bg-slate-50 flex items-center gap-2 shrink-0">
-            <span className="text-slate-400 text-sm pl-1">🔍</span>
-            <input
-              ref={searchInputRef}
-              type="text"
-              placeholder="Search Category..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-transparent text-xs sm:text-sm font-semibold text-slate-800 placeholder-slate-400 focus:outline-none"
-            />
-            {searchTerm ? (
-              <button
-                type="button"
-                onClick={() => setSearchTerm("")}
-                className="text-slate-400 hover:text-slate-700 text-xs px-1.5 py-0.5 rounded-full hover:bg-slate-200 font-bold cursor-pointer transition"
-              >
-                ✕
-              </button>
-            ) : (
-              <span className="text-[10px] font-bold text-slate-400 bg-slate-200/70 px-1.5 py-0.5 rounded-md">
-                {allCategories.length}
-              </span>
-            )}
+          {/* v1.4.78: সার্চ বাদ — নিছক সিলেকশন হেডার */}
+          <div className="p-2.5 border-b border-slate-100 bg-slate-50 flex items-center justify-between gap-2 shrink-0">
+            <span className="pl-1 text-xs sm:text-sm font-bold text-slate-500">
+              📋 ক্যাটাগরি সিলেক্ট করুন
+            </span>
+            <span className="text-[10px] font-bold text-slate-400 bg-slate-200/70 px-1.5 py-0.5 rounded-md">
+              {allCategories.length}
+            </span>
           </div>
 
           {/* Unified Single List */}
