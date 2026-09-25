@@ -30,6 +30,8 @@ export default function SearchSelect({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const boxRef = useRef<HTMLDivElement | null>(null);
+  /** v1.4.77: ফোকাস জেসচারেই তালিকা খুললে ওই একই ক্লিকে আবার টগল হয়ে যায় না */
+  const justFocusedRef = useRef(false);
   const isCoarsePointer = useMemo(
     () =>
       typeof window !== "undefined" &&
@@ -70,8 +72,25 @@ export default function SearchSelect({
         disabled={disabled}
         onFocus={() => {
           if (disabled) return;
+          justFocusedRef.current = true;
           setOpen(true);
           setQuery("");
+        }}
+        onClick={() => {
+          if (disabled) return;
+          // এই ক্লিকেই ফোকাস হয়ে খুলেছে — আবার কিছু করা যাবে না
+          if (justFocusedRef.current) {
+            justFocusedRef.current = false;
+            return;
+          }
+          // সিলেক্টের পর ইনপুট ফোকাসেই থাকে — তখন ক্লিকেই তালিকা আবার খুলতে হবে (টগল)
+          if (!open) {
+            setOpen(true);
+            setQuery("");
+          } else if (silentKeyboard) {
+            // মোবাইল (রিড-অনলি) মোডে খোলা তালিকায় ক্লিক = বন্ধ (টগল)
+            setOpen(false);
+          }
         }}
         onChange={(e) => {
           setQuery(e.target.value);
