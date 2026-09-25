@@ -355,6 +355,34 @@ async function doSyncAllWithNeon(): Promise<{ success: boolean; message: string 
       console.warn("Failed to sync google_sheet_url:", e);
     }
 
+    /* ── ✅ 🎉 Entertainment সিংক (v1.4.71, app_settings KV যোগে) — id-ভিত্তিক ইউনিয়ন মার্জ; নতুন যোগ হারায় না ── */
+    try {
+      const ENT_KEY_L = "gobra_entertainment_entries";
+      const cloudRaw = await fetchAppSettingFromNeon("entertainment_entries");
+      if (cloudRaw) {
+        const cloudList: any[] = JSON.parse(cloudRaw);
+        const localRaw = localStorage.getItem(ENT_KEY_L);
+        const localList: any[] = localRaw ? JSON.parse(localRaw) : [];
+        const byId = new Map<string, any>();
+        for (const e of cloudList) byId.set(String(e?.id), e);
+        for (const e of localList) if (!byId.has(String(e?.id))) byId.set(String(e?.id), e);
+        const merged = [...byId.values()];
+        const key = (x: any) => `${x.date}|${x.id}`;
+        merged.sort((a: any, b: any) => String(key(b)).localeCompare(String(key(a))));
+        const mergedStr = JSON.stringify(merged);
+        const cloudSorted = JSON.stringify([...cloudList].sort((a: any, b: any) => String(key(b)).localeCompare(String(key(a)))));
+        if (mergedStr !== (localRaw || "[]")) {
+          localStorage.setItem(ENT_KEY_L, mergedStr);
+          window.dispatchEvent(new Event("entertainment-changed"));
+        }
+        if (mergedStr !== cloudSorted) {
+          enqueueNeonAction({ type: "setting", payload: { key: "entertainment_entries", value: mergedStr } });
+        }
+      }
+    } catch (e) {
+      console.warn("Entertainment sync failed:", e);
+    }
+
     /* ── ✅ চেক এন্ট্রি সিংক (ক্লাউড ↔ লোকাল মিলন; কোনো এন্ট্রি মুছে ফেলা হবে না) ── */
     try {
       const neonChecks: CheckEntry[] = await fetchCheckEntriesFromNeon();

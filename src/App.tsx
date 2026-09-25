@@ -3,6 +3,7 @@ import Dashboard from "./components/Dashboard";
 import ReceivePage from "./components/ReceivePage";
 import PaymentPage from "./components/PaymentPage";
 import RebatePage from "./components/RebatePage";
+import EntertainmentPage from "./components/EntertainmentPage";
 import StaffReportManager from "./components/StaffReportManager";
 import CashSheet from "./components/CashSheet";
 import CheckPage from "./components/CheckPage";
@@ -188,6 +189,7 @@ export default function App() {
         {/* Tab Content */}
         {currentTab === "receive" && <ReceivePage selectedDate={selectedDate} />}
         {currentTab === "payment" && <PaymentPage selectedDate={selectedDate} />}
+        {currentTab === "entertainment" && <EntertainmentPage />}
         {currentTab === "rebate" && <RebatePage />}
         {currentTab === "report" && <StaffReportManager selectedDate={selectedDate} />}
         {currentTab === "cashbook" && (
