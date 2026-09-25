@@ -618,7 +618,7 @@ const CORE_TABLES = [
  * ALTER সব ডিভাইসের স্কিমাতে একবার করে চালানোর জন্য। সব স্টেটমেন্ট idempotent
  * (IF NOT EXISTS), তাই পুরনো ডিভাইসেও আবার চালানো নিরাপদ।
  */
-const SCHEMA_FLAG_KEY = "gobra_neon_schema_ready_v4";
+const SCHEMA_FLAG_KEY = "gobra_neon_schema_ready_v5";
 
 /** প্রতিটি DDL আলাদা স্টেটমেন্ট (এক রিকোয়েস্টে একাধিক কমান্ড Postgres নেয় না) */
 const checkEntriesDdl = (sch: string): string[] => [
@@ -639,6 +639,8 @@ const checkEntriesDdl = (sch: string): string[] => [
     extra_banks TEXT,
     reissued_to TEXT,
     reissued_from TEXT,
+    account_no TEXT,
+    account_type TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
   )`,
@@ -646,6 +648,8 @@ const checkEntriesDdl = (sch: string): string[] => [
   `ALTER TABLE "${sch}".check_entries ADD COLUMN IF NOT EXISTS extra_banks TEXT`,
   `ALTER TABLE "${sch}".check_entries ADD COLUMN IF NOT EXISTS reissued_to TEXT`,
   `ALTER TABLE "${sch}".check_entries ADD COLUMN IF NOT EXISTS reissued_from TEXT`,
+  `ALTER TABLE "${sch}".check_entries ADD COLUMN IF NOT EXISTS account_no TEXT`,
+  `ALTER TABLE "${sch}".check_entries ADD COLUMN IF NOT EXISTS account_type TEXT`,
   `CREATE INDEX IF NOT EXISTS check_entries_date_idx ON "${sch}".check_entries (check_date)`,
   `CREATE INDEX IF NOT EXISTS check_entries_member_idx ON "${sch}".check_entries (member_code)`,
 ];
@@ -745,7 +749,7 @@ export async function fetchCheckEntriesFromNeon(): Promise<CheckEntry[]> {
     const rows: any = await sql`
       SELECT id, check_date, member_code, member_name, centre_code, centre_name,
              bank_name, check_no, disbursse, project, micr, found_in_db, returned, extra_banks,
-             reissued_to, reissued_from, created_at
+             reissued_to, reissued_from, account_no, account_type, created_at
       FROM ${tbl("check_entries")}
       ORDER BY check_date DESC, id DESC
     `;
@@ -766,6 +770,8 @@ export async function fetchCheckEntriesFromNeon(): Promise<CheckEntry[]> {
       extraBanks: parseExtraBanks(r.extra_banks),
       reissuedTo: parseReissueLink(r.reissued_to),
       reissuedFrom: parseReissueLink(r.reissued_from),
+      accountNo: r.account_no || "",
+      accountType: r.account_type || "",
       createdAt: r.created_at ? new Date(r.created_at).toISOString() : undefined,
     }));
   } catch (e) {
@@ -782,13 +788,14 @@ export async function upsertCheckEntryInNeon(e: CheckEntry): Promise<void> {
     INSERT INTO ${tbl("check_entries")}
       (id, check_date, member_code, member_name, centre_code, centre_name,
        bank_name, check_no, disbursse, project, micr, found_in_db, returned, extra_banks,
-       reissued_to, reissued_from, created_at, updated_at)
+       reissued_to, reissued_from, account_no, account_type, created_at, updated_at)
     VALUES (
       ${id}, ${e.checkDate || ""}, ${e.memberCode || ""}, ${e.memberName || ""},
       ${e.centreCode || ""}, ${e.centreName || ""}, ${e.bankName || ""}, ${e.checkNo || ""},
       ${e.disbursse || ""}, ${e.project || ""}, ${e.micr === true}, ${e.foundInDb === true}, ${e.returned === true},
       ${JSON.stringify(e.extraBanks || [])},
       ${e.reissuedTo ? JSON.stringify(e.reissuedTo) : ""}, ${e.reissuedFrom ? JSON.stringify(e.reissuedFrom) : ""},
+      ${e.accountNo || ""}, ${e.accountType || ""},
       ${e.createdAt ? new Date(e.createdAt).toISOString() : new Date().toISOString()}, NOW()
     )
     ON CONFLICT (id) DO UPDATE SET
@@ -807,6 +814,8 @@ export async function upsertCheckEntryInNeon(e: CheckEntry): Promise<void> {
       extra_banks = EXCLUDED.extra_banks,
       reissued_to = EXCLUDED.reissued_to,
       reissued_from = EXCLUDED.reissued_from,
+      account_no = EXCLUDED.account_no,
+      account_type = EXCLUDED.account_type,
       updated_at = NOW();
   `;
 }

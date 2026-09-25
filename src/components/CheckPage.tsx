@@ -52,6 +52,7 @@ const TABLE_HEADERS = [
   "MICR",
   "Disbursse",
   "Project",
+  "হিসাব নং",
   "Return",
   "Action",
 ];
@@ -407,6 +408,8 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
       checkNo: row.checkNo,
       disbursse: row.disbursse || "",
       project: (row.project || "").trim().toLowerCase(),
+      accountNo: row.accountNo || "",
+      accountType: row.accountType || "",
       micr: Boolean(row.micr),
       extraBanks: (row.extraBanks || []).map((b) => ({
         bankName: b?.bankName || "",
@@ -725,6 +728,8 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
       micr: Boolean(rForm.micr),
       extraBanks: cleanExtras,
       foundInDb: rMatchInfo === "found",
+      accountNo: orig.accountNo || "",
+      accountType: orig.accountType || "",
       reissuedFrom: {
         id: Number(orig.id),
         checkNo: orig.checkNo || "",
@@ -850,6 +855,27 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
         <td className="px-2 py-1.5 text-xs font-semibold text-slate-800">
           {row.project ? (
             <span className="uppercase">{String(row.project).trim().toUpperCase()}</span>
+          ) : (
+            <span className="text-slate-300">—</span>
+          )}
+        </td>
+        {/* 🏦 v1.4.74: হিসাব নং + ক্যাটাগরি ব্যাজ — পুরনো এন্ট্রিতে ফাঁকা (—) */}
+        <td className="whitespace-nowrap px-2 py-1.5">
+          {row.accountNo ? (
+            <div className="flex flex-col gap-0.5">
+              <span className="font-mono text-xs font-black text-slate-900">{row.accountNo}</span>
+              {row.accountType && (
+                <span
+                  className={`w-max rounded px-1 py-0.5 text-[9px] font-black ${
+                    row.accountType === "মেম্বার"
+                      ? "bg-indigo-100 text-indigo-800"
+                      : "bg-teal-100 text-teal-800"
+                  }`}
+                >
+                  {row.accountType}
+                </span>
+              )}
+            </div>
           ) : (
             <span className="text-slate-300">—</span>
           )}
@@ -1109,6 +1135,35 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
               className={`${inputCls} cursor-pointer uppercase`}
               noKeyboardOnMobile
             />
+          </div>
+
+          {/* 🏦 v1.4.74: হিসাব নং + ক্যাটাগরি (মেম্বার/জামিনদার-১/জামিনদার-২) — পাশাপাশি ঘর */}
+          <div>
+            <label className={labelCls}>হিসাব নং</label>
+            <input
+              value={form.accountNo}
+              onChange={(e) => setForm((f) => ({ ...f, accountNo: e.target.value }))}
+              className={inputCls}
+              inputMode="numeric"
+              pattern="[0-9]*"
+              autoComplete="off"
+              placeholder="অ্যাকাউন্ট নম্বর"
+            />
+          </div>
+
+          <div>
+            <label className={labelCls}>ক্যাটাগরি</label>
+            <select
+              value={form.accountType}
+              onChange={(e) => setForm((f) => ({ ...f, accountType: e.target.value }))}
+              className={`${inputCls} cursor-pointer`}
+              title="হিসাবটি কার — মেম্বার নাকি জামিনদার"
+            >
+              <option value="">-- Select --</option>
+              <option value="মেম্বার">মেম্বার</option>
+              <option value="জামিনদার-১">জামিনদার-১</option>
+              <option value="জামিনদার-২">জামিনদার-২</option>
+            </select>
           </div>
         </div>
 
@@ -1552,7 +1607,7 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
               <tbody>
                 {pageRows.length === 0 ? (
                   <tr>
-                    <td colSpan={13} className="px-4 py-10 text-center text-sm font-semibold text-slate-500">
+                    <td colSpan={14} className="px-4 py-10 text-center text-sm font-semibold text-slate-500">
                       {search
                         ? "🔍 এই অনুসন্ধানে চেক লিস্টে কোনো ডাটা পাওয়া যায়নি।"
                         : "এখনো কোনো চেক এন্ট্রি নেই — উপরের ফর্ম থেকে যোগ করুন।"}
@@ -1608,7 +1663,7 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
               <tbody>
                 {retPageRows.length === 0 ? (
                   <tr>
-                    <td colSpan={13} className="px-4 py-10 text-center text-sm font-semibold text-slate-500">
+                    <td colSpan={14} className="px-4 py-10 text-center text-sm font-semibold text-slate-500">
                       {search
                         ? "🔍 এই অনুসন্ধানে Return টেবিলে কোনো ডাটা পাওয়া যায়নি।"
                         : "Return টেবিলে কোনো এন্ট্রি নেই — চেক লিস্টের Return ঘরে টিক দিন।"}

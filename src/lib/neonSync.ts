@@ -585,6 +585,8 @@ function checkSignature(list: CheckEntry[]): string {
         String(e?.bankName || "").toLowerCase(),
         String(e?.checkNo || "").toLowerCase(),
         String(e?.project || "").toLowerCase(),
+        String(e?.accountNo || ""),
+        String(e?.accountType || ""),
         e?.micr === true ? "1" : "0",
       ].join("|")
     )
