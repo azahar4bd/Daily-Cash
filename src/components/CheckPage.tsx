@@ -40,6 +40,14 @@ const projectOpts = (extra?: string): { value: string; label: string }[] => {
 };
 
 /** v1.4.47: চেক লিস্ট ও Return টেবিল — দুই টেবিলের কলাম হুবহু এক; Return কলামটি Action-এর ঠিক আগে */
+/** 🏦 v1.4.76: ক্যাটাগরি অপশন — ছোট ড্রপডাউন প্যানেলে (নেটিভ ফুল-স্ক্রিন পিকার নয়) */
+const ACCOUNT_TYPE_OPTS = [
+  "মেম্বার",
+  "জামিনদার-১",
+  "জামিনদার-২",
+  { value: "", label: "— ফাঁকা —" },
+];
+
 const TABLE_HEADERS = [
   "Sr",
   "Date",
@@ -1167,17 +1175,15 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
 
           <div>
             <label className={labelCls}>ক্যাটাগরি</label>
-            <select
+            {/* v1.4.76: পুরা স্ক্রিন জুড়ে নেটিভ পপআপ নয় — ঘরের ঠিক নিচে ছোট প্যানেলে আসে */}
+            <SearchSelect
               value={form.accountType}
-              onChange={(e) => setForm((f) => ({ ...f, accountType: e.target.value }))}
+              onChange={(v) => setForm((f) => ({ ...f, accountType: v }))}
+              options={ACCOUNT_TYPE_OPTS}
+              placeholder="-- Select --"
               className={`${inputCls} cursor-pointer`}
-              title="হিসাবটি কার — মেম্বার নাকি জামিনদার"
-            >
-              <option value="">-- Select --</option>
-              <option value="মেম্বার">মেম্বার</option>
-              <option value="জামিনদার-১">জামিনদার-১</option>
-              <option value="জামিনদার-২">জামিনদার-২</option>
-            </select>
+              noKeyboardOnMobile
+            />
           </div>
         </div>
 
@@ -1276,17 +1282,15 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
                     <span className="mb-1 block text-[10px] font-black tracking-wide text-emerald-800">
                       ক্যাটাগরি #{bi + 2}
                     </span>
-                    <select
+                    {/* v1.4.76: জোড়ার ক্যাটাগরিও ছোট প্যানেলে */}
+                    <SearchSelect
                       value={b.accountType || ""}
-                      onChange={(e) => updateExtraBank(bi, "accountType", e.target.value)}
+                      onChange={(v) => updateExtraBank(bi, "accountType", v)}
+                      options={ACCOUNT_TYPE_OPTS}
+                      placeholder="-- Select --"
                       className={`${inputCls} cursor-pointer`}
-                      title="হিসাবটি কার — মেম্বার নাকি জামিনদার"
-                    >
-                      <option value="">-- Select --</option>
-                      <option value="মেম্বার">মেম্বার</option>
-                      <option value="জামিনদার-১">জামিনদার-১</option>
-                      <option value="জামিনদার-২">জামিনদার-২</option>
-                    </select>
+                      noKeyboardOnMobile
+                    />
                   </div>
                 </div>
                 </div>
