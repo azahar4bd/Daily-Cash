@@ -1102,6 +1102,33 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
             />
           </div>
 
+          {/* 🏦 v1.4.74/83: হিসাব নং + ক্যাটাগরি — চেক নং-এর ঠিক আগে (ব্যাংকের পরপরই) */}
+          <div>
+            <label className={labelCls}>হিসাব নং</label>
+            <input
+              value={form.accountNo}
+              onChange={(e) => setForm((f) => ({ ...f, accountNo: e.target.value }))}
+              className={inputCls}
+              inputMode="numeric"
+              pattern="[0-9]*"
+              autoComplete="off"
+              placeholder="অ্যাকাউন্ট নম্বর"
+            />
+          </div>
+
+          <div>
+            <label className={labelCls}>ক্যাটাগরি</label>
+            {/* v1.4.76: পুরা স্ক্রিন জুড়ে নেটিভ পপআপ নয় — ঘরের ঠিক নিচে ছোট প্যানেলে আসে */}
+            <SearchSelect
+              value={form.accountType}
+              onChange={(v) => setForm((f) => ({ ...f, accountType: v }))}
+              options={ACCOUNT_TYPE_OPTS}
+              placeholder="-- Select --"
+              className={`${inputCls} cursor-pointer`}
+              noKeyboardOnMobile
+            />
+          </div>
+
           <div>
             <div className="mb-1 flex h-[24px] items-center justify-between gap-2">
               <label className={`${labelCls} !mb-0`}>Check No.</label>
@@ -1175,32 +1202,6 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
             />
           </div>
 
-          {/* 🏦 v1.4.74: হিসাব নং + ক্যাটাগরি (মেম্বার/জামিনদার-১/জামিনদার-২) — পাশাপাশি ঘর */}
-          <div>
-            <label className={labelCls}>হিসাব নং</label>
-            <input
-              value={form.accountNo}
-              onChange={(e) => setForm((f) => ({ ...f, accountNo: e.target.value }))}
-              className={inputCls}
-              inputMode="numeric"
-              pattern="[0-9]*"
-              autoComplete="off"
-              placeholder="অ্যাকাউন্ট নম্বর"
-            />
-          </div>
-
-          <div>
-            <label className={labelCls}>ক্যাটাগরি</label>
-            {/* v1.4.76: পুরা স্ক্রিন জুড়ে নেটিভ পপআপ নয় — ঘরের ঠিক নিচে ছোট প্যানেলে আসে */}
-            <SearchSelect
-              value={form.accountType}
-              onChange={(v) => setForm((f) => ({ ...f, accountType: v }))}
-              options={ACCOUNT_TYPE_OPTS}
-              placeholder="-- Select --"
-              className={`${inputCls} cursor-pointer`}
-              noKeyboardOnMobile
-            />
-          </div>
         </div>
 
         {/* ══ v1.4.48: অতিরিক্ত ব্যাংক + চেক নম্বরের জোড়া — টেবিলে এক সারিতেই থাকবে ══ */}
@@ -1236,37 +1237,18 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
                     placeholder="Bank name"
                   />
                 </div>
+                {/* 🏦 v1.4.83: জোড়াতেও হিসাব নং ঘর চেক নং-এর আগে — ব্যাংকের পাশের ঘরেই */}
                 <div>
-                  <div className="mb-1 flex h-[24px] items-center justify-between gap-2">
-                    <span className="block text-[10px] font-black tracking-wide text-emerald-800">
-                      চেক নম্বর #{bi + 2}
-                    </span>
-                    {/* v1.4.50: প্রতি ব্যাংক জোড়ার নিজস্ব MICR চেকবক্স — চেক নম্বরের ঠিক উপরে */}
-                    <label
-                      data-micr-toggle={String(bi)}
-                      onMouseDown={(e) => e.preventDefault()}
-                      className="flex cursor-pointer select-none items-center gap-1 rounded-md border border-emerald-300 bg-emerald-50 px-1.5 py-0.5 text-[9px] font-black text-emerald-800 transition hover:bg-emerald-100"
-                      title="টিক দিলে এই চেকটি MICR, টিক না দিলে NON MICR"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={Boolean(b.micr)}
-                        onChange={(e) => updateExtraBank(bi, "micr", e.target.checked)}
-                        className="h-3.5 w-3.5 cursor-pointer accent-emerald-600"
-                      />
-                      <span>MICR</span>
-                      <span className="rounded bg-white px-1 text-[8px] font-black text-slate-500">
-                        {b.micr ? "MICR" : "NON MICR"}
-                      </span>
-                    </label>
-                  </div>
+                  <span className="mb-1 block text-[10px] font-black tracking-wide text-emerald-800">
+                    হিসাব নং #{bi + 2}
+                  </span>
                   <input
-                    value={b.checkNo}
-                    onChange={(e) => updateExtraBank(bi, "checkNo", e.target.value)}
+                    value={b.accountNo || ""}
+                    onChange={(e) => updateExtraBank(bi, "accountNo", e.target.value)}
                     className={inputCls}
                     inputMode="numeric"
                     pattern="[0-9]*"
-                    placeholder="Check No."
+                    placeholder="অ্যাকাউন্ট নম্বর"
                     autoComplete="off"
                   />
                 </div>
@@ -1278,24 +1260,10 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
                 >
                   ✕
                 </button>
-                {/* 🏦 v1.4.75: এই জোড়ার নিজস্ব হিসাব নং + ক্যাটাগরি */}
+                {/* 🏦 v1.4.75/83: ক্যাটাগরি #N (হিসাবের জোড়া) + চেক নম্বর #N নিচের সারিতে */}
                 <div className="col-span-3 grid grid-cols-2 gap-2 border-t border-emerald-200/70 pt-2">
                   <div>
-                    <span className="mb-1 block text-[10px] font-black tracking-wide text-emerald-800">
-                      হিসাব নং #{bi + 2}
-                    </span>
-                    <input
-                      value={b.accountNo || ""}
-                      onChange={(e) => updateExtraBank(bi, "accountNo", e.target.value)}
-                      className={inputCls}
-                      inputMode="numeric"
-                      pattern="[0-9]*"
-                      placeholder="অ্যাকাউন্ট নম্বর"
-                      autoComplete="off"
-                    />
-                  </div>
-                  <div>
-                    <span className="mb-1 block text-[10px] font-black tracking-wide text-emerald-800">
+                    <span className="mb-1 block h-[24px] leading-[24px] text-[10px] font-black tracking-wide text-emerald-800">
                       ক্যাটাগরি #{bi + 2}
                     </span>
                     {/* v1.4.76: জোড়ার ক্যাটাগরিও ছোট প্যানেলে */}
@@ -1306,6 +1274,40 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
                       placeholder="-- Select --"
                       className={`${inputCls} cursor-pointer`}
                       noKeyboardOnMobile
+                    />
+                  </div>
+                  <div>
+                    <div className="mb-1 flex h-[24px] items-center justify-between gap-2">
+                      <span className="block text-[10px] font-black tracking-wide text-emerald-800">
+                        চেক নম্বর #{bi + 2}
+                      </span>
+                      {/* v1.4.50: প্রতি ব্যাংক জোড়ার নিজস্ব MICR চেকবক্স — চেক নম্বরের ঠিক উপরে */}
+                      <label
+                        data-micr-toggle={String(bi)}
+                        onMouseDown={(e) => e.preventDefault()}
+                        className="flex cursor-pointer select-none items-center gap-1 rounded-md border border-emerald-300 bg-emerald-50 px-1.5 py-0.5 text-[9px] font-black text-emerald-800 transition hover:bg-emerald-100"
+                        title="টিক দিলে এই চেকটি MICR, টিক না দিলে NON MICR"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={Boolean(b.micr)}
+                          onChange={(e) => updateExtraBank(bi, "micr", e.target.checked)}
+                          className="h-3.5 w-3.5 cursor-pointer accent-emerald-600"
+                        />
+                        <span>MICR</span>
+                        <span className="rounded bg-white px-1 text-[8px] font-black text-slate-500">
+                          {b.micr ? "MICR" : "NON MICR"}
+                        </span>
+                      </label>
+                    </div>
+                    <input
+                      value={b.checkNo}
+                      onChange={(e) => updateExtraBank(bi, "checkNo", e.target.value)}
+                      className={inputCls}
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      placeholder="Check No."
+                      autoComplete="off"
                     />
                   </div>
                 </div>
