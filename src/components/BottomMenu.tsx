@@ -134,7 +134,8 @@ export default function BottomMenu({
             )}
 
             {/* Day State — status only. Open/Close কন্ট্রোল একটিই জায়গায় (Working-Day বার) */}
-            {isDayClosed(selectedDate) ? (
+            {/* v1.4.82: Check/Entertainment/Cashbook পেজে চিপ নেই — এই পেজগুলো ডে-স্টেট থেকে স্বতন্ত্র */}
+            {!["check", "entertainment", "cashbook"].includes(currentTab) && (isDayClosed(selectedDate) ? (
               <span
                 className="shrink-0 rounded-lg bg-rose-950/80 border border-rose-700/80 px-2 py-1 text-[10px] font-bold text-rose-300 whitespace-nowrap"
                 title="Day Closed"
@@ -155,7 +156,7 @@ export default function BottomMenu({
               >
                 ⏳ <span className="hidden 2xl:inline">Not Opened</span>
               </span>
-            )}
+            ))}
 
             <button
               type="button"

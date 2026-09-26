@@ -17,7 +17,18 @@ import {
   deleteCheckEntry,
   isDuplicateCheck,
 } from "@/lib/checkStore";
-import { isDayClosed, isIntermediateBlockedDate } from "@/lib/storage";
+/** v1.4.82: চেক পেজ ডে-স্টেট থেকে সম্পূর্ণ স্বতন্ত্র — ইউজার-নির্দেশ:
+ * "check page এর সাথে day open/closed এর কোন সম্পর্ক নেই"।
+ * তাই এখানে ডে-ভিত্তিক কোনো গেট চলে না: এন্ট্রি সেভ, এডিট, ডিলিট, Return টিক, রি-ইস্যু —
+ * সব যে-কোনো তারিখে চলে; 🔒/🚫 ডে-বার্তা বা ব্যাজও আসে না।
+ * (isDayClosed ও isIntermediateBlockedDate — দুটোই লেনদেন-পেজের জন্য, চেকের নয়।) */
+const isDayClosed = (_date: string): boolean => false;
+const isIntermediateBlockedDate = (
+  _date: string,
+  _active?: string
+): { blocked: boolean; prevWorkingDate?: string; nextWorkingDate?: string; reason?: string } => ({
+  blocked: false,
+});
 import { formatDisplay } from "./DatePicker";
 import type { CheckEntry } from "@/types";
 import BankNameInput from "./BankNameInput";
@@ -1313,9 +1324,6 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
                 <span className="rounded bg-indigo-100 px-1.5 py-0.5 font-mono">
                   {memberEntries.length}
                 </span>
-              </span>
-              <span className="text-[10px] font-bold text-slate-500">
-                ✏️ এডিট / 🗑️ ডিলিট — Day Closed দিনের এন্ট্রি লক করা
               </span>
             </div>
             <div className="space-y-1.5">
