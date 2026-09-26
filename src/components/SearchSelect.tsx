@@ -67,7 +67,8 @@ export default function SearchSelect({
   return (
     <div className="relative" ref={boxRef}>
       <input
-        value={open ? query : current ? current.label || current.value : value || ""}
+        // v1.4.80: value খালি হলেই ঘর খালি (placeholder) — ""-মানের "— ফাঁকা —" অপশন বসলেও লেবেল দেখায় না
+        value={open ? query : value ? (current ? current.label || current.value : value) : ""}
         placeholder={placeholder}
         disabled={disabled}
         onFocus={() => {

@@ -56,11 +56,11 @@ const TABLE_HEADERS = [
   "Centre Code",
   "Centre Name",
   "Bank Name",
+  "হিসাব নং",
   "Check No.",
   "MICR",
   "Disbursse",
   "Project",
-  "হিসাব নং",
   "Return",
   "Action",
 ];
@@ -125,8 +125,11 @@ const emptyForm = (date: string) => ({
   project: "",
   /** ✔ MICR চেক কি না */
   micr: false,
+  /** 🏦 v1.4.80: মূল জোড়ার হিসাব নং + ক্যাটাগরি — এখন সেভের পর রিসেটে খালিও হয় */
+  accountNo: "",
+  accountType: "",
   /** 🏦 অতিরিক্ত ব্যাংক + চেক নম্বরের জোড়া — প্রতিটিতে নিজস্ব MICR টিক (v1.4.48/50) */
-  extraBanks: [] as { bankName: string; checkNo: string; micr: boolean }[],
+  extraBanks: [] as { bankName: string; checkNo: string; micr: boolean; accountNo?: string; accountType?: string }[],
 });
 
 /** 📅 v1.4.55: ফিল্টার বাটনের সংক্ষিপ্ত তারিখ — "18-09" */
@@ -361,6 +364,8 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
       disbursse: form.disbursse.trim(),
       project: form.project.trim().toLowerCase(),
       micr: Boolean(form.micr),
+      accountNo: form.accountNo.trim(),
+      accountType: form.accountType || "",
       extraBanks: cleanExtras,
       foundInDb: found,
     };
@@ -811,6 +816,35 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
             ))}
           </div>
         </td>
+        {/* 🏦 v1.4.74/75: হিসাব নং + ক্যাটাগরি — ব্যাংক-জোড়ার স্ট্যাকের সাথে মিলিয়ে; পুরনো এন্ট্রিতে ফাঁকা (—) */}
+        <td className="whitespace-nowrap px-2 py-1.5">
+          {allBankPairs(row).some((b) => b.accountNo || b.accountType) ? (
+            <div className="flex flex-col gap-0.5">
+              {allBankPairs(row).map((b, bi) =>
+                b.accountNo || b.accountType ? (
+                  <span key={bi} className="inline-flex items-center gap-1">
+                    <span className="font-mono text-xs font-black text-slate-900">
+                      {b.accountNo || "—"}
+                    </span>
+                    {b.accountType && (
+                      <span
+                        className={`rounded px-1 py-0.5 text-[9px] font-black ${
+                          b.accountType === "মেম্বার"
+                            ? "bg-indigo-100 text-indigo-800"
+                            : "bg-teal-100 text-teal-800"
+                        }`}
+                      >
+                        {b.accountType}
+                      </span>
+                    )}
+                  </span>
+                ) : null
+              )}
+            </div>
+          ) : (
+            <span className="text-slate-300">—</span>
+          )}
+        </td>
         <td className="px-2 py-1.5 font-mono text-xs font-black text-slate-900">
           <div className="flex flex-col gap-0.5">
             {allBankPairs(row).map((b, bi) => (
@@ -869,35 +903,6 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
         <td className="px-2 py-1.5 text-xs font-semibold text-slate-800">
           {row.project ? (
             <span className="uppercase">{String(row.project).trim().toUpperCase()}</span>
-          ) : (
-            <span className="text-slate-300">—</span>
-          )}
-        </td>
-        {/* 🏦 v1.4.74/75: হিসাব নং + ক্যাটাগরি — ব্যাংক-জোড়ার স্ট্যাকের সাথে মিলিয়ে; পুরনো এন্ট্রিতে ফাঁকা (—) */}
-        <td className="whitespace-nowrap px-2 py-1.5">
-          {allBankPairs(row).some((b) => b.accountNo || b.accountType) ? (
-            <div className="flex flex-col gap-0.5">
-              {allBankPairs(row).map((b, bi) =>
-                b.accountNo || b.accountType ? (
-                  <span key={bi} className="inline-flex items-center gap-1">
-                    <span className="font-mono text-xs font-black text-slate-900">
-                      {b.accountNo || "—"}
-                    </span>
-                    {b.accountType && (
-                      <span
-                        className={`rounded px-1 py-0.5 text-[9px] font-black ${
-                          b.accountType === "মেম্বার"
-                            ? "bg-indigo-100 text-indigo-800"
-                            : "bg-teal-100 text-teal-800"
-                        }`}
-                      >
-                        {b.accountType}
-                      </span>
-                    )}
-                  </span>
-                ) : null
-              )}
-            </div>
           ) : (
             <span className="text-slate-300">—</span>
           )}
