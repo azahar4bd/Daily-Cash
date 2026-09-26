@@ -64,7 +64,7 @@ export default function BottomMenu({
   return (
     <>
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-800 bg-slate-900/95 backdrop-blur-md text-white shadow-2xl pb-[env(safe-area-inset-bottom,0px)]">
-        <div className="mx-auto flex max-w-6xl flex-nowrap items-center justify-between gap-2 px-2.5 py-2 sm:px-4">
+        <div className="mx-auto flex max-w-6xl xl:max-w-7xl flex-nowrap items-center justify-between gap-2 px-2.5 py-2 sm:px-4">
           
           {/* Left: Brand & Cloud Tools */}
           <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
@@ -109,7 +109,7 @@ export default function BottomMenu({
 
           {/* Center: Master Date Filter — compact so nothing overflows & the date dropdown is never clipped */}
           <div className="flex min-w-0 flex-1 items-center justify-center gap-1.5">
-            <span className="text-[11px] font-bold text-slate-300 hidden sm:inline whitespace-nowrap">
+            <span className="text-[11px] font-bold text-slate-300 hidden 2xl:inline whitespace-nowrap">
               Date:
             </span>
             <div className="w-[88px] shrink-0 xs:w-[104px] sm:w-36 text-slate-900">
@@ -139,28 +139,28 @@ export default function BottomMenu({
                 className="shrink-0 rounded-lg bg-rose-950/80 border border-rose-700/80 px-2 py-1 text-[10px] font-bold text-rose-300 whitespace-nowrap"
                 title="Day Closed"
               >
-                🔒 <span className="hidden sm:inline">Closed</span>
+                🔒 <span className="hidden 2xl:inline">Closed</span>
               </span>
             ) : isDayOpen(selectedDate) ? (
               <span
                 className="shrink-0 rounded-lg bg-emerald-950/80 border border-emerald-700/80 px-2 py-1 text-[10px] font-bold text-emerald-300 whitespace-nowrap"
                 title="Day Open"
               >
-                ☀️ <span className="hidden sm:inline">Open</span>
+                ☀️ <span className="hidden 2xl:inline">Open</span>
               </span>
             ) : (
               <span
                 className="shrink-0 rounded-lg bg-amber-950/80 border border-amber-700/80 px-2 py-1 text-[10px] font-bold text-amber-300 whitespace-nowrap"
                 title="Working day not opened yet"
               >
-                ⏳ <span className="hidden sm:inline">Not Opened</span>
+                ⏳ <span className="hidden 2xl:inline">Not Opened</span>
               </span>
             )}
 
             <button
               type="button"
               onClick={onOpenTracker}
-              className="rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 px-1.5 py-1 text-xs text-amber-400 font-bold transition cursor-pointer hidden sm:flex items-center gap-1"
+              className="rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 px-1.5 py-1 text-xs text-amber-400 font-bold transition cursor-pointer hidden 2xl:flex items-center gap-1"
               title="Open audit tracker for all dates"
             >
               <span>📅</span>
@@ -170,14 +170,14 @@ export default function BottomMenu({
 
           {/* Right: Navigation Controls — always pinned visible */}
           <div className="flex shrink-0 items-center gap-1.5">
-            {/* Desktop Tabs */}
-            <div className="hidden lg:flex items-center gap-1">
+            {/* Desktop Tabs — v1.4.81: xl (1280px+) থেকেই; টান্দা জায়গা কম পড়লে ভিতরে স্ক্রল হয়, আর কোনোদিন অন্য আইটেমের উপর চড়ে বসে না */}
+            <div className="hidden xl:flex items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden max-w-[48vw] 2xl:max-w-none">
               {pages.map((p) => (
                 <button
                   key={p.id}
                   type="button"
                   onClick={() => onTabChange(p.id)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1 cursor-pointer ${
+                  className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition flex shrink-0 whitespace-nowrap items-center gap-1 cursor-pointer ${
                     currentTab === p.id
                       ? "bg-blue-600 text-white shadow-sm ring-1 ring-blue-400"
                       : "text-slate-300 hover:bg-slate-800"
@@ -194,7 +194,7 @@ export default function BottomMenu({
             <button
               type="button"
               onClick={() => setThreeLineMenuOpen(!threeLineMenuOpen)}
-              className="lg:hidden flex shrink-0 items-center gap-1 rounded-xl bg-slate-800 hover:bg-slate-700 active:bg-slate-600 border border-slate-700 px-2 py-1.5 text-xs font-black text-white transition shadow-sm cursor-pointer"
+              className="xl:hidden flex shrink-0 items-center gap-1 rounded-xl bg-slate-800 hover:bg-slate-700 active:bg-slate-600 border border-slate-700 px-2 py-1.5 text-xs font-black text-white transition shadow-sm cursor-pointer"
               title={`Open menu — current: ${activePage.label}`}
               aria-label={`Open menu (${activePage.label})`}
             >
@@ -218,7 +218,7 @@ export default function BottomMenu({
       {/* THREE-LINE HAMBURGER SLIDE-UP DRAWER (থ্রি লাইন মেনু প্যানেল)             */}
       {/* ========================================================================= */}
       {threeLineMenuOpen && (
-        <div className="fixed inset-0 z-50 flex flex-col justify-end lg:hidden">
+        <div className="fixed inset-0 z-50 flex flex-col justify-end xl:hidden">
           {/* Backdrop */}
           <div
             className="fixed inset-0 bg-slate-950/70 backdrop-blur-xs transition-opacity"
