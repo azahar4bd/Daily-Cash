@@ -75,6 +75,33 @@ const TABLE_HEADERS = [
   "Return",
   "Action",
 ];
+/** 📄 v1.4.92: PDF ভিউর প্রিন্ট-স্টাইল — শুধু PDF মোডাল খোলা থাকলেই কার্যকর (landscape A4);
+ *  index.css-এ @media print-এ .fixed লুকিয়ে ফেলে, তাই এখানে উচ্চ-specificity দিয়ে আবার দেখানো হয়েছে */
+const CHECK_PDF_PRINT_CSS = `
+@media print {
+  @page { size: A4 landscape; margin: 8mm; }
+  div.fixed.check-pdf-modal {
+    display: block !important;
+    position: absolute !important;
+    inset: 0 !important;
+    overflow: visible !important;
+    background: #ffffff !important;
+    backdrop-filter: none !important;
+  }
+  div.fixed.check-pdf-modal .check-pdf-shell {
+    height: auto !important; max-height: none !important; margin: 0 !important;
+    border-radius: 0 !important; box-shadow: none !important; overflow: visible !important;
+  }
+  div.fixed.check-pdf-modal .check-pdf-scroll {
+    overflow: visible !important; height: auto !important; max-height: none !important;
+    background: #ffffff !important; padding: 0 !important;
+  }
+  #check-pdf-document { max-width: none !important; box-shadow: none !important; padding: 0 !important; }
+  #check-pdf-document table { font-size: 10px !important; }
+  #check-pdf-document th, #check-pdf-document td { padding: 2px 4px !important; }
+  #check-pdf-document tr { page-break-inside: avoid !important; }
+}
+`;
 
 /** v1.4.48: এন্ট্রির সব ব্যাংক/চেক নম্বরের জোড়া — প্রথম জোড়া মূল ঘর থেকে, বাকিগুলো extraBanks থেকে */
 const allBankPairs = (e: CheckEntry): { bankName: string; checkNo: string; micr: boolean; accountNo?: string; accountType?: string }[] => {
@@ -167,8 +194,10 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
   const [page, setPage] = useState(1);
   /** v1.4.47: Return টেবিলের নিজস্ব পেজ */
   const [retPage, setRetPage] = useState(1);
-  /** v1.4.48: সার্চ ফলাফলের ফুল-স্ক্রিন কার্ড ভিউ */
+  /** v1.4.48 → v1.4.92: সার্চ/ফিল্টার ফলাফলের ফুল-স্ক্রিন ভিউ — এখন মূল টেবিলের মতো টেবিল আকারে (সারি উপর-নিচ) */
   const [viewOpen, setViewOpen] = useState(false);
+  /** 📄 v1.4.92: তারিখ-হতে-তারিখ ফিল্টার প্রয়োগ-অবস্থায় PDF ভিউ — ফিল্টার না থাকলে কখনোই দেখা যাবে না */
+  const [pdfOpen, setPdfOpen] = useState(false);
   /** 📅 v1.4.55: তারিখ হতে তারিখ ফিল্টার (সার্চের পাশের বাটন) */
   const [dateRange, setDateRange] = useState<{ from: string; to: string } | null>(null);
   const [rangeOpen, setRangeOpen] = useState(false);
@@ -450,6 +479,7 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
       return;
     }
     setStatus(null);
+    setViewOpen(false); // v1.4.92: 👁 View টেবিল থেকে এডিট চাপলে ভিউ-উইন্ডো আগে বন্ধ — ফর্ম সামনে আসবে
     setEdit(row);
     setForm({
       checkDate: row.checkDate,
@@ -610,6 +640,15 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
   /* v1.4.47: একই সার্চ-ফিল্টার করা তালিকা Return টিক অনুযায়ী দুই টেবিলে ভাগ হয় */
   const listFiltered = useMemo(() => rangedFiltered.filter((e) => !e.returned), [rangedFiltered]);
   const returnFiltered = useMemo(() => rangedFiltered.filter((e) => Boolean(e.returned)), [rangedFiltered]);
+  /** 📄 v1.4.92: PDF ভিউ — সীমার সব এন্ট্রির Disbursse-এর মোট */
+  const pdfDisbursseTotal = useMemo(
+    () =>
+      rangedFiltered.reduce((s, r) => {
+        const n = Number(String(r.disbursse || "").replace(/[^0-9.-]/g, ""));
+        return s + (Number.isFinite(n) ? n : 0);
+      }, 0),
+    [rangedFiltered]
+  );
   const returnedCount = entries.reduce((n, e) => n + (e.returned ? 1 : 0), 0);
   // v1.4.60: চেক লিস্টে পেজ সিস্টেম বাদ — সব এন্ট্রি একসাথে; max-h স্ক্রল-উইন্ডোতে সব দেখা যায়
   const pageRows = listFiltered;
@@ -652,6 +691,7 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
    * তবে নতুন এন্ট্রির তারিখ অবশ্যই খোলা দিনের হতে হবে। */
   const openReissue = (row: CheckEntry) => {
     setStatus(null);
+    setViewOpen(false); // v1.4.92: 👁 View টেবিল থেকে রি-ইস্যু চাপলে ভিউ-উইন্ডো আগে বন্ধ
     setRForm({
       ...emptyForm(baseDate),
       memberCode: row.memberCode || "",
@@ -1623,7 +1663,7 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
             <button
               type="button"
               onClick={() => setViewOpen(true)}
-              title="মিলে যাওয়া এন্ট্রিগুলো কার্ড আকারে ফুল স্ক্রিনে দেখুন — এডিট/ডিলিট/Return সহ"
+              title="মিলে যাওয়া এন্ট্রিগুলো টেবিল আকারে ফুল স্ক্রিনে দেখুন — একাধিক এন্ট্রি উপর-নিচ সারি হিসেবে, এডিট/ডিলিট/Return সহ"
               className="absolute right-11 top-1/2 -translate-y-1/2 whitespace-nowrap rounded-lg border border-blue-300 bg-blue-50 px-2 py-1 text-[11px] font-black text-blue-700 transition hover:bg-blue-100 cursor-pointer"
             >
               👁 View ({rangedFiltered.length})
@@ -1707,6 +1747,17 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
               </div>
             )}
           </div>
+          {/* 📄 v1.4.92: PDF ভিউ বাটন — তারিখ-হতে-তারিখ ফিল্টার প্রয়োগ থাকলেই শুধু আসে; না থাকলে নেই */}
+          {dateRange && (
+            <button
+              type="button"
+              onClick={() => setPdfOpen(true)}
+              title="তারিখ-সীমার সব এন্ট্রি — সকল তথ্যসহ PDF/প্রিন্ট ভিউ"
+              className="flex h-full shrink-0 cursor-pointer items-center gap-1 whitespace-nowrap rounded-xl border border-rose-600 bg-rose-600 px-3 py-2 text-[11px] font-black text-white shadow transition hover:border-rose-700 hover:bg-rose-700"
+            >
+              📄 PDF ({rangedFiltered.length})
+            </button>
+          )}
         </div>
 
         {/* Table */}
@@ -1826,7 +1877,7 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
         )}
       </div>
 
-      {/* ══════════════ 👁 VIEW — সার্চের ফল কার্ড আকারে ফুল স্ক্রিন, এক পৃষ্ঠায় (স্ক্রলিং নেই) ══════════════ */}
+      {/* ══════════════ 👁 VIEW — সার্চ/ফিল্টারের ফল টেবিল আকারে ফুল স্ক্রিন; একাধিক এন্ট্রি উপর-নিচ সারি (v1.4.92) ══════════════ */}
       {viewOpen && (
         <div className="fixed inset-0 z-[60] overflow-hidden bg-slate-950/80 backdrop-blur-sm">
           <div className="flex h-full flex-col overflow-hidden bg-slate-50 shadow-2xl sm:m-2 sm:rounded-2xl">
@@ -1836,7 +1887,7 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
                 <span className="text-xl">👁</span>
                 <div className="min-w-0">
                   <h3 className="truncate text-base font-black text-slate-900">
-                    সার্চ ফলাফল — “{search}”
+                    সার্চ ফলাফল — “{search.trim() || "তারিখ ফিল্টার"}”
                   </h3>
                   <p className="text-xs font-bold text-slate-500">
                     {filtered.length}টি এন্ট্রি • চেক লিস্ট: {listFiltered.length} • Return:{" "}
@@ -1853,156 +1904,237 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
               </button>
             </div>
 
-            {/* Cards — অ্যাডাপটিভ গ্রিড, এক পৃষ্ঠায়, স্ক্রলিং নেই */}
-            <div className="min-h-0 flex-1 overflow-hidden p-2 sm:p-3">
+            {/* টেবিল ভিউ (v1.4.92) — মূল চেক লিস্টের হুবহু একই টেবিল-কলাম; একাধিক এন্ট্রি উপর-নিচ সারি আকারে */}
+            <div className="min-h-0 flex-1 overflow-auto p-2 sm:p-3">
               {rangedFiltered.length === 0 ? (
                 <div className="flex h-full items-center justify-center text-sm font-bold text-slate-500">
                   কোনো এন্ট্রি নেই
                 </div>
               ) : (
-                <div
-                  className="grid h-full gap-2 sm:gap-2.5"
-                  style={{
-                    gridTemplateColumns: `repeat(${
-                      rangedFiltered.length <= 1 ? 1 : rangedFiltered.length <= 4 ? 2 : rangedFiltered.length <= 9 ? 3 : 4
-                    }, minmax(0, 1fr))`,
-                    gridAutoRows: "minmax(0, 1fr)",
-                  }}
-                >
-                  {rangedFiltered.map((row) => {
-                    const rowLocked = isDayClosed(row.checkDate);
-                    return (
-                      <div
-                        key={row.id}
-                        className={`flex min-h-0 flex-col overflow-hidden rounded-xl border p-2 shadow-sm sm:p-2.5 ${
-                          row.returned ? "border-amber-300 bg-amber-50" : "border-slate-200 bg-white"
-                        }`}
-                      >
-                        <div className="flex shrink-0 items-start justify-between gap-1">
-                          <div className="min-w-0">
-                            <p className="truncate text-sm font-black text-indigo-700 sm:text-base">
-                              {row.memberCode}
-                              {row.foundInDb === false && (
-                                <span className="ml-1 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-black text-amber-800">
-                                  NEW
-                                </span>
-                              )}
-                            </p>
-                            <p className="truncate text-sm font-bold text-slate-900">{row.memberName}</p>
-                          </div>
-                          <div className="flex shrink-0 items-center gap-1">
-                            {row.returned && (
-                              <span className="rounded border border-amber-400 bg-amber-100 px-1.5 py-0.5 text-[11px] font-black text-amber-800">
-                                ↩ RETURN
-                              </span>
-                            )}
-                            {rowLocked && (
-                              <span className="text-xs" title="দিন সমাপ্ত (Day Closed)">
-                                🔒
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        <div className="mt-1.5 min-h-0 flex-1 space-y-1 overflow-hidden text-[13px] font-semibold text-slate-600">
-                          <p className="truncate">
-                            📅 {formatDisplay(row.checkDate) || row.checkDate} • {row.centreCode} — {row.centreName}
-                          </p>
-                          {allBankPairs(row).map((b, bi) => (
-                            <p key={bi} className="truncate">
-                              🏦 {b.bankName || "—"} •{" "}
-                              <span className="font-mono font-black text-slate-900">#{b.checkNo || "—"}</span>{" "}
-                              <span
-                                className={`rounded border px-1.5 py-0.5 text-[10px] font-black ${
-                                  b.micr
-                                    ? "border-emerald-300 bg-emerald-100 text-emerald-800"
-                                    : "border-slate-300 bg-slate-100 text-slate-600"
-                                }`}
-                              >
-                                {b.micr ? "MICR" : "NON MICR"}
-                              </span>
-                            </p>
-                          ))}
-                          {row.reissuedTo && (
-                            <p className="truncate font-black text-teal-700">
-                              🔁 Reissued {formatDisplay(row.reissuedTo.date) || row.reissuedTo.date} → #
-                              {row.reissuedTo.checkNo}
-                            </p>
-                          )}
-                          {row.reissuedFrom && (
-                            <p className="truncate font-black text-orange-700">
-                              🔁 পুরনো চেক #{row.reissuedFrom.checkNo} (
-                              {formatDisplay(row.reissuedFrom.checkDate) || row.reissuedFrom.checkDate})
-                            </p>
-                          )}
-                          <p className="truncate">
-                            💵 {row.disbursse ? `৳${fmtAmt(row.disbursse)}` : "—"}
-                            {row.project ? ` • ${String(row.project).trim().toUpperCase()}` : ""}
-                          </p>
-                        </div>
-                        <div className="mt-1.5 flex shrink-0 items-center justify-between gap-1">
-                          <label
-                            className={`flex items-center gap-1.5 rounded-lg border px-2 py-1 text-xs font-black ${
-                              row.returned
-                                ? "border-amber-400 bg-amber-100 text-amber-900"
-                                : "border-slate-300 bg-slate-100 text-slate-700"
-                            } ${rowLocked ? "opacity-50" : "cursor-pointer"}`}
-                            title={
-                              rowLocked
-                                ? "দিন সমাপ্ত (Day Closed) — Return টিক বদলানো যাবে না"
-                                : row.returned
-                                ? "টিক তুললে এন্ট্রিটি চেক লিস্টে ফিরে যাবে"
-                                : "টিক দিলে এন্ট্রিটি Return টেবিলে চলে যাবে"
-                            }
+                <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+                  <table className="w-full min-w-[980px] border-collapse text-sm">
+                    <thead className="sticky top-0 z-10 bg-slate-800 text-white">
+                      <tr>
+                        {TABLE_HEADERS.map((h) => (
+                          <th
+                            key={h}
+                            className="whitespace-nowrap border-r border-slate-700 px-2 py-2 text-left text-[11px] font-black uppercase tracking-wide last:border-r-0"
                           >
-                            <input
-                              type="checkbox"
-                              checked={Boolean(row.returned)}
-                              disabled={rowLocked}
-                              onChange={() => toggleReturned(row)}
-                              className="h-3.5 w-3.5 accent-amber-600 disabled:cursor-not-allowed"
-                            />
-                            ↩ Return
-                          </label>
-                          <div className="flex items-center gap-1">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setViewOpen(false);
-                                openReissue(row);
-                              }}
-                              title="চেক রি-ইস্যু করুন"
-                              className="cursor-pointer rounded-lg border border-teal-300 bg-teal-50 px-2 py-1 text-xs text-teal-700 transition hover:bg-teal-100"
-                            >
-                              🔁
-                            </button>
-                            <button
-                              type="button"
-                              disabled={rowLocked}
-                              onClick={() => {
-                                setViewOpen(false);
-                                handleEdit(row);
-                              }}
-                              title={rowLocked ? "দিন সমাপ্ত — এডিট করা যাবে না" : "এডিট করুন"}
-                              className="cursor-pointer rounded-lg border border-blue-200 bg-blue-50 px-2 py-1 text-xs text-blue-700 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-40"
-                            >
-                              ✏️
-                            </button>
-                            <button
-                              type="button"
-                              disabled={rowLocked}
-                              onClick={() => handleDelete(row)}
-                              title={rowLocked ? "দিন সমাপ্ত — মুছে ফেলা যাবে না" : "মুছে ফেলুন"}
-                              className="cursor-pointer rounded-lg border border-rose-200 bg-rose-50 px-2 py-1 text-xs text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-40"
-                            >
-                              🗑️
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
+                            {h}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>{rangedFiltered.map((row, i) => renderCheckRow(row, i + 1, i))}</tbody>
+                  </table>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ══════════════ 📄 PDF VIEW — তারিখ-হতে-তারিখ ফিল্টার প্রয়োগ-অবস্থায় (v1.4.92) ══════════════ */}
+      {pdfOpen && dateRange && (
+        <div className="check-pdf-modal fixed inset-0 z-[65] overflow-hidden bg-slate-950/80 backdrop-blur-sm">
+          <div className="check-pdf-shell flex h-full flex-col overflow-hidden bg-white shadow-2xl sm:m-2 sm:rounded-2xl">
+            {/* Header — প্রিন্টে বাদ পড়বে */}
+            <div className="no-print flex shrink-0 items-center justify-between gap-2 border-b border-slate-200 bg-white px-3 py-2 sm:px-4">
+              <div className="flex min-w-0 items-center gap-2">
+                <span className="text-xl">📄</span>
+                <div className="min-w-0">
+                  <h3 className="truncate text-base font-black text-slate-900">
+                    PDF ভিউ — তারিখ হতে তারিখ চেক এন্ট্রি
+                  </h3>
+                  <p className="text-xs font-bold text-slate-500">
+                    📅 {formatDisplay(dateRange.from) || dateRange.from} হতে{" "}
+                    {formatDisplay(dateRange.to) || dateRange.to} • মোট{" "}
+                    <span className="font-mono">{rangedFiltered.length}</span>টি এন্ট্রি (চেক লিস্ট{" "}
+                    <span className="font-mono">{listFiltered.length}</span> • Return{" "}
+                    <span className="font-mono">{returnFiltered.length}</span>)
+                    {search.trim() ? ` • 🔍 সার্চ: "${search.trim()}" প্রয়োগ আছে` : ""}
+                  </p>
+                </div>
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => window.print()}
+                  title="প্রিন্ট / Save as PDF ডায়ালগ খুলবে"
+                  className="cursor-pointer rounded-xl bg-emerald-600 px-3.5 py-2 text-sm font-black text-white shadow transition hover:bg-emerald-700"
+                >
+                  🖨️ প্রিন্ট / PDF সেভ
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPdfOpen(false)}
+                  className="cursor-pointer rounded-xl bg-rose-600 px-3.5 py-2 text-sm font-black text-white shadow transition hover:bg-rose-700"
+                >
+                  ✕ ক্লোজ
+                </button>
+              </div>
+            </div>
+            {/* হিন্ট — প্রিন্টে বাদ */}
+            <div className="no-print shrink-0 border-b border-emerald-200 bg-emerald-50 px-3 py-1.5 text-[11px] font-bold text-emerald-900 sm:px-4">
+              💡 “🖨️ প্রিন্ট / PDF সেভ” চাপলে প্রিন্ট ডায়ালগ আসবে — সেখানে Destination হিসেবে{" "}
+              <span className="font-black">“Save as PDF”</span> বেছে নিলেই PDF ফাইল ডাউনলোড হবে
+              (ল্যান্ডস্কেপ আকারে)।
+            </div>
+
+            {/* ডকুমেন্ট — এটাই প্রিন্ট/PDF হবে */}
+            <div className="check-pdf-scroll min-h-0 flex-1 overflow-auto bg-slate-100 p-2 sm:p-4">
+              <style>{CHECK_PDF_PRINT_CSS}</style>
+              <div
+                id="check-pdf-document"
+                className="mx-auto bg-white p-3 shadow sm:p-5"
+                style={{ maxWidth: "1240px" }}
+              >
+                <div className="mb-3 text-center">
+                  <h1 className="text-base font-black text-slate-900 sm:text-lg">চেক এন্ট্রি রিপোর্ট</h1>
+                  <p className="mt-0.5 text-[11px] font-bold text-slate-600">
+                    তারিখ: <span className="font-mono">{formatDisplay(dateRange.from) || dateRange.from}</span>{" "}
+                    হতে <span className="font-mono">{formatDisplay(dateRange.to) || dateRange.to}</span> পর্যন্ত
+                    • মোট এন্ট্রি: <span className="font-mono">{rangedFiltered.length}</span>
+                    {search.trim() ? ` • সার্চ: "${search.trim()}"` : ""}
+                    • মোট Disbursse: <span className="font-mono">৳{fmtAmt(String(pdfDisbursseTotal))}</span>
+                  </p>
+                </div>
+                {rangedFiltered.length === 0 ? (
+                  <p className="py-8 text-center text-xs font-bold text-slate-500">
+                    এই তারিখ-সীমায় কোনো এন্ট্রি নেই
+                  </p>
+                ) : (
+                  <table className="w-full border-collapse text-[11px]">
+                    <thead>
+                      <tr className="bg-slate-100">
+                        {[
+                          "Sr",
+                          "তারিখ",
+                          "মেম্বার কোড",
+                          "সদস্যের নাম",
+                          "সেন্টার কোড",
+                          "সেন্টার নাম",
+                          "ব্যাংকের নাম",
+                          "চেক নম্বর",
+                          "MICR",
+                          "হিসাব নং",
+                          "ক্যাটাগরি",
+                          "Disbursse (৳)",
+                          "Project",
+                          "Return",
+                          "রি-ইস্যু তথ্য",
+                        ].map((h) => (
+                          <th
+                            key={h}
+                            className="whitespace-nowrap border border-slate-300 px-1.5 py-1 text-left text-[10px] font-black text-slate-700"
+                          >
+                            {h}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rangedFiltered.map((row, i) => {
+                        const pairs = allBankPairs(row);
+                        return (
+                          <tr key={row.id} className={i % 2 ? "bg-slate-50" : "bg-white"}>
+                            <td className="border border-slate-300 px-1.5 py-1 font-mono font-bold text-slate-500">
+                              {i + 1}
+                            </td>
+                            <td className="whitespace-nowrap border border-slate-300 px-1.5 py-1 font-mono font-bold">
+                              {formatDisplay(row.checkDate) || row.checkDate}
+                            </td>
+                            <td className="border border-slate-300 px-1.5 py-1 font-mono font-black text-indigo-700">
+                              {row.memberCode}
+                              {row.foundInDb === false ? " (NEW)" : ""}
+                            </td>
+                            <td className="border border-slate-300 px-1.5 py-1 font-semibold">{row.memberName}</td>
+                            <td className="border border-slate-300 px-1.5 py-1 font-mono">{row.centreCode}</td>
+                            <td className="border border-slate-300 px-1.5 py-1">{row.centreName}</td>
+                            <td className="border border-slate-300 px-1.5 py-1">
+                              <div className="flex flex-col">
+                                {pairs.map((b, bi) => (
+                                  <span key={bi}>{b.bankName || "—"}</span>
+                                ))}
+                              </div>
+                            </td>
+                            <td className="border border-slate-300 px-1.5 py-1 font-mono font-black">
+                              <div className="flex flex-col">
+                                {pairs.map((b, bi) => (
+                                  <span key={bi}>{b.checkNo || "—"}</span>
+                                ))}
+                              </div>
+                            </td>
+                            <td className="border border-slate-300 px-1.5 py-1 text-center">
+                              <div className="flex flex-col">
+                                {pairs.map((b, bi) => (
+                                  <span key={bi} className={b.micr ? "font-black text-emerald-700" : "font-bold text-slate-500"}>
+                                    {b.micr ? "MICR" : "NON MICR"}
+                                  </span>
+                                ))}
+                              </div>
+                            </td>
+                            <td className="border border-slate-300 px-1.5 py-1 font-mono">
+                              <div className="flex flex-col">
+                                {pairs.map((b, bi) => (
+                                  <span key={bi}>{b.accountNo || "—"}</span>
+                                ))}
+                              </div>
+                            </td>
+                            <td className="border border-slate-300 px-1.5 py-1">
+                              <div className="flex flex-col">
+                                {pairs.map((b, bi) => (
+                                  <span key={bi}>{b.accountType || "—"}</span>
+                                ))}
+                              </div>
+                            </td>
+                            <td className="border border-slate-300 px-1.5 py-1 text-right font-mono font-black">
+                              {row.disbursse ? fmtAmt(row.disbursse) : "—"}
+                            </td>
+                            <td className="border border-slate-300 px-1.5 py-1 uppercase">
+                              {row.project ? String(row.project).trim().toUpperCase() : "—"}
+                            </td>
+                            <td className="whitespace-nowrap border border-slate-300 px-1.5 py-1 text-center font-black">
+                              {row.returned ? <span className="text-amber-700">↩ RETURN</span> : "—"}
+                            </td>
+                            <td className="border border-slate-300 px-1.5 py-1 text-[10px] font-bold">
+                              {row.reissuedTo && (
+                                <span className="text-teal-700">
+                                  → #{row.reissuedTo.checkNo} ({formatDisplay(row.reissuedTo.date) || row.reissuedTo.date})
+                                </span>
+                              )}
+                              {row.reissuedFrom && (
+                                <span className="text-orange-700">
+                                  পুরনো #{row.reissuedFrom.checkNo} (
+                                  {formatDisplay(row.reissuedFrom.checkDate) || row.reissuedFrom.checkDate})-এর রি-ইস্যু
+                                </span>
+                              )}
+                              {!row.reissuedTo && !row.reissuedFrom && "—"}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                    <tfoot>
+                      <tr className="bg-slate-100">
+                        <td
+                          colSpan={11}
+                          className="border border-slate-300 px-1.5 py-1 text-right text-[11px] font-black text-slate-800"
+                        >
+                          মোট Disbursse —
+                        </td>
+                        <td className="border border-slate-300 px-1.5 py-1 text-right font-mono text-[11px] font-black text-slate-900">
+                          ৳{fmtAmt(String(pdfDisbursseTotal))}
+                        </td>
+                        <td colSpan={3} className="border border-slate-300 px-1.5 py-1" />
+                      </tr>
+                    </tfoot>
+                  </table>
+                )}
+                <p className="mt-2 text-center text-[10px] font-bold text-slate-500">
+                  — মোট <span className="font-mono">{rangedFiltered.length}</span>টি এন্ট্রি —
+                </p>
+              </div>
             </div>
           </div>
         </div>
