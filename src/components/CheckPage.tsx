@@ -286,12 +286,11 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
   const lookupTimer = useRef<number | null>(null);
   const handleMemberCodeChange = (raw: string) => {
     setForm((f) => ({ ...f, memberCode: raw }));
+    // v1.4.84: টাইপ চলার সময় পুরনো ম্যাচের নাম যেন ভুল করে দেখা না যায় — আগে idle, ৩৫০ms ডিবাউন্সে আবার লুকআপ
+    setMatchInfo("idle");
     if (lookupTimer.current) window.clearTimeout(lookupTimer.current);
     const val = raw.trim();
-    if (!val) {
-      setMatchInfo("idle");
-      return;
-    }
+    if (!val) return;
     lookupTimer.current = window.setTimeout(() => lookupMember(val), 350);
   };
 
@@ -990,9 +989,6 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
   const inputCls =
     "w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200";
   const labelCls = "mb-1 block h-[24px] truncate leading-[24px] text-[11px] font-black uppercase tracking-wide text-slate-600"; // v1.4.66: সব লেবেল-সারি সমানউচ্চ — ঘর এলোমেলো দেখাবে না
-  const readOnlyCls =
-    "w-full rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-900";
-
   return (
     <div className="space-y-4 lg:mx-auto lg:max-w-5xl xl:max-w-6xl 2xl:max-w-7xl lg:space-y-3.5">
       {/* ══════════════ ENTRY FORM ══════════════ */}
@@ -1077,6 +1073,13 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
                 </span>
               )}
             </div>
+            {/* v1.4.84: মেম্বার কোড মেলামাত্র সদস্যের নাম সাজেশন-স্টাইলে দেখায় — শুধু ডিসপ্লে, কোনো ঘর/বক্স নয় */}
+            {found && form.memberName.trim() ? (
+              <div className="mt-1 flex items-start gap-1.5 rounded-lg border border-emerald-300 bg-emerald-50 px-2 py-1">
+                <span aria-hidden="true" className="leading-[18px]">👤</span>
+                <span className="text-[12px] font-black leading-[18px] text-emerald-900">{form.memberName}</span>
+              </div>
+            ) : null}
           </div>
 
           <div>
@@ -1412,35 +1415,8 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
           </div>
         )}
 
-        {/* Step 2 — extra fields when member is NOT in the database */}
-        {matchInfo === "idle" ? null : found ? (
-          <div className="mt-3 rounded-xl border border-emerald-300 bg-emerald-50 p-3">
-            <div className="mb-2 flex items-center gap-2 text-[11px] font-black text-emerald-900">
-              <span>✓</span>
-              <span>ডাটাবেজ থেকে তথ্য নেওয়া হয়েছে — শুধু তারিখ, মেম্বার কোড, ব্যাংক, চেক নম্বর, বিতরণ ও প্রকল্প এন্ট্রি করুন</span>
-            </div>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              <div>
-                <label className="mb-1 block text-[11px] font-black uppercase tracking-wide text-emerald-800">
-                  Member Name
-                </label>
-                <div className={readOnlyCls}>{form.memberName || "—"}</div>
-              </div>
-              <div>
-                <label className="mb-1 block text-[11px] font-black uppercase tracking-wide text-emerald-800">
-                  Centre Code
-                </label>
-                <div className={readOnlyCls}>{form.centreCode || "—"}</div>
-              </div>
-              <div>
-                <label className="mb-1 block text-[11px] font-black uppercase tracking-wide text-emerald-800">
-                  Centre Name
-                </label>
-                <div className={readOnlyCls}>{form.centreName || "—"}</div>
-              </div>
-            </div>
-          </div>
-        ) : (
+        {/* Step 2 — extra fields only when member is NOT in the database (v1.4.84: ম্যাচ হলে আলাদা বক্স নেই — সদস্যের নাম সরাসরি কোড ঘরের নিচে সাজেশনে দেখায়) */}
+        {matchInfo === "notfound" ? (
           <div className="mt-3 rounded-xl border-2 border-amber-400 bg-amber-50 p-3">
             <div className="mb-2 flex items-center gap-2 text-[11px] font-black text-amber-900">
               <span>⚠️</span>
@@ -1488,7 +1464,7 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
               </div>
             </div>
           </div>
-        )}
+        ) : null}
 
         {/* Actions */}
         <div className="mt-4 flex flex-wrap items-center gap-2">
