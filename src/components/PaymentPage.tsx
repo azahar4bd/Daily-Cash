@@ -364,6 +364,7 @@ export default function PaymentPage({ selectedDate }: { selectedDate: string }) 
                 placeholder="-- Select Sub Category --"
                 disabled={isDayClosed(form.txDate)}
                 className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-bold text-slate-800 focus:border-blue-500 focus:outline-none cursor-pointer"
+                noKeyboardOnMobile
               />
             </div>
           )}
@@ -771,6 +772,7 @@ export default function PaymentPage({ selectedDate }: { selectedDate: string }) 
                     })()}
                     placeholder="-- Select Sub Category --"
                     className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-bold text-slate-800 focus:border-blue-500 focus:outline-none cursor-pointer"
+                    noKeyboardOnMobile
                   />
                 </div>
               )}
