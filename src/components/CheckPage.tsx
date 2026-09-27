@@ -989,6 +989,9 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
   const inputCls =
     "w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200";
   const labelCls = "mb-1 block h-[24px] truncate leading-[24px] text-[11px] font-black uppercase tracking-wide text-slate-600"; // v1.4.66: সব লেবেল-সারি সমানউচ্চ — ঘর এলোমেলো দেখাবে না
+  const readOnlyCls =
+    "w-full rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-900";
+
   return (
     <div className="space-y-4 lg:mx-auto lg:max-w-5xl xl:max-w-6xl 2xl:max-w-7xl lg:space-y-3.5">
       {/* ══════════════ ENTRY FORM ══════════════ */}
@@ -1415,8 +1418,35 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
           </div>
         )}
 
-        {/* Step 2 — extra fields only when member is NOT in the database (v1.4.84: ম্যাচ হলে আলাদা বক্স নেই — সদস্যের নাম সরাসরি কোড ঘরের নিচে সাজেশনে দেখায়) */}
-        {matchInfo === "notfound" ? (
+        {/* Step 2 — ম্যাচ হলে সবুজ তথ্য-বক্স, না মেলে অ্যাম্বার বক্স (v1.4.85: v1.4.84-এর 👤 নাম-সাজেশন ঘরের নিচে আছেই; এই বক্সও আগের মতোই ফিরল — ইউজার-নির্দেশ: "আগের সব থাকবে, নতুনটা শুধু add") */}
+        {matchInfo === "idle" ? null : found ? (
+          <div className="mt-3 rounded-xl border border-emerald-300 bg-emerald-50 p-3">
+            <div className="mb-2 flex items-center gap-2 text-[11px] font-black text-emerald-900">
+              <span>✓</span>
+              <span>ডাটাবেজ থেকে তথ্য নেওয়া হয়েছে — শুধু তারিখ, মেম্বার কোড, ব্যাংক, চেক নম্বর, বিতরণ ও প্রকল্প এন্ট্রি করুন</span>
+            </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div>
+                <label className="mb-1 block text-[11px] font-black uppercase tracking-wide text-emerald-800">
+                  Member Name
+                </label>
+                <div className={readOnlyCls}>{form.memberName || "—"}</div>
+              </div>
+              <div>
+                <label className="mb-1 block text-[11px] font-black uppercase tracking-wide text-emerald-800">
+                  Centre Code
+                </label>
+                <div className={readOnlyCls}>{form.centreCode || "—"}</div>
+              </div>
+              <div>
+                <label className="mb-1 block text-[11px] font-black uppercase tracking-wide text-emerald-800">
+                  Centre Name
+                </label>
+                <div className={readOnlyCls}>{form.centreName || "—"}</div>
+              </div>
+            </div>
+          </div>
+        ) : (
           <div className="mt-3 rounded-xl border-2 border-amber-400 bg-amber-50 p-3">
             <div className="mb-2 flex items-center gap-2 text-[11px] font-black text-amber-900">
               <span>⚠️</span>
@@ -1464,7 +1494,7 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
               </div>
             </div>
           </div>
-        ) : null}
+        )}
 
         {/* Actions */}
         <div className="mt-4 flex flex-wrap items-center gap-2">
