@@ -98,6 +98,9 @@ const entryMatches = (e: CheckEntry, rawQuery: string): boolean => {
   if (nq && normCode(e.memberCode).includes(nq)) return true;
   if (nq && normCode(e.centreCode).includes(nq)) return true;
   if (nq && normCode(e.checkNo).includes(nq)) return true;
+  // v1.4.91: হিসাব নং দিয়েও সার্চ — মূল হিসাব নং + ＋ জোড়ার হিসাব নং, দুটোতেই
+  if (nq && normCode(e.accountNo).includes(nq)) return true;
+  if (nq && (e.extraBanks || []).some((b) => normCode(b?.accountNo || "").includes(nq))) return true;
   if ((e.checkDate || "").includes(q)) return true;
   if ((e.memberName || "").toLowerCase().includes(q)) return true;
   if ((e.centreName || "").toLowerCase().includes(q)) return true;
@@ -548,7 +551,7 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
     }
   };
 
-  /* ───────── সার্চ ফিল্টার (কোড / সেন্টার কোড / তারিখ / নাম) ───────── */
+  /* ───────── সার্চ ফিল্টার (কোড / সেন্টার কোড / তারিখ / নাম / চেক নম্বর / হিসাব নং — v1.4.91) ───────── */
   /** আগের চেক-এন্ট্রিতে ব্যবহার করা ব্যাংকের নাম — সাজেশনেও আসবে */
   const pastBanks = useMemo(() => {
     const set = new Set<string>();
@@ -1612,7 +1615,7 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search — মেম্বার কোড, সেন্টার কোড, তারিখ, নাম, চেক নম্বর…"
+            placeholder="Search — মেম্বার কোড, সেন্টার কোড, তারিখ, নাম, চেক নম্বর, হিসাব নং…"
             className="w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-10 pr-28 text-sm font-semibold text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
             autoComplete="off"
           />
