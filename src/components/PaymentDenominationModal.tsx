@@ -232,7 +232,7 @@ export default function PaymentDenominationModal({
       </div>
       {/* 3-Box Dashboard */}
       <div className="border-b bg-slate-100 p-2 sm:p-3 shrink-0">
-        <div className="grid grid-cols-3 gap-2 max-w-5xl mx-auto">
+        <div className="grid grid-cols-2 gap-2 max-w-5xl mx-auto">
           <div className="flex flex-col justify-center rounded-xl border border-slate-300 bg-white p-2 sm:p-2.5 shadow-xs">
             <span className="text-[11px] sm:text-xs font-bold text-slate-700 truncate">
               Disburse/Expense
@@ -249,8 +249,11 @@ export default function PaymentDenominationModal({
               {fmt(denominationTotalCash)}
             </div>
           </div>
+        </div>
+        {/* v1.4.87: Different কার্ড ফুল-প্রস্থে (ডান-বাম) নিচে আলাদা বক্স — ইউজার-নির্দেশ; উপরের দুই কার্ড ২ কলামে */}
+        <div className="mt-2 max-w-5xl mx-auto">
           <div
-            className={`flex flex-col justify-center rounded-xl border p-2 sm:p-2.5 shadow-xs ${
+            className={`flex flex-row items-center justify-between gap-2 rounded-xl border p-2 sm:p-2.5 shadow-xs ${
               different > 0
                 ? "border-emerald-500 bg-emerald-50"
                 : different < 0
