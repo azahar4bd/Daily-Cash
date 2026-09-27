@@ -910,7 +910,7 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
       </div>
       )}
 
-      {/* 4-Box Dashboard — ৪ কার্ড এক লাইনে; 💰 ডিনোমিনেশন সবশেষে ছোট আইকন (v1.4.58) */}
+      {/* 4-Box Dashboard — Today Cash | Today Bank | 💰 ডিনোমিনেশন এক লাইনে; v1.4.88: Expens/Check/Diferent কার্ড ফুল-প্রস্থে নিচে (ইউজার-নির্দেশ) */}
       <div className="rounded-2xl border border-slate-200 bg-white p-2.5 sm:p-3 shadow-sm">
         <div className="flex items-stretch gap-1.5 sm:gap-2">
           <div className="flex min-w-0 flex-1 flex-col justify-center rounded-xl bg-emerald-50 border border-emerald-300 p-2 sm:p-3 text-center">
@@ -925,21 +925,6 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
               {fmt(todayBankBalance)}
             </span>
           </div>
-          {/* v1.4.58: Expens/Check/Diferent কার্ড ৩য় স্থানে — প্রশস্ত, পুরো অ্যামাউন্ট পড়া যায় */}
-          <div className="flex min-w-0 flex-1 sm:flex-[1.15] flex-col justify-center gap-0.5 rounded-xl border-2 border-purple-900 bg-white p-1.5 sm:p-2 overflow-hidden">
-            <div className="flex items-baseline justify-between gap-1 min-w-0">
-              <span className="whitespace-nowrap text-[9px] sm:text-[10px] font-bold text-purple-900">Expens</span>
-              <span className="truncate font-mono text-[9px] sm:text-xs font-black text-slate-950">{fmt(checkExpens)}</span>
-            </div>
-            <div className="flex items-baseline justify-between gap-1 min-w-0">
-              <span className="whitespace-nowrap text-[9px] sm:text-[10px] font-bold text-purple-900">Check</span>
-              <span className="truncate font-mono text-[9px] sm:text-xs font-black text-slate-950">{fmt(checkWithdraw)}</span>
-            </div>
-            <div className="mt-0.5 flex min-w-0 items-baseline justify-between gap-1 rounded-md border border-emerald-700 bg-emerald-400 px-1 py-0.5">
-              <span className="whitespace-nowrap text-[9px] sm:text-[10px] font-black text-emerald-950">Diferent</span>
-              <span className="truncate font-mono text-[9px] sm:text-xs font-black text-emerald-950">{fmt(checkDiferent)}</span>
-            </div>
-          </div>
           {/* v1.4.58: 💰 ডিনোমিনেশন এখন সবশেষে ছোট আইকন-বাটন (ট্যাপ করলেই চেক-ডিফ খুলবে) */}
           <button
             type="button"
@@ -950,6 +935,23 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
           >
             💰
           </button>
+        </div>
+        {/* v1.4.88: Expens/Check/Diferent কার্ড ফুল-প্রস্থে (ডান-বাম) — Today Cash/Bank-এর ঠিক নিচে আলাদা বক্স (ইউজার-নির্দেশ; আগে ৪ কার্ড এক লাইনে চাপ ছিল) */}
+        <div className="mt-1.5 sm:mt-2">
+          <div className="flex min-w-0 flex-col justify-center gap-0.5 rounded-xl border-2 border-purple-900 bg-white p-2 sm:p-2.5 overflow-hidden">
+            <div className="flex items-baseline justify-between gap-1 min-w-0">
+              <span className="whitespace-nowrap text-[10px] sm:text-xs font-bold text-purple-900">Expens</span>
+              <span className="truncate font-mono text-[10px] sm:text-sm font-black text-slate-950">{fmt(checkExpens)}</span>
+            </div>
+            <div className="flex items-baseline justify-between gap-1 min-w-0">
+              <span className="whitespace-nowrap text-[10px] sm:text-xs font-bold text-purple-900">Check</span>
+              <span className="truncate font-mono text-[10px] sm:text-sm font-black text-slate-950">{fmt(checkWithdraw)}</span>
+            </div>
+            <div className="mt-0.5 flex min-w-0 items-baseline justify-between gap-1 rounded-md border border-emerald-700 bg-emerald-400 px-1.5 py-1">
+              <span className="whitespace-nowrap text-[10px] sm:text-xs font-black text-emerald-950">Diferent</span>
+              <span className="truncate font-mono text-[10px] sm:text-sm font-black text-emerald-950">{fmt(checkDiferent)}</span>
+            </div>
+          </div>
         </div>
       </div>
 
