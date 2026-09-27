@@ -275,16 +275,7 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
         )}
 
         <div className="grid gap-4 md:grid-cols-2">
-          {/* Date */}
-          <div>
-            <label className="mb-1 block text-xs font-bold text-slate-700">Date</label>
-            <DatePicker
-              value={form.txDate}
-              onChange={(v) => setForm({ ...form, txDate: v })}
-              className="px-3 py-2 text-sm"
-            />
-          </div>
-
+          {/* v1.4.89: তারিখ-ঘর বাদ দেওয়া হলো (ইউজার-নির্দেশ) — এন্ট্রি সবসময় selectedDate-এ সেভ হয়, হেডারে তারিখ-চিপ দেখায় */}
           {/* Category */}
           <div>
             <div className="mb-1 flex items-center justify-between">
