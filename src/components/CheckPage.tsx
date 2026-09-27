@@ -282,6 +282,31 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
   const found = matchInfo === "found";
   const needsAll = matchInfo !== "found"; // ডাটাবেজে না থাকলে সব ঘর পূরণ করতে হবে
 
+  /* ───────── v1.4.90: হিসাব নং আগের কোনো এন্ট্রির মিললে ওই মেম্বার কোড দেখায় ─────────
+   * ইউজার-নির্দেশ: "নতুন এন্ট্রি দেব তখন পূর্বের কোন এন্ট্রির সাথে হিসাব নং মিল থাকলে
+   * হিসাব নং এর উপরে সেই মেম্বার কোড দেখাবে"।
+   * - শুধু নতুন এন্ট্রিতে (এডিটে নিজের আগের এন্ট্রিটিই মিলে যাবে — উপদ্রব)
+   * - পূর্বের এন্ট্রির মূল হিসাব নং + জোড়ার (extraBanks) হিসাব নং — দুটোতেই মেলে
+   * - একাধিক মিললে সবচেয়ে সাম্প্রতিক (বড় id) এন্ট্রির মেম্বার কোড */
+  const findPrevMemberForAccount = (acc: string): string | null => {
+    const key = normCode(acc);
+    if (!key || edit) return null;
+    let hit: CheckEntry | null = null;
+    for (const e of entries) {
+      const match =
+        normCode(e.accountNo) === key ||
+        (e.extraBanks || []).some((b) => normCode(b?.accountNo) === key);
+      if (!match) continue;
+      if (!hit || Number(e.id) > Number(hit.id)) hit = e;
+    }
+    return hit?.memberCode || null;
+  };
+  const prevAccountMember = useMemo(
+    () => findPrevMemberForAccount(form.accountNo),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [entries, form.accountNo, edit]
+  );
+
   /* ───────── কোড টাইপ করার সাথে সাথেই নিজে থেকে খোঁজ (blur-এর অপেক্ষা নয়) ───────── */
   const lookupTimer = useRef<number | null>(null);
   const handleMemberCodeChange = (raw: string) => {
@@ -1111,6 +1136,15 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
           {/* 🏦 v1.4.74/83: হিসাব নং + ক্যাটাগরি — চেক নং-এর ঠিক আগে (ব্যাংকের পরপরই) */}
           <div>
             <label className={labelCls}>হিসাব নং</label>
+            {/* v1.4.90: পূর্বের এন্ট্রিতে এই হিসাব নং মিললে ওই মেম্বার কোড হিসাব ঘরের উপরে দেখায় (শুধু নতুন এন্ট্রিতে) */}
+            {prevAccountMember ? (
+              <div className="mb-1 flex items-center gap-1 rounded-md border border-amber-300 bg-amber-50 px-2 py-0.5 text-[10px] font-black text-amber-900">
+                <span aria-hidden="true">🔁</span>
+                <span>
+                  আগেই ব্যবহার হয়েছে — মেম্বার কোড: <span className="font-mono">{prevAccountMember}</span>
+                </span>
+              </div>
+            ) : null}
             <input
               value={form.accountNo}
               onChange={(e) => setForm((f) => ({ ...f, accountNo: e.target.value }))}
@@ -1248,6 +1282,18 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
                   <span className="mb-1 block text-[10px] font-black tracking-wide text-emerald-800">
                     হিসাব নং #{bi + 2}
                   </span>
+                  {/* v1.4.90: জোড়ার হিসাবেও পূর্ব-মিল হলে মেম্বার কোড ঘরের উপরে */}
+                  {(() => {
+                    const pm = findPrevMemberForAccount(b.accountNo || "");
+                    return pm ? (
+                      <div className="mb-1 flex items-center gap-1 rounded-md border border-amber-300 bg-amber-50 px-2 py-0.5 text-[10px] font-black text-amber-900">
+                        <span aria-hidden="true">🔁</span>
+                        <span>
+                          আগেই ব্যবহার হয়েছে — মেম্বার কোড: <span className="font-mono">{pm}</span>
+                        </span>
+                      </div>
+                    ) : null;
+                  })()}
                   <input
                     value={b.accountNo || ""}
                     onChange={(e) => updateExtraBank(bi, "accountNo", e.target.value)}
