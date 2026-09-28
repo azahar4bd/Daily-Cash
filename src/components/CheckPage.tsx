@@ -114,6 +114,49 @@ const allBankPairs = (e: CheckEntry): { bankName: string; checkNo: string; micr:
   return list;
 };
 
+/** 🔎 v1.4.95: 👁 View-এর জন্য ডুপ্লিকেট-চিহ্ন — তারিখ/আইডি ভিন্ন হলেও বাকি তথ্য হুবহু এক হলে একই চেক */
+const viewDedupeKey = (e: CheckEntry): string =>
+  JSON.stringify({
+    m: normCode(e.memberCode || ""),
+    n: (e.memberName || "").trim().toLowerCase(),
+    cc: normCode(e.centreCode || ""),
+    cn: (e.centreName || "").trim().toLowerCase(),
+    p: allBankPairs(e)
+      .map((b) =>
+        [
+          (b.bankName || "").trim().toLowerCase(),
+          String(b.checkNo || "").replace(/\s/g, ""),
+          b.micr ? 1 : 0,
+          String(b.accountNo || "").replace(/\s/g, ""),
+          (b.accountType || "").trim(),
+        ].join("|")
+      )
+      .sort(),
+    d: String(e.disbursse || "").replace(/[^0-9.]/g, ""),
+    pr: (e.project || "").trim().toLowerCase(),
+    r: e.returned ? 1 : 0,
+  });
+
+/** 🔎 v1.4.95: 👁 View ডিসপ্লে-ডিডুপ — একই চেকের হুবহু একই তথ্য একবারই (সাম্প্রতিকতম তারিখের এন্ট্রি);
+ *  স্টোর/টেবিল/📄 PDF-এর কিছুই বদলায় না — শুধু ভিউতে দেখার জন্য গ্রুপ করে */
+const dedupeViewRows = (list: CheckEntry[]): { row: CheckEntry; dupes: CheckEntry[] }[] => {
+  const seen = new Map<string, { row: CheckEntry; dupes: CheckEntry[] }>();
+  for (const row of list) {
+    const k = viewDedupeKey(row);
+    const cur = seen.get(k);
+    if (!cur) {
+      seen.set(k, { row, dupes: [] });
+      continue;
+    }
+    const newer =
+      row.checkDate > cur.row.checkDate ||
+      (row.checkDate === cur.row.checkDate && Number(row.id) > Number(cur.row.id));
+    cur.dupes = [...cur.dupes, newer ? cur.row : row];
+    cur.row = newer ? row : cur.row;
+  }
+  return [...seen.values()];
+};
+
 /**
  * সার্চের সাথে এন্ট্রি মেলে কি না — টেবিল ফিল্টার ও সেভ-পরবর্তী যাচাইয়ে একই নিয়ম।
  * (সেভ/এডিটের পর এন্ট্রিটি ফিল্টারের বাইরে চলে গেলে তা ধরা পড়ে, ফিল্টার সরিয়ে দেওয়া হয়)
@@ -654,6 +697,8 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
   const pageRows = listFiltered;
   const retTotalPages = Math.max(1, Math.ceil(returnFiltered.length / PAGE_SIZE));
   const retPageRows = returnFiltered.slice((retPage - 1) * PAGE_SIZE, retPage * PAGE_SIZE);
+  /** 🔎 v1.4.95: 👁 View-এ হুবহু একই চেকের ডুপ্লিকেট তথ্য একবার — ডিসপ্লে-অনলি ডিডুপ (ডাটা অক্ষত) */
+  const viewGroups = useMemo(() => dedupeViewRows(rangedFiltered), [rangedFiltered]);
 
   /** Return টিক টগল — এন্ট্রিটি দুই টেবিলের মধ্যে সরে যায়; মুছে যায় না, ডেটা অক্ষত থাকে */
   const toggleReturned = (row: CheckEntry) => {
@@ -1927,12 +1972,20 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
                           ))}
                         </tr>
                       </thead>
-                      <tbody>{rangedFiltered.map((row, i) => renderCheckRow(row, i + 1, i))}</tbody>
+                      <tbody>{viewGroups.map((g, i) => renderCheckRow(g.row, i + 1, i))}</tbody>
                     </table>
+                    {viewGroups.some((g) => g.dupes.length > 0) && (
+                      <p className="border-t border-amber-200 bg-amber-50 px-2 py-1 text-[10px] font-black text-amber-800">
+                        ⚠️ একই চেকের হুবহু একই তথ্য একাধিক এন্ট্রিতে আছে — প্রতিটি একবারই দেখানো হয়েছে
+                        (সাম্প্রতিকতম তারিখের এন্ট্রি)।
+                      </p>
+                    )}
                   </div>
                   {/* 📱 v1.4.93: মোবাইল (md-এর কম) — প্রতিটি এন্ট্রির সম্পূর্ণ ডিটেইলস একই স্ক্রিনে, লেবেল:মান সারি উপর-নিচ; হোরিজন্টাল স্ক্রল লাগে না */}
                   <div className="space-y-2 md:hidden">
-                    {rangedFiltered.map((row, i) => {
+                    {viewGroups.map((g, i) => {
+                      const row = g.row;
+                      const dupes = g.dupes;
                       const rowLocked = isDayClosed(row.checkDate);
                       const pairs = allBankPairs(row);
                       /** 🧩 v1.4.94: মেম্বার/জামিনদার আলাদা সেকশন — প্রতি জোড়ার ক্যাটাগরি অনুযায়ী গ্রুপ;
@@ -2009,6 +2062,16 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
                               📅 {formatDisplay(row.checkDate) || row.checkDate}
                             </span>
                           </div>
+                          {dupes.length > 0 && (
+                            <p className="mb-1 rounded-md border border-amber-300 bg-amber-50 px-1.5 py-0.5 text-[9px] font-black text-amber-900">
+                              ⚠️ একই চেকের হুবহু একই তথ্য {dupes.length + 1}টি এন্ট্রিতে আছে (তারিখ:{" "}
+                              {[row.checkDate, ...dupes.map((d) => d.checkDate)]
+                                .sort()
+                                .map((d) => formatDisplay(d) || d)
+                                .join(", ")}
+                              ) — সাম্প্রতিকতমটি একবার দেখানো হয়েছে
+                            </p>
+                          )}
                           <DetailRow label="সদস্যের নাম">{row.memberName || "—"}</DetailRow>
                           <DetailRow label="সেন্টার কোড">
                             <span className="font-mono">{row.centreCode || "—"}</span>
