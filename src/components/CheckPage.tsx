@@ -1935,6 +1935,38 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
                     {rangedFiltered.map((row, i) => {
                       const rowLocked = isDayClosed(row.checkDate);
                       const pairs = allBankPairs(row);
+                      /** 🧩 v1.4.94: মেম্বার/জামিনদার আলাদা সেকশন — প্রতি জোড়ার ক্যাটাগরি অনুযায়ী গ্রুপ;
+                       *  ক্যাটাগরি দেওয়া নেই এমন প্রথম জোড়া মেম্বারে ধরা হয় (পুরনো এন্ট্রি), বাকিগুলো "অন্যান্য"-তে */
+                      type ViewGroup = {
+                        key: "member" | "g1" | "g2" | "other";
+                        title: string;
+                        head: string;
+                        box: string;
+                        items: { b: (typeof pairs)[number]; bi: number }[];
+                      };
+                      const groups: ViewGroup[] = [];
+                      pairs.forEach((b, bi) => {
+                        const t = (b.accountType || "").trim();
+                        const key: ViewGroup["key"] =
+                          t === "মেম্বার" ? "member" : t === "জামিনদার-১" ? "g1" : t === "জামিনদার-২" ? "g2" : bi === 0 ? "member" : "other";
+                        let g = groups.find((x) => x.key === key);
+                        if (!g) {
+                          const meta =
+                            key === "member"
+                              ? { title: "👤 মেম্বার তথ্য", head: "text-indigo-800", box: "border-indigo-200 bg-indigo-50/70" }
+                              : key === "g1"
+                              ? { title: "🤝 জামিনদার-১ তথ্য", head: "text-teal-800", box: "border-teal-200 bg-teal-50/70" }
+                              : key === "g2"
+                              ? { title: "🤝 জামিনদার-২ তথ্য", head: "text-amber-800", box: "border-amber-200 bg-amber-50/70" }
+                              : { title: "ℹ️ অন্যান্য ব্যাংক তথ্য — ক্যাটাগরি দেওয়া নেই", head: "text-slate-700", box: "border-slate-200 bg-slate-50" };
+                          g = { key, items: [], ...meta };
+                          groups.push(g);
+                        }
+                        g.items.push({ b, bi });
+                      });
+                      const ORDER: Record<ViewGroup["key"], number> = { member: 0, g1: 1, g2: 2, other: 3 };
+                      groups.sort((a, b) => ORDER[a.key] - ORDER[b.key]);
+                      const viewHasMember = groups.some((g) => g.key === "member");
                       const DetailRow = ({ label, children }: { label: string; children: ReactNode }) => (
                         <div className="flex items-start justify-between gap-2 border-b border-slate-100 py-1 last:border-b-0">
                           <span className="shrink-0 pt-0.5 text-[10px] font-black uppercase tracking-wide text-slate-500">
@@ -1982,79 +2014,102 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
                             <span className="font-mono">{row.centreCode || "—"}</span>
                           </DetailRow>
                           <DetailRow label="সেন্টার নাম">{row.centreName || "—"}</DetailRow>
-                          <DetailRow label="ব্যাংকের নাম">
-                            <div className="flex flex-col items-end gap-0.5">
-                              {pairs.map((b, bi) => (
-                                <span key={bi}>{b.bankName || "—"}</span>
-                              ))}
-                            </div>
-                          </DetailRow>
-                          <DetailRow label="চেক নম্বর">
-                            <div className="flex flex-col items-end gap-0.5">
-                              {pairs.map((b, bi) => (
-                                <span key={bi} className="font-mono font-black">
-                                  {b.checkNo || "—"}
-                                </span>
-                              ))}
-                              {row.reissuedTo && (
-                                <span
-                                  className="whitespace-nowrap rounded border border-teal-300 bg-teal-50 px-1.5 py-0.5 text-[9px] font-black text-teal-800"
-                                  title={`এই চেকটি রি-ইস্যু হয়েছে — নতুন চেক #${row.reissuedTo.checkNo}`}
-                                >
-                                  🔁 Reissued {formatDisplay(row.reissuedTo.date) || row.reissuedTo.date} → #
-                                  {row.reissuedTo.checkNo}
-                                </span>
-                              )}
-                              {row.reissuedFrom && (
-                                <span className="whitespace-nowrap rounded border border-orange-300 bg-orange-50 px-1.5 py-0.5 text-[9px] font-black text-orange-800">
-                                  🔁 Reissue — পুরনো #{row.reissuedFrom.checkNo} (
-                                  {formatDisplay(row.reissuedFrom.checkDate) || row.reissuedFrom.checkDate})
-                                </span>
-                              )}
-                            </div>
-                          </DetailRow>
-                          <DetailRow label="MICR">
-                            <div className="flex flex-col items-end gap-0.5">
-                              {pairs.map((b, bi) => (
-                                <span
-                                  key={bi}
-                                  className={`rounded border px-1.5 py-0.5 text-[9px] font-black ${
-                                    b.micr
-                                      ? "border-emerald-300 bg-emerald-100 text-emerald-800"
-                                      : "border-slate-300 bg-slate-100 text-slate-600"
-                                  }`}
-                                >
-                                  {b.micr ? "MICR" : "NON MICR"}
-                                </span>
-                              ))}
-                            </div>
-                          </DetailRow>
-                          <DetailRow label="হিসাব নং">
-                            {pairs.some((b) => b.accountNo || b.accountType) ? (
-                              <div className="flex flex-col items-end gap-0.5">
-                                {pairs.map((b, bi) =>
-                                  b.accountNo || b.accountType ? (
-                                    <span key={bi} className="inline-flex items-center gap-1">
-                                      <span className="font-mono font-black">{b.accountNo || "—"}</span>
-                                      {b.accountType && (
-                                        <span
-                                          className={`rounded px-1 py-0.5 text-[9px] font-black ${
-                                            b.accountType === "মেম্বার"
-                                              ? "bg-indigo-100 text-indigo-800"
-                                              : "bg-teal-100 text-teal-800"
-                                          }`}
-                                        >
-                                          {b.accountType}
-                                        </span>
-                                      )}
+                          {groups.map((g) => (
+                            <div key={g.key} className={`mt-1.5 rounded-lg border px-2 py-1 ${g.box}`}>
+                              <p className={`text-[10px] font-black ${g.head}`}>{g.title}</p>
+                              <DetailRow label="ব্যাংকের নাম">
+                                <div className="flex flex-col items-end gap-0.5">
+                                  {g.items.map(({ b, bi }) => (
+                                    <span key={bi}>{b.bankName || "—"}</span>
+                                  ))}
+                                </div>
+                              </DetailRow>
+                              <DetailRow label="চেক নম্বর">
+                                <div className="flex flex-col items-end gap-0.5">
+                                  {g.items.map(({ b, bi }) => (
+                                    <span key={bi} className="font-mono font-black">
+                                      {b.checkNo || "—"}
                                     </span>
-                                  ) : null
+                                  ))}
+                                  {g.key === "member" && row.reissuedTo && (
+                                    <span
+                                      className="whitespace-nowrap rounded border border-teal-300 bg-teal-50 px-1.5 py-0.5 text-[9px] font-black text-teal-800"
+                                      title={`এই চেকটি রি-ইস্যু হয়েছে — নতুন চেক #${row.reissuedTo.checkNo}`}
+                                    >
+                                      🔁 Reissued {formatDisplay(row.reissuedTo.date) || row.reissuedTo.date} → #
+                                      {row.reissuedTo.checkNo}
+                                    </span>
+                                  )}
+                                  {g.key === "member" && row.reissuedFrom && (
+                                    <span className="whitespace-nowrap rounded border border-orange-300 bg-orange-50 px-1.5 py-0.5 text-[9px] font-black text-orange-800">
+                                      🔁 Reissue — পুরনো #{row.reissuedFrom.checkNo} (
+                                      {formatDisplay(row.reissuedFrom.checkDate) || row.reissuedFrom.checkDate})
+                                    </span>
+                                  )}
+                                </div>
+                              </DetailRow>
+                              <DetailRow label="MICR">
+                                <div className="flex flex-col items-end gap-0.5">
+                                  {g.items.map(({ b, bi }) => (
+                                    <span
+                                      key={bi}
+                                      className={`rounded border px-1.5 py-0.5 text-[9px] font-black ${
+                                        b.micr
+                                          ? "border-emerald-300 bg-emerald-100 text-emerald-800"
+                                          : "border-slate-300 bg-slate-100 text-slate-600"
+                                      }`}
+                                    >
+                                      {b.micr ? "MICR" : "NON MICR"}
+                                    </span>
+                                  ))}
+                                </div>
+                              </DetailRow>
+                              <DetailRow label="হিসাব নং">
+                                {g.items.some(({ b }) => b.accountNo || b.accountType) ? (
+                                  <div className="flex flex-col items-end gap-0.5">
+                                    {g.items.map(({ b, bi }) =>
+                                      b.accountNo || b.accountType ? (
+                                        <span key={bi} className="inline-flex items-center gap-1">
+                                          <span className="font-mono font-black">{b.accountNo || "—"}</span>
+                                          {b.accountType && (
+                                            <span
+                                              className={`rounded px-1 py-0.5 text-[9px] font-black ${
+                                                b.accountType === "মেম্বার"
+                                                  ? "bg-indigo-100 text-indigo-800"
+                                                  : "bg-teal-100 text-teal-800"
+                                              }`}
+                                            >
+                                              {b.accountType}
+                                            </span>
+                                          )}
+                                        </span>
+                                      ) : null
+                                    )}
+                                  </div>
+                                ) : (
+                                  "—"
+                                )}
+                              </DetailRow>
+                            </div>
+                          ))}
+                          {(row.reissuedTo || row.reissuedFrom) && !viewHasMember && (
+                            <DetailRow label="রি-ইস্যু">
+                              <div className="flex flex-col items-end gap-0.5">
+                                {row.reissuedTo && (
+                                  <span className="whitespace-nowrap rounded border border-teal-300 bg-teal-50 px-1.5 py-0.5 text-[9px] font-black text-teal-800">
+                                    🔁 Reissued {formatDisplay(row.reissuedTo.date) || row.reissuedTo.date} → #
+                                    {row.reissuedTo.checkNo}
+                                  </span>
+                                )}
+                                {row.reissuedFrom && (
+                                  <span className="whitespace-nowrap rounded border border-orange-300 bg-orange-50 px-1.5 py-0.5 text-[9px] font-black text-orange-800">
+                                    🔁 Reissue — পুরনো #{row.reissuedFrom.checkNo} (
+                                    {formatDisplay(row.reissuedFrom.checkDate) || row.reissuedFrom.checkDate})
+                                  </span>
                                 )}
                               </div>
-                            ) : (
-                              "—"
-                            )}
-                          </DetailRow>
+                            </DetailRow>
+                          )}
                           <DetailRow label="Disbursse">
                             <span className="font-mono">{row.disbursse ? `৳${fmtAmt(row.disbursse)}` : "—"}</span>
                           </DetailRow>
