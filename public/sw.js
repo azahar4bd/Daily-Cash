@@ -1,5 +1,5 @@
 // Service Worker for Cash Gobra (Offline & Online PWA)
-const CACHE_NAME = 'cash-gobra-v1.4.92';
+const CACHE_NAME = 'cash-gobra-v1.4.93';
 
 const PRECACHE_ASSETS = [
   '/',
