@@ -95,6 +95,12 @@ export default function DenominationPopup({
     const cur = vals[active];
     if (key === "⌫") return setVal(active, cur.slice(0, -1));
     if (key === "C") return setVal(active, "");
+    // ± : প্লাস/মাইনাস — ফেরত (refund) পোস্টিংয়ের জন্য (v1.4.96: v1.4.4-এ ছিল, v1.4.9-এ সরানো হয়েছিল — ইউজারের চাওয়ায় ফেরত আনা হলো)
+    if (key === "±") {
+      if (!cur) return setVal(active, "-");
+      if (cur.startsWith("-")) return setVal(active, cur.slice(1));
+      return setVal(active, "-" + cur);
+    }
     if (key === ".") {
       if (isManual && !cur.includes(".")) setVal(active, (cur || "0") + ".");
       return;
@@ -158,6 +164,13 @@ export default function DenominationPopup({
               ×
             </button>
           </div>
+        </div>
+
+        {/* v1.4.96: মাইনাস (ফেরত) হিন্ট বার ফেরত — ± কি দিয়ে ঘর মাইনাস করা যায় */}
+        <div className="shrink-0 border-b bg-rose-50 px-3.5 py-1 text-[10px] font-bold text-rose-800">
+          💡 মাইনাস (ফেরত) লিখতে চাইলে চিহ্ন বাটন <span className="font-mono">±</span> চাপুন — যেমন{" "}
+          <span className="font-mono">5</span> → <span className="font-mono">±</span> ={" "}
+          <span className="font-mono">-5</span>; আবার চাপলে প্লাস
         </div>
 
         {/* Total Balance - MOVED TO THE VERY TOP (নিচে থেকে সবার উপরে) */}
@@ -347,6 +360,12 @@ export default function DenominationPopup({
 
                 <Key label="0" onClick={() => press("0")} className="bg-white hover:bg-slate-50" />
                 <Key label="00" onClick={() => press("00")} className="bg-white hover:bg-slate-50" />
+                {/* v1.4.96: ± কি ফেরত — মাইনাস/প্লাস টগল (ফেরত পোস্টিং) */}
+                <Key
+                  label="±"
+                  onClick={() => press("±")}
+                  className="bg-rose-50 text-rose-700 ring-1 ring-rose-300 hover:bg-rose-100"
+                />
                 <Key
                   label="Reset"
                   onClick={reset}
@@ -355,7 +374,7 @@ export default function DenominationPopup({
                 <Key
                   label="Save"
                   onClick={save}
-                  className="bg-emerald-600 text-white hover:bg-emerald-700 !text-xs font-black"
+                  className="col-span-4 bg-emerald-600 text-white hover:bg-emerald-700 !text-xs font-black"
                 />
               </div>
 
