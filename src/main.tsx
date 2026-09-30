@@ -4,6 +4,7 @@ import App from './App.tsx';
 import './index.css';
 import { installVersionGuard } from './lib/version';
 import { installBranchStorage } from './lib/branchScope';
+import { installFieldArrowNav } from './lib/fieldNav';
 import { getSession, ensureAuthSeed } from './lib/auth';
 
 // 🏢 মাল্টি অফিস: লগইন হওয়া শাখার ডেটা আলাদা করে পড়া/লেখা হবে।
@@ -27,3 +28,6 @@ createRoot(document.getElementById('root')!).render(
 installVersionGuard(() => {
   window.dispatchEvent(new CustomEvent('app-update-available'));
 });
+
+// ⌨ v1.4.97: PC-তে Arrow ↑↓←→ ও Enter দিয়ে ঘর-থেকে-ঘর নেভিগেশন (সব এন্ট্রি-ফর্ম)
+installFieldArrowNav();
