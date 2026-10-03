@@ -335,7 +335,7 @@ export default function PaymentPage({ selectedDate }: { selectedDate: string }) 
               className={`w-full rounded-lg border px-3 py-2 text-right font-mono text-lg font-bold focus:outline-none ${
                 isDayClosed(form.txDate)
                   ? "border-slate-300 bg-slate-100 text-slate-500 cursor-not-allowed opacity-60"
-                  : "border-slate-300 bg-yellow-50 focus:border-blue-500"
+                  : "border-slate-300 bg-orange-50 hover:bg-orange-100/70 focus:border-blue-500"
               }`}
             />
           </div>

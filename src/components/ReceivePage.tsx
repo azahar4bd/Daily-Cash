@@ -328,7 +328,7 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
                   ? "border-slate-300 bg-slate-100 text-slate-500 cursor-not-allowed opacity-60"
                   : (form.amount || 0) < 0
                   ? "cursor-pointer border-rose-400 bg-rose-50 text-rose-700 focus:border-rose-500 focus:outline-none hover:bg-rose-100"
-                  : "cursor-pointer border-slate-300 bg-yellow-50 focus:border-blue-500 focus:outline-none hover:bg-yellow-100/70"
+                  : "cursor-pointer border-slate-300 bg-orange-50 focus:border-blue-500 focus:outline-none hover:bg-orange-100/70"
               }`}
             />
           </div>

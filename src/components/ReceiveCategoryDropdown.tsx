@@ -144,11 +144,13 @@ export default function ReceiveCategoryDropdown({
             blurActiveTextInput();
           }
         }}
-        className={`w-full rounded-xl border bg-white px-3 py-2 text-left text-sm font-bold shadow-xs transition cursor-pointer flex items-center justify-between ${
+        className={`w-full rounded-xl border px-3 py-2 text-left text-sm font-bold shadow-xs transition cursor-pointer flex items-center justify-between ${
+          disabled ? "bg-slate-100" : "bg-orange-50"
+        } ${
           isOpen
             ? "border-blue-600 ring-2 ring-blue-500/20"
-            : "border-slate-300 hover:border-slate-400"
-        } ${disabled ? "opacity-50 cursor-not-allowed bg-slate-100" : ""}`}
+            : "border-slate-300 hover:border-orange-300 hover:bg-orange-100/60"
+        } ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
       >
         <div className="flex items-center gap-2 truncate">
           {value ? (
