@@ -413,7 +413,7 @@ export default function PaymentPage({ selectedDate }: { selectedDate: string }) 
               className={`w-full rounded-lg border px-3 py-2 text-sm font-semibold text-slate-800 focus:outline-none ${
                 isDayClosed(form.txDate)
                   ? "border-slate-300 bg-slate-100 text-slate-500 cursor-not-allowed opacity-60"
-                  : "border-slate-300 bg-white focus:border-blue-500"
+                  : "border-slate-300 bg-orange-50 focus:border-blue-500"
               }`}
             />
           </div>
@@ -538,7 +538,7 @@ export default function PaymentPage({ selectedDate }: { selectedDate: string }) 
                 <DatePicker
                   value={rangeFrom}
                   onChange={(v) => setRangeFrom(v)}
-                  className="w-full px-2 py-1 text-xs sm:text-sm"
+                  className="w-full px-2 py-1 text-xs sm:text-sm bg-orange-50"
                 />
               </div>
             </div>
@@ -548,7 +548,7 @@ export default function PaymentPage({ selectedDate }: { selectedDate: string }) 
                 <DatePicker
                   value={rangeTo}
                   onChange={(v) => setRangeTo(v)}
-                  className="w-full px-2 py-1 text-xs sm:text-sm"
+                  className="w-full px-2 py-1 text-xs sm:text-sm bg-orange-50"
                 />
               </div>
             </div>
@@ -565,7 +565,7 @@ export default function PaymentPage({ selectedDate }: { selectedDate: string }) 
                 ...uniqueCategories.map((cat) => ({ value: cat, label: titleCase(cat) })),
               ]}
               placeholder="All Categories"
-              className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs sm:text-sm font-semibold text-slate-800 shadow-2xs focus:border-blue-500 focus:outline-none cursor-pointer w-44 sm:w-52"
+              className="rounded-lg border border-slate-300 bg-orange-50 px-3 py-1.5 text-xs sm:text-sm font-semibold text-slate-800 shadow-2xs focus:border-blue-500 focus:outline-none cursor-pointer w-44 sm:w-52"
             />
           </div>
         </div>

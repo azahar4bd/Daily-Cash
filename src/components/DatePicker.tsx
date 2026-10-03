@@ -210,7 +210,7 @@ export default function DatePicker({
     <div ref={ref} className="relative">
       {manualEntry ? (
         <div
-          className={`flex w-full items-center gap-0.5 rounded border border-slate-300 bg-white focus-within:border-blue-500 ${className}`}
+          className={`flex w-full items-center gap-0.5 rounded border border-slate-300 ${className.includes("bg-") ? "" : "bg-white"} focus-within:border-blue-500 ${className}`}
         >
           <input
             value={manualText !== null ? manualText : toDMY(value)}
@@ -251,7 +251,7 @@ export default function DatePicker({
         <button
           type="button"
           onClick={() => setOpen((o) => !o)}
-          className={`flex w-full items-center justify-between rounded border border-slate-300 bg-white px-2.5 py-1.5 text-left font-semibold text-slate-800 focus:border-blue-500 focus:outline-none ${className}`}
+          className={`flex w-full items-center justify-between rounded border border-slate-300 ${className.includes("bg-") ? "" : "bg-white"} px-2.5 py-1.5 text-left font-semibold text-slate-800 focus:border-blue-500 focus:outline-none ${className}`}
         >
           <span className="truncate">{formatDisplay(value) || "Select Date"}</span>
           <span className="ml-1 text-slate-400">▼</span>
