@@ -1100,7 +1100,7 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
   };
 
   const inputCls =
-    "w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200";
+    "w-full rounded-lg border border-slate-300 bg-orange-50 px-3 py-2 text-sm font-semibold text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"; // v1.4.100: হালকা বিস্কিট (ইউজার-নির্দেশ) — ফোকাস নীল, কন্ডিশনাল রঙ অক্ষত
   const labelCls = "mb-1 block h-[24px] truncate leading-[24px] text-[11px] font-black uppercase tracking-wide text-slate-600"; // v1.4.66: সব লেবেল-সারি সমানউচ্চ — ঘর এলোমেলো দেখাবে না
   const readOnlyCls =
     "w-full rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-900";
@@ -1701,7 +1701,7 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search — মেম্বার কোড, সেন্টার কোড, তারিখ, নাম, চেক নম্বর, হিসাব নং…"
-            className="w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-10 pr-28 text-sm font-semibold text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+            className="w-full rounded-xl border border-slate-300 bg-orange-50 py-2.5 pl-10 pr-28 text-sm font-semibold text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
             autoComplete="off"
           />
           {(search.trim() || dateRange) && rangedFiltered.length > 0 && (
@@ -1737,7 +1737,7 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
               className={`flex h-full cursor-pointer items-center gap-1 whitespace-nowrap rounded-xl border px-3 py-2 text-[11px] font-black transition ${
                 dateRange
                   ? "border-sky-600 bg-sky-600 text-white shadow"
-                  : "border-slate-300 bg-white text-slate-700 hover:border-sky-400 hover:text-sky-700"
+                  : "border-slate-300 bg-orange-50 text-slate-700 hover:border-sky-400 hover:text-sky-700"
               }`}
             >
               📅 {dateRange ? `${shortDM(dateRange.from)} → ${shortDM(dateRange.to)}` : "তারিখ"}
