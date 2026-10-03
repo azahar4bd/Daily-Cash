@@ -279,6 +279,8 @@ export default function PaymentPage({ selectedDate }: { selectedDate: string }) 
 
         <div className="grid gap-4 md:grid-cols-2">
           {/* v1.4.89: তারিখ-ঘর বাদ দেওয়া হলো (ইউজার-নির্দেশ) — এন্ট্রি সবসময় selectedDate-এ সেভ হয়, হেডারে তারিখ-চিপ দেখায় */}
+          {/* v1.4.98: Category + Amount একই লাইনে পাশাপাশি (মোবাইল ও PC — সব স্ক্রিনে) */}
+          <div className="grid grid-cols-2 items-end gap-3 md:col-span-2">
           {/* Category with Scrollable Box */}
           <div>
             <div className="mb-1 flex items-center justify-between">
@@ -299,6 +301,44 @@ export default function PaymentPage({ selectedDate }: { selectedDate: string }) 
               expenseCats={expenseCats}
               onManageClick={() => setManageOpen(true)}
             />
+          </div>
+
+          {/* Amount (v1.4.98: অর্ধেক-প্রস্থ — ক্যাটাগরির পাশে একই লাইনে; ডিনোমিনেশন বাটন ছোট স্ক্রিনে কমপ্যাক্ট) */}
+          <div>
+            <div className="mb-1 flex items-center justify-between gap-1">
+              <label className="text-xs font-bold text-slate-700">
+                {isCurrentDisburse ? "Disburse Amount" : "Expense Amount"}
+              </label>
+              <button
+                type="button"
+                disabled={isDayClosed(form.txDate)}
+                onClick={() => {
+                  if (isDayClosed(form.txDate)) {
+                    flashLock();
+                    return;
+                  }
+                  setPaymentDenomOpen(true);
+                }}
+                className="flex items-center gap-1 rounded-lg bg-amber-500 hover:bg-amber-600 px-2 py-0.5 text-[10px] sm:px-2.5 sm:py-1 sm:text-xs font-bold text-slate-950 shadow-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shrink-0 whitespace-nowrap"
+              >
+                💳 Denomination
+              </button>
+            </div>
+            <input
+              type="number"
+              min={0}
+              step="1"
+              disabled={isDayClosed(form.txDate)}
+              value={form.amount || ""}
+              placeholder=""
+              onChange={(e) => setForm({ ...form, amount: Math.round(Number(e.target.value) || 0) })}
+              className={`w-full rounded-lg border px-3 py-2 text-right font-mono text-lg font-bold focus:outline-none ${
+                isDayClosed(form.txDate)
+                  ? "border-slate-300 bg-slate-100 text-slate-500 cursor-not-allowed opacity-60"
+                  : "border-slate-300 bg-yellow-50 focus:border-blue-500"
+              }`}
+            />
+          </div>
           </div>
 
           {/* Sub Category — যোগ / এডিট / মুছে ফেলা যায় */}
@@ -359,43 +399,6 @@ export default function PaymentPage({ selectedDate }: { selectedDate: string }) 
               />
             </div>
           )}
-
-          {/* Amount */}
-          <div className={!isCurrentDisburse ? "md:col-span-1" : ""}>
-            <div className="mb-1 flex items-center justify-between">
-              <label className="text-xs font-bold text-slate-700">
-                {isCurrentDisburse ? "Disburse Amount" : "Expense Amount"}
-              </label>
-              <button
-                type="button"
-                disabled={isDayClosed(form.txDate)}
-                onClick={() => {
-                  if (isDayClosed(form.txDate)) {
-                    flashLock();
-                    return;
-                  }
-                  setPaymentDenomOpen(true);
-                }}
-                className="flex items-center gap-1 rounded-lg bg-amber-500 hover:bg-amber-600 px-2.5 py-1 text-xs font-bold text-slate-950 shadow-xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                💳 Denomination
-              </button>
-            </div>
-            <input
-              type="number"
-              min={0}
-              step="1"
-              disabled={isDayClosed(form.txDate)}
-              value={form.amount || ""}
-              placeholder=""
-              onChange={(e) => setForm({ ...form, amount: Math.round(Number(e.target.value) || 0) })}
-              className={`w-full rounded-lg border px-3 py-2 text-right font-mono text-lg font-bold focus:outline-none ${
-                isDayClosed(form.txDate)
-                  ? "border-slate-300 bg-slate-100 text-slate-500 cursor-not-allowed opacity-60"
-                  : "border-slate-300 bg-yellow-50 focus:border-blue-500"
-              }`}
-            />
-          </div>
 
           {/* Description Field (Amount এর পাশে ২য় ঘর) */}
           <div className="md:col-span-1">

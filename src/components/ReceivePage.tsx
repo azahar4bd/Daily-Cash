@@ -276,6 +276,8 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
 
         <div className="grid gap-4 md:grid-cols-2">
           {/* v1.4.89: তারিখ-ঘর বাদ দেওয়া হলো (ইউজার-নির্দেশ) — এন্ট্রি সবসময় selectedDate-এ সেভ হয়, হেডারে তারিখ-চিপ দেখায় */}
+          {/* v1.4.98: Category + Amount একই লাইনে পাশাপাশি (মোবাইল ও PC — সব স্ক্রিনে) */}
+          <div className="grid grid-cols-2 items-end gap-3 md:col-span-2">
           {/* Category */}
           <div>
             <div className="mb-1 flex items-center justify-between">
@@ -295,6 +297,41 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
               cats={cats}
               onManageClick={() => setManage(true)}
             />
+          </div>
+
+          {/* Amount (Click for Denomination) - Placeholder text removed as requested */}
+          <div>
+            <label className="mb-1 block text-xs font-bold text-slate-700">Amount</label>
+            <input
+              readOnly
+              disabled={isDayClosed(form.txDate)}
+              value={
+                form.amount ? fmt(form.amount) : ""
+              }
+              placeholder=""
+              onClick={() => {
+                if (isDayClosed(form.txDate)) {
+                  flashLock();
+                  return;
+                }
+                setDenomOpen(true);
+              }}
+              onFocus={() => {
+                if (isDayClosed(form.txDate)) {
+                  flashLock();
+                  return;
+                }
+                setDenomOpen(true);
+              }}
+              className={`w-full rounded-lg border px-3 py-2 text-right font-mono text-lg font-bold transition shadow-2xs ${
+                isDayClosed(form.txDate)
+                  ? "border-slate-300 bg-slate-100 text-slate-500 cursor-not-allowed opacity-60"
+                  : (form.amount || 0) < 0
+                  ? "cursor-pointer border-rose-400 bg-rose-50 text-rose-700 focus:border-rose-500 focus:outline-none hover:bg-rose-100"
+                  : "cursor-pointer border-slate-300 bg-yellow-50 focus:border-blue-500 focus:outline-none hover:bg-yellow-100/70"
+              }`}
+            />
+          </div>
           </div>
 
           {/* Sub Category — শুধু fund receive হলে (যোগ / এডিট / মুছে ফেলা যায়) */}
@@ -344,40 +381,6 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
               />
             </div>
           )}
-
-          {/* Amount (Click for Denomination) - Placeholder text removed as requested */}
-          <div>
-            <label className="mb-1 block text-xs font-bold text-slate-700">Amount</label>
-            <input
-              readOnly
-              disabled={isDayClosed(form.txDate)}
-              value={
-                form.amount ? fmt(form.amount) : ""
-              }
-              placeholder=""
-              onClick={() => {
-                if (isDayClosed(form.txDate)) {
-                  flashLock();
-                  return;
-                }
-                setDenomOpen(true);
-              }}
-              onFocus={() => {
-                if (isDayClosed(form.txDate)) {
-                  flashLock();
-                  return;
-                }
-                setDenomOpen(true);
-              }}
-              className={`w-full rounded-lg border px-3 py-2 text-right font-mono text-lg font-bold transition shadow-2xs ${
-                isDayClosed(form.txDate)
-                  ? "border-slate-300 bg-slate-100 text-slate-500 cursor-not-allowed opacity-60"
-                  : (form.amount || 0) < 0
-                  ? "cursor-pointer border-rose-400 bg-rose-50 text-rose-700 focus:border-rose-500 focus:outline-none hover:bg-rose-100"
-                  : "cursor-pointer border-slate-300 bg-yellow-50 focus:border-blue-500 focus:outline-none hover:bg-yellow-100/70"
-              }`}
-            />
-          </div>
 
           {/* Description Field (Amount এর পাশে ২য় ঘর) */}
           <div>

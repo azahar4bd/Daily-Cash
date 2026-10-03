@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from "react";
+import type { PointerEvent as ReactPointerEvent } from "react";
 import { titleCase } from "@/lib/categories";
 import type { Cat } from "@/types";
 
@@ -10,6 +11,23 @@ interface ReceiveCategoryDropdownProps {
   disabled?: boolean;
 }
 
+/**
+ * v1.4.98 — "ক্লিকে ল্যাগ / ২-৩ বার ক্লিক করতে হয়" সমস্যার সমাধান:
+ *
+ * পুরনো সমস্যাটি ছিল click-ইভেন্ট-নির্ভরতা: অন্য ইনপুটে (যেমন Description)
+ * ফোকাস থাকা অবস্থায় ট্যাপ করলে প্রথমে সেই ইনপুট blur হয় → মোবাইলে নেটিভ
+ * কিবোর্ড নামে → পুরো লেআউট সরে যায় → ক্লিক-ইভেন্টটি সরে যাওয়া বাটনটি মিস
+ * করে। ফলে প্রথম ১-২ ট্যাপ "কিছুই হয় না" মনে হয়।
+ *
+ * নতুন পদ্ধতি (স্ট্যান্ডার্ড কম্বোবক্স-প্যাটার্ন):
+ *  1) pointerdown-এই preventDefault → ফোকাস স্থির থাকে, কিবোর্ড/লেআউট সরে না।
+ *  2) খোলা/সিলেক্ট commit হয় pointerup-এ — অর্থাৎ প্রথম ট্যাপেই কাজ করে,
+ *     আবার স্ক্রল-জেসচার (drag) হলে pointercancel-এ commit হয় না (নিরাপদ)।
+ *  3) বাইরে চাপলে pointerdown-এই বন্ধ (click-এর অপেক্ষা নয়)।
+ *  4) সিলেক্ট/বন্ধ হলে আটকে থাকা কিবোর্ড/ক্যারেট blur করে পরিষ্কার করা হয়।
+ *  5) onClick রাখা আছে কিবোর্ড (Enter/Space) ও স্ক্রিন-রিডারের fallback হিসেবে
+ *     — pointer-অ্যাকশনের ইকো click যেন দুইবার টগল না করে তার গার্ডসহ।
+ */
 export default function ReceiveCategoryDropdown({
   value,
   onChange,
@@ -19,22 +37,46 @@ export default function ReceiveCategoryDropdown({
 }: ReceiveCategoryDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  /** শেষ pointer-অ্যাকশনের সময় — preventDefault সত্ত্বেও কোনো ব্রাউজার click ফায়ার করলে সেটি ইকো হিসেবে বাদ যায় */
+  const lastPtrActionAt = useRef(0);
+  /** শেষ pointerdown-এর টার্গেট — drag করে বাইরে থেকে রিলিজ হলে (pointerdown ছাড়া pointerup) যেন ভুল সিলেক্ট/টগল না হয় */
+  const pressedRef = useRef<EventTarget | null>(null);
 
-  // Close dropdown on click outside
+  const markPtrAction = () => {
+    lastPtrActionAt.current = Date.now();
+  };
+  const clickIsEcho = () => Date.now() - lastPtrActionAt.current < 600;
+
+  /** অন্য ইনপুটে আটকে থাকা নেটিভ কিবোর্ড/ক্যারেট পরিষ্কার করা (সিলেক্ট/বন্ধের পর) */
+  const blurActiveTextInput = () => {
+    const ae = document.activeElement as HTMLElement | null;
+    if (ae && (ae.tagName === "INPUT" || ae.tagName === "TEXTAREA")) ae.blur();
+  };
+
+  // Close dropdown on press outside (v1.4.98: pointerdown — ট্যাপ/মাউস-ডাউনের মুহূর্তেই, click-এর অপেক্ষা নয়)
   useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
+    if (!isOpen) return;
+    function handlePressOutside(event: Event) {
       if (
         containerRef.current &&
         !containerRef.current.contains(event.target as Node)
       ) {
+        const t = event.target as HTMLElement | null;
+        const tapsAnotherField =
+          !!t &&
+          (t.tagName === "INPUT" ||
+            t.tagName === "TEXTAREA" ||
+            t.tagName === "SELECT");
         setIsOpen(false);
+        // অন্য ইনপুটে চাপলে ফোকাস স্বয়ংক্রিয়ভাবে সেখানে যাবে — তখন ব্লার লাগবে না
+        if (!tapsAnotherField) blurActiveTextInput();
       }
     }
-    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("pointerdown", handlePressOutside);
     return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("pointerdown", handlePressOutside);
     };
-  }, []);
+  }, [isOpen]);
 
   const normValue = (value || "").trim().toLowerCase();
 
@@ -57,6 +99,31 @@ export default function ReceiveCategoryDropdown({
   const handleSelect = (catName: string) => {
     onChange(catName);
     setIsOpen(false);
+    blurActiveTextInput();
+  };
+
+  /** v1.4.98: pointerdown — ফোকাস সরে না (লেআউট স্থির), শুধু টাইমস্ট্যাম্প মার্ক */
+  const handlePressDown = (e: ReactPointerEvent<HTMLElement>) => {
+    if (e.button !== 0) return; // ডান-ক্লিক/মিডল-ক্লিকে কিছু নয়
+    e.preventDefault(); // ফোকাস-স্থানান্তর/নেটিভ-কিবোর্ড-নামা/টেক্সট-সিলেক্ট বন্ধ — ট্যাপ স্থির থাকে
+    pressedRef.current = e.currentTarget;
+    markPtrAction();
+  };
+
+  /** v1.4.98: pointerup-এ টগল — ট্যাপের সাথে সাথেই ফায়ার; drag/scroll হলে pointerup ফায়ারই হয় না */
+  const handlePressUpToggle = (e: ReactPointerEvent<HTMLElement>) => {
+    if (e.button !== 0 || disabled || pressedRef.current !== e.currentTarget) return;
+    markPtrAction();
+    setIsOpen((prev) => {
+      if (prev) blurActiveTextInput(); // টগল-বন্ধ হলেও কিবোর্ড পরিষ্কার
+      return !prev;
+    });
+  };
+
+  const handleFallbackClickToggle = () => {
+    if (disabled) return;
+    if (clickIsEcho()) return; // pointer-অ্যাকশনের ইকো click — দ্বিবার টগল রোধ
+    setIsOpen((prev) => !prev); // কিবোর্ড/স্ক্রিন-রিডার fallback (Enter/Space)
   };
 
   return (
@@ -65,7 +132,18 @@ export default function ReceiveCategoryDropdown({
       <button
         type="button"
         disabled={disabled}
-        onClick={() => setIsOpen(!isOpen)}
+        aria-haspopup="listbox"
+        aria-expanded={isOpen}
+        onPointerDown={handlePressDown}
+        onPointerUp={handlePressUpToggle}
+        onClick={handleFallbackClickToggle}
+        onKeyDown={(e) => {
+          if (e.key === "Escape" && isOpen) {
+            e.stopPropagation();
+            setIsOpen(false);
+            blurActiveTextInput();
+          }
+        }}
         className={`w-full rounded-xl border bg-white px-3 py-2 text-left text-sm font-bold shadow-xs transition cursor-pointer flex items-center justify-between ${
           isOpen
             ? "border-blue-600 ring-2 ring-blue-500/20"
@@ -87,8 +165,19 @@ export default function ReceiveCategoryDropdown({
         <div className="flex items-center gap-1.5 shrink-0 ml-2">
           {value && (
             <span
+              onPointerDown={(e) => {
+                e.stopPropagation();
+                handlePressDown(e);
+              }}
+              onPointerUp={(e) => {
+                e.stopPropagation();
+                if (e.button !== 0 || pressedRef.current !== e.currentTarget) return;
+                markPtrAction();
+                onChange("");
+              }}
               onClick={(e) => {
                 e.stopPropagation();
+                if (clickIsEcho()) return;
                 onChange("");
               }}
               className="p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-md cursor-pointer text-xs transition"
@@ -109,8 +198,11 @@ export default function ReceiveCategoryDropdown({
 
       {/* Floating Scrollable Box */}
       {isOpen && (
-        <div className="absolute left-0 right-0 z-50 mt-1.5 rounded-2xl border border-slate-200 bg-white shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150 flex flex-col max-h-80">
-          
+        <div
+          role="listbox"
+          className="absolute left-0 right-0 z-50 mt-1.5 rounded-2xl border border-slate-200 bg-white shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150 flex flex-col max-h-80"
+        >
+
           {/* v1.4.78: সার্চ বাদ — নিছক সিলেকশন হেডার */}
           <div className="p-2.5 border-b border-slate-100 bg-slate-50 flex items-center justify-between gap-2 shrink-0">
             <span className="pl-1 text-xs sm:text-sm font-bold text-slate-500">
@@ -130,7 +222,18 @@ export default function ReceiveCategoryDropdown({
                   <button
                     key={catName}
                     type="button"
-                    onClick={() => handleSelect(catName)}
+                    role="option"
+                    aria-selected={isSelected}
+                    onPointerDown={handlePressDown}
+                    onPointerUp={(e) => {
+                      if (e.button !== 0 || pressedRef.current !== e.currentTarget) return;
+                      markPtrAction();
+                      handleSelect(catName);
+                    }}
+                    onClick={() => {
+                      if (clickIsEcho()) return;
+                      handleSelect(catName);
+                    }}
                     className={`w-full text-left px-3 py-2 rounded-xl text-xs sm:text-sm font-bold transition cursor-pointer flex items-center justify-between ${
                       isSelected
                         ? "bg-blue-50 text-blue-900 border border-blue-200 shadow-2xs font-extrabold"
@@ -169,7 +272,15 @@ export default function ReceiveCategoryDropdown({
             {onManageClick && (
               <button
                 type="button"
+                onPointerDown={handlePressDown}
+                onPointerUp={(e) => {
+                  if (e.button !== 0 || pressedRef.current !== e.currentTarget) return;
+                  markPtrAction();
+                  setIsOpen(false);
+                  onManageClick();
+                }}
                 onClick={() => {
+                  if (clickIsEcho()) return;
                   setIsOpen(false);
                   onManageClick();
                 }}
