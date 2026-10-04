@@ -6,6 +6,7 @@ import PaymentCategoryDropdown from "./PaymentCategoryDropdown";
 import ScSettings from "./ScSettings";
 import KallyanSettings from "./KallyanSettings";
 import PaymentDenominationModal from "./PaymentDenominationModal";
+import ReportDenominationModal from "./ReportDenominationModal";
 import SubCategoryRulesModal from "./SubCategoryRulesModal";
 import { fmt } from "./DenominationPopup";
 import {
@@ -21,6 +22,7 @@ import {
   isDayOpen,
   getDayState,
   isIntermediateBlockedDate,
+  getReceivePaymentCashInHand,
 } from "@/lib/storage";
 import {
   calcServiceCharge,
@@ -57,6 +59,8 @@ export default function PaymentPage({ selectedDate }: { selectedDate: string }) 
   const [subCatRules, setSubCatRules] = useState<SubCategoryRule[]>([]);
   const [rulesModalOpen, setRulesModalOpen] = useState(false);
   const [paymentDenomOpen, setPaymentDenomOpen] = useState(false);
+  // v1.4.104: রিপোর্ট পেজের Denomination উইন্ডো পেমেন্টেও
+  const [reportDenomOpen, setReportDenomOpen] = useState(false);
   const [kallyanRule, setKallyanRule] = useState<KallyanRule>(getKallyanRule());
   const [kallyanSettingsOpen, setKallyanSettingsOpen] = useState(false);
   const [filterCategory, setFilterCategory] = useState<string>("all");
@@ -260,9 +264,21 @@ export default function PaymentPage({ selectedDate }: { selectedDate: string }) 
               </span>
             )}
           </h1>
-          <span className="text-xs font-mono font-bold text-slate-600 bg-slate-100 px-2.5 py-1 rounded border border-slate-200">
-            {form.txDate}
-          </span>
+          <div className="flex items-center gap-2">
+            {/* v1.4.104: রিপোর্ট-স্টাইল Denomination উইন্ডো (নোট/Qty/Credit/Debit) */}
+            <button
+              type="button"
+              onClick={() => setReportDenomOpen(true)}
+              title="Denomination — নোট গুনে ক্যাশ মেলান (রিপোর্ট উইন্ডো)"
+              aria-label="Denomination — Check Diff"
+              className="flex h-8 w-9 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-amber-600 bg-amber-500 text-base leading-none shadow-xs hover:bg-amber-600 sm:text-lg"
+            >
+              💰
+            </button>
+            <span className="text-xs font-mono font-bold text-slate-600 bg-slate-100 px-2.5 py-1 rounded border border-slate-200">
+              {form.txDate}
+            </span>
+          </div>
         </div>
 
         {!isDayClosed(form.txDate) && isIntermediateBlockedDate(form.txDate, selectedDate).blocked && (
@@ -858,6 +874,16 @@ export default function PaymentPage({ selectedDate }: { selectedDate: string }) 
           else setForm({ ...form, amount: Math.round(calculatedAmt) });
         }}
       />
+
+      {/* v1.4.104: রিপোর্ট পেজের Denomination উইন্ডো — পেমেন্টেও (একই স্থায়ী এন্ট্রি) */}
+      {reportDenomOpen && (
+        <ReportDenominationModal
+          open={reportDenomOpen}
+          onClose={() => setReportDenomOpen(false)}
+          cashInHand={getReceivePaymentCashInHand(form.txDate || selectedDate).cashInHand}
+          date={form.txDate || selectedDate}
+        />
+      )}
     </div>
   );
 }
