@@ -4,6 +4,30 @@ import { fmt } from "./DenominationPopup";
 export const NOTES = [1000, 500, 200, 100, 50, 20, 10, 5, 2, 1] as const;
 const FIELD_COUNT = NOTES.length; // 10 notes
 
+/** v1.4.103 — ডিনোমিনেশন এন্ট্রি পার্সিস্ট: Reset ছাড়া কোনো অবস্থায় হারাবে না
+ *  (উইন্ডো ক্লোজ, পেজ বদল, ব্রাউজার রিফ্রেশ — কিছুতেই নয়) */
+const DENOM_LS_KEY = "gobra_report_denom_entries";
+
+type DenomSaved = { qty: string[]; credit: string[]; debit: string[] };
+
+function loadDenomEntries(): DenomSaved {
+  const empty = (): string[] => Array(FIELD_COUNT).fill("");
+  try {
+    const raw = localStorage.getItem(DENOM_LS_KEY);
+    if (!raw) return { qty: empty(), credit: empty(), debit: empty() };
+    const d = JSON.parse(raw);
+    const norm = (a: unknown): string[] =>
+      Array.isArray(a)
+        ? Array(FIELD_COUNT)
+            .fill("")
+            .map((_, i) => String(a[i] ?? ""))
+        : empty();
+    return { qty: norm(d.qty), credit: norm(d.credit), debit: norm(d.debit) };
+  } catch {
+    return { qty: empty(), credit: empty(), debit: empty() };
+  }
+}
+
 function detectMobile() {
   if (typeof window === "undefined") return false;
   const ua = navigator.userAgent || "";
@@ -25,9 +49,10 @@ export default function ReportDenominationModal({
   date: string;
 }) {
   const [showKeypad, setShowKeypad] = useState(false);
-  const [qtyVals, setQtyVals] = useState<string[]>(Array(FIELD_COUNT).fill(""));
-  const [creditVals, setCreditVals] = useState<string[]>(Array(FIELD_COUNT).fill(""));
-  const [debitVals, setDebitVals] = useState<string[]>(Array(FIELD_COUNT).fill(""));
+  // v1.4.103: প্রাথমিক মান localStorage থেকে — পুরনো এন্ট্রি ফিরে পাবে
+  const [qtyVals, setQtyVals] = useState<string[]>(() => loadDenomEntries().qty);
+  const [creditVals, setCreditVals] = useState<string[]>(() => loadDenomEntries().credit);
+  const [debitVals, setDebitVals] = useState<string[]>(() => loadDenomEntries().debit);
   const [activeCell, setActiveCell] = useState<{
     row: number;
     col: "qty" | "credit" | "debit";
@@ -38,9 +63,7 @@ export default function ReportDenominationModal({
     if (open) {
       const m = detectMobile();
       setShowKeypad(m);
-      setQtyVals(Array(FIELD_COUNT).fill(""));
-      setCreditVals(Array(FIELD_COUNT).fill(""));
-      setDebitVals(Array(FIELD_COUNT).fill(""));
+      // v1.4.103: খোলার সময় আর ঘর খালি করা হয় না — localStorage-এর সংরক্ষিত এন্ট্রিই থাকে
       setActiveCell({ row: 0, col: "qty" });
       if (!m) {
         setTimeout(() => {
@@ -49,6 +72,16 @@ export default function ReportDenominationModal({
       }
     }
   }, [open]);
+
+  // v1.4.103: প্রতি পরিবর্তনে localStorage-এ সংরক্ষণ — ক্লোজ/নেভিগেশন/রিফ্রেশেও টিকে থাকে
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        DENOM_LS_KEY,
+        JSON.stringify({ qty: qtyVals, credit: creditVals, debit: debitVals })
+      );
+    } catch {}
+  }, [qtyVals, creditVals, debitVals]);
 
   if (!open) return null;
 
@@ -88,10 +121,14 @@ export default function ReportDenominationModal({
   };
 
   const handleReset = () => {
+    // v1.4.103: একমাত্র এটাই এন্ট্রি মুছে দেয় (স্টেট + স্টোরেজ — দুই জায়গায়)
     setQtyVals(Array(FIELD_COUNT).fill(""));
     setCreditVals(Array(FIELD_COUNT).fill(""));
     setDebitVals(Array(FIELD_COUNT).fill(""));
     setActiveCell({ row: 0, col: "qty" });
+    try {
+      localStorage.removeItem(DENOM_LS_KEY);
+    } catch {}
   };
 
   const focusCell = (row: number, col: "qty" | "credit" | "debit") => {
