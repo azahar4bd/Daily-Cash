@@ -146,7 +146,7 @@ export default function PaymentCategoryDropdown({
             blurActiveTextInput();
           }
         }}
-        className={`w-full rounded-xl border px-3 py-2 text-left text-sm font-bold shadow-xs transition cursor-pointer flex items-center justify-between ${
+        className={`w-full h-[42px] rounded-xl border px-3 py-2 text-left text-sm font-bold shadow-xs transition cursor-pointer flex items-center justify-between ${
           disabled ? "bg-slate-100" : "bg-orange-50"
         } ${
           isOpen

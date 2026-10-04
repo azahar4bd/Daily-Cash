@@ -276,8 +276,8 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
 
         <div className="grid gap-4 md:grid-cols-2">
           {/* v1.4.89: তারিখ-ঘর বাদ দেওয়া হলো (ইউজার-নির্দেশ) — এন্ট্রি সবসময় selectedDate-এ সেভ হয়, হেডারে তারিখ-চিপ দেখায় */}
-          {/* v1.4.98: Category + Amount একই লাইনে পাশাপাশি (মোবাইল ও PC — সব স্ক্রিনে) */}
-          <div className="grid grid-cols-2 items-end gap-3 md:col-span-2">
+          {/* v1.4.98: Category + Amount একই লাইনে পাশাপাশি — v1.4.102: PC-তে Description-ও একই লাইন; মোবাইলে SubCat+Description এক লাইনে; সব ঘর h-[42px] সমান */}
+          <div className="grid grid-cols-2 items-end gap-3 md:grid-cols-3 md:col-span-2">
           {/* Category */}
           <div>
             <div className="mb-1 flex items-center justify-between">
@@ -323,7 +323,7 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
                 }
                 setDenomOpen(true);
               }}
-              className={`w-full rounded-lg border px-3 py-2 text-right font-mono text-lg font-bold transition shadow-2xs ${
+              className={`w-full h-[42px] rounded-lg border px-3 py-2 text-right font-mono text-lg font-bold transition shadow-2xs ${
                 isDayClosed(form.txDate)
                   ? "border-slate-300 bg-slate-100 text-slate-500 cursor-not-allowed opacity-60"
                   : (form.amount || 0) < 0
@@ -332,11 +332,10 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
               }`}
             />
           </div>
-          </div>
 
-          {/* Sub Category — শুধু fund receive হলে (যোগ / এডিট / মুছে ফেলা যায়) */}
+          {/* Sub Category — শুধু fund receive হলে (যোগ / এডিট / মুছে ফেলা যায়); v1.4.102: মোবাইলে Description-এর পাশে (একই লাইন), PC-তে নিচের সারিতে */}
           {isFundReceive && (
-            <div>
+            <div className="md:col-start-1 md:row-start-2">
               <div className="mb-1 flex items-center justify-between gap-2">
                 <label className="text-xs font-bold text-slate-700">Sub Category (সাব ক্যাটাগরি)</label>
                 <div className="flex items-center gap-2">
@@ -377,13 +376,13 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
                 }
                 placeholder="-- Select Sub Category --"
                 disabled={isDayClosed(form.txDate)}
-                className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-bold text-slate-800 focus:border-blue-500 focus:outline-none cursor-pointer"
+                className="w-full h-[42px] rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-bold text-slate-800 focus:border-blue-500 focus:outline-none cursor-pointer"
               />
             </div>
           )}
 
-          {/* Description Field (Amount এর পাশে ২য় ঘর) */}
-          <div>
+          {/* Description Field — v1.4.102: PC-তে Category+Amount-এর সাথে ১ম সারির ৩য় ঘর; মোবাইলে Sub Category থাকলে তার পাশে, না থাকলে পুরো প্রস্থ */}
+          <div className={`${isFundReceive ? "" : "col-span-2 md:col-span-1"} md:col-start-3 md:row-start-1`}>
             <label className="mb-1 block text-xs font-bold text-slate-700">Description</label>
             <input
               type="text"
@@ -392,12 +391,13 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
               onChange={(e) => setForm({ ...form, description: e.target.value })}
               placeholder=""
               autoComplete="off"
-              className={`w-full rounded-lg border px-3 py-2 text-sm font-semibold text-slate-800 focus:outline-none ${
+              className={`w-full h-[42px] rounded-lg border px-3 py-2 text-sm font-semibold text-slate-800 focus:outline-none ${
                 isDayClosed(form.txDate)
                   ? "border-slate-300 bg-slate-100 text-slate-500 cursor-not-allowed opacity-60"
                   : "border-slate-300 bg-orange-50 focus:border-blue-500"
               }`}
             />
+          </div>
           </div>
 
           {/* Save / Reset */}
