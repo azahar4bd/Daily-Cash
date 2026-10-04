@@ -238,34 +238,19 @@ export const searchVisibleEntries = (list: CheckEntry[], search: string): CheckE
 };
 
 /**
- * ⌨️ v1.4.109: চেক-টেবিলে Arrow-key নেভিগেশন — ফোকাস-থাকা ঘর থেকে ↑↓←→ চাপলে
- * নির্ভরশীল ঘরে ফোকাস যায় (টাইপিং-কর্সর/পেজ-স্ক্রলের ডিফল্ট আচরণ বন্ধ)।
+ * ⌨️ v1.4.110: টেবিল-উইন্ডোর Arrow-স্ক্রল — ফোকাস-থাকা টেবিলের ওপরে Arrow চাপলে টেবিলটাই
+ * ডানে/বামে/উপরে/নিচে স্ক্রল হয় (কোনো কার্সর বা ঘর-নেভিগেশন সিস্টেম নয়)।
  */
-export const handleTableArrowNav = (e: { key: string; target: EventTarget | null; preventDefault: () => void }) => {
+export const handleTableScrollKeys = (e: { key: string; currentTarget: EventTarget | null; preventDefault: () => void }) => {
   if (!e.key || !e.key.startsWith("Arrow")) return;
-  const td = (e.target as HTMLElement | null)?.closest?.("td") as HTMLElement | null;
-  if (!td) return;
-  const tr = td.closest("tr");
-  const tbody = td.closest("tbody");
-  if (!tr || !tbody) return;
-  const rows = Array.from(tbody.querySelectorAll(":scope > tr")) as HTMLElement[];
-  const r = rows.indexOf(tr as HTMLElement);
-  const cells = Array.from(tr.children).filter((c) => c.tagName === "TD") as HTMLElement[];
-  const c = cells.indexOf(td);
-  if (r < 0 || c < 0) return;
-  let nr = r;
-  let nc = c;
-  if (e.key === "ArrowLeft") nc = c - 1;
-  else if (e.key === "ArrowRight") nc = c + 1;
-  else if (e.key === "ArrowUp") nr = r - 1;
-  else if (e.key === "ArrowDown") nr = r + 1;
-  else return;
+  const el = e.currentTarget as HTMLElement | null;
+  if (!el) return;
   e.preventDefault();
-  if (nr < 0 || nr >= rows.length) return;
-  const tCells = Array.from(rows[nr].children).filter((x) => x.tagName === "TD");
-  const idx = Math.min(nc, tCells.length - 1);
-  if (idx < 0) return;
-  (tCells[idx] as HTMLElement).focus();
+  const STEP = 80;
+  if (e.key === "ArrowLeft") el.scrollLeft -= STEP;
+  else if (e.key === "ArrowRight") el.scrollLeft += STEP;
+  else if (e.key === "ArrowUp") el.scrollTop -= STEP;
+  else if (e.key === "ArrowDown") el.scrollTop += STEP;
 };
 
 const emptyForm = (date: string) => ({
@@ -894,11 +879,11 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
           zebra % 2 ? "bg-slate-50/70" : "bg-white"
         } hover:bg-blue-50/60`}
       >
-        <td tabIndex={0} className="outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500 px-2 py-1.5 font-mono text-[11px] font-bold text-slate-500">{sr}</td>
-        <td tabIndex={0} className="outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500 whitespace-nowrap px-2 py-1.5 font-mono text-xs font-bold text-slate-800">
+        <td className="px-2 py-1.5 font-mono text-[11px] font-bold text-slate-500">{sr}</td>
+        <td className="whitespace-nowrap px-2 py-1.5 font-mono text-xs font-bold text-slate-800">
           {formatDisplay(row.checkDate) || row.checkDate}
         </td>
-        <td tabIndex={0} className="outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500 whitespace-nowrap px-2 py-1.5 font-mono text-xs font-black text-indigo-700">
+        <td className="whitespace-nowrap px-2 py-1.5 font-mono text-xs font-black text-indigo-700">
           {row.memberCode}
           {row.foundInDb === false && (
             <span
@@ -909,12 +894,12 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
             </span>
           )}
         </td>
-        <td tabIndex={0} className="outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500 px-2 py-1.5 text-xs font-semibold text-slate-900">{row.memberName}</td>
-        <td tabIndex={0} className="outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500 whitespace-nowrap px-2 py-1.5 font-mono text-xs font-bold text-slate-700">
+        <td className="px-2 py-1.5 text-xs font-semibold text-slate-900">{row.memberName}</td>
+        <td className="whitespace-nowrap px-2 py-1.5 font-mono text-xs font-bold text-slate-700">
           {row.centreCode}
         </td>
-        <td tabIndex={0} className="outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500 px-2 py-1.5 text-xs font-semibold text-slate-900">{row.centreName}</td>
-        <td tabIndex={0} className="outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500 px-2 py-1.5 text-xs font-semibold text-slate-800">
+        <td className="px-2 py-1.5 text-xs font-semibold text-slate-900">{row.centreName}</td>
+        <td className="px-2 py-1.5 text-xs font-semibold text-slate-800">
           <div className="flex flex-col gap-0.5">
             {allBankPairs(row).map((b, bi) => (
               <span key={bi}>{b.bankName || "—"}</span>
@@ -922,7 +907,7 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
           </div>
         </td>
         {/* 🏦 v1.4.74/75: হিসাব নং + ক্যাটাগরি — ব্যাংক-জোড়ার স্ট্যাকের সাথে মিলিয়ে; পুরনো এন্ট্রিতে ফাঁকা (—) */}
-        <td tabIndex={0} className="outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500 whitespace-nowrap px-2 py-1.5">
+        <td className="whitespace-nowrap px-2 py-1.5">
           {/* v1.4.108: Bank Statement ব্যাজ */}
           {row.bankStatement && (
             <div className="mb-0.5">
@@ -961,7 +946,7 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
             <span className="text-slate-300">—</span>
           )}
         </td>
-        <td tabIndex={0} className="outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500 px-2 py-1.5 font-mono text-xs font-black text-slate-900">
+        <td className="px-2 py-1.5 font-mono text-xs font-black text-slate-900">
           <div className="flex flex-col gap-0.5">
             {allBankPairs(row).map((b, bi) => (
               <span key={bi} className="whitespace-nowrap">
@@ -989,7 +974,7 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
           {/* v1.4.106: রি-ইস্যু এন্ট্রিতে বাতিল/নতুন চেকের ব্যাজ */}
           {reissueChangeBadges(row)}
         </td>
-        <td tabIndex={0} className="outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500 whitespace-nowrap px-2 py-1.5 text-center">
+        <td className="whitespace-nowrap px-2 py-1.5 text-center">
           {/* v1.4.50: প্রতি ব্যাংক-জোড়ার নিজস্ব MICR ব্যাজ — ব্যাংক/চেক নম্বরের স্ট্যাকের সাথে মিল রেখে */}
           <div className="flex flex-col items-center gap-0.5">
             {allBankPairs(row).map((b, bi) =>
@@ -1011,21 +996,21 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
             )}
           </div>
         </td>
-        <td tabIndex={0} className="outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500 whitespace-nowrap px-2 py-1.5 text-right font-mono text-xs font-black text-slate-900">
+        <td className="whitespace-nowrap px-2 py-1.5 text-right font-mono text-xs font-black text-slate-900">
           {row.disbursse ? (
             fmtAmt(row.disbursse)
           ) : (
             <span className="text-slate-300">—</span>
           )}
         </td>
-        <td tabIndex={0} className="outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500 px-2 py-1.5 text-xs font-semibold text-slate-800">
+        <td className="px-2 py-1.5 text-xs font-semibold text-slate-800">
           {row.project ? (
             <span className="uppercase">{String(row.project).trim().toUpperCase()}</span>
           ) : (
             <span className="text-slate-300">—</span>
           )}
         </td>
-        <td tabIndex={0} className="outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500 whitespace-nowrap px-2 py-1.5 text-center">
+        <td className="whitespace-nowrap px-2 py-1.5 text-center">
           <input
             type="checkbox"
             checked={Boolean(row.returned)}
@@ -1047,7 +1032,7 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
             </div>
           )}
         </td>
-        <td tabIndex={0} className="outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500 whitespace-nowrap px-2 py-1.5">
+        <td className="whitespace-nowrap px-2 py-1.5">
           <div className="flex items-center gap-1">
             {rowLocked && (
               <span
@@ -1818,8 +1803,8 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
 
         {/* Table */}
         <div className="overflow-hidden rounded-xl border border-slate-200">
-          <div className="max-h-[80vh] overflow-auto">
-            <table onKeyDown={handleTableArrowNav} className="w-full min-w-[980px] border-collapse text-sm">
+          <div tabIndex={0} onKeyDown={handleTableScrollKeys} className="max-h-[80vh] overflow-auto focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-400 rounded-md" title="Arrow কি চাপলে টেবিল স্ক্রল হবে">
+            <table className="w-full min-w-[980px] border-collapse text-sm">
               <thead className="sticky top-0 z-10 bg-slate-800 text-white">
                 <tr>
                   {TABLE_HEADERS.map((h) => (
@@ -1874,8 +1859,8 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
         </div>
 
         <div className="overflow-hidden rounded-xl border border-slate-200">
-          <div className="max-h-[80vh] overflow-auto">
-            <table onKeyDown={handleTableArrowNav} className="w-full min-w-[980px] border-collapse text-sm">
+          <div tabIndex={0} onKeyDown={handleTableScrollKeys} className="max-h-[80vh] overflow-auto focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-400 rounded-md" title="Arrow কি চাপলে টেবিল স্ক্রল হবে">
+            <table className="w-full min-w-[980px] border-collapse text-sm">
               <thead className="sticky top-0 z-10 bg-slate-800 text-white">
                 <tr>
                   {TABLE_HEADERS.map((h) => (
