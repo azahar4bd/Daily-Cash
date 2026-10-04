@@ -197,6 +197,46 @@ const entryMatches = (e: CheckEntry, rawQuery: string): boolean => {
   return false;
 };
 
+/** ✅ v1.4.106: তারিখ 100% পূরণ হয়েছে কি না — সম্পূর্ণ YYYY-MM-DD ফরম্যাট + বাস্তব ক্যালেন্ডার-তারিখ। */
+export const isFullDate = (s: string): boolean => {
+  const v = String(s || "").trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) return false;
+  const y = Number(v.slice(0, 4));
+  const m = Number(v.slice(5, 7));
+  const d = Number(v.slice(8, 10));
+  if (m < 1 || m > 12 || d < 1 || d > 31) return false;
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  return dt.getUTCFullYear() === y && dt.getUTCMonth() === m - 1 && dt.getUTCDate() === d;
+};
+
+/**
+ * 🔁 v1.4.106: সার্চ চালু থাকলে রি-ইস্যু হয়ে যাওয়া পুরনো এন্ট্রি টেবিলে থাকবে না —
+ * তার জায়গায় রি-ইস্যু চেইনের সর্বশেষ (নতুন) এন্ট্রিটিই দেখাবে।
+ * (তবে রেকর্ডে অর্থাৎ স্টোরে পুরনো এন্ট্রিটিও অক্ষত থাকে — শুধু সার্চের টেবিল থেকে বাদ।)
+ */
+export const searchVisibleEntries = (list: CheckEntry[], search: string): CheckEntry[] => {
+  const q = (search || "").trim();
+  if (!q) return list;
+  const hits = list.filter((e) => entryMatches(e, q));
+  const byId = new Map(list.map((e) => [Number(e.id), e]));
+  const show = new Map<number, CheckEntry>();
+  for (const h of hits) {
+    if (!h.reissuedTo) {
+      show.set(Number(h.id), h);
+      continue;
+    }
+    // পুরনো (রি-ইস্যুকৃত) এন্ট্রি → চেইন ধরে সর্বশেষ এন্ট্রিটি দেখাও
+    let cur: CheckEntry | undefined = h;
+    const seen = new Set<number>();
+    while (cur && cur.reissuedTo && !seen.has(Number(cur.id))) {
+      seen.add(Number(cur.id));
+      cur = byId.get(Number(cur.reissuedTo.id));
+    }
+    if (cur) show.set(Number(cur.id), cur);
+  }
+  return list.filter((e) => show.has(Number(e.id)));
+};
+
 const emptyForm = (date: string) => ({
   checkDate: date,
   memberCode: "",
@@ -248,6 +288,10 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
   const [rangeTo, setRangeTo] = useState("");
   /** v1.4.49: 🔁 রি-ইস্যু পপআপ — কোন এন্ট্রিটি রি-ইস্যু হচ্ছে + তার ফর্ম */
   const [reissueFor, setReissueFor] = useState<CheckEntry | null>(null);
+  /** v1.4.106: Return টিকের তারিখ-মডাল — টিক দিলে তারিখ চাইবে; 100% পূরণ ছাড়া সেভ হয় না */
+  const [returnFor, setReturnFor] = useState<CheckEntry | null>(null);
+  const [returnDateInput, setReturnDateInput] = useState("");
+  const [returnErr, setReturnErr] = useState("");
   const [rForm, setRForm] = useState(emptyForm(todayISO()));
   const [rMatchInfo, setRMatchInfo] = useState<"idle" | "found" | "notfound">("idle");
   const [rStatus, setRStatus] = useState<{ kind: "ok" | "warn" | "err"; text: string } | null>(null);
@@ -411,7 +455,12 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
       setStatus({ kind: "err", text: `🚫 ${blocked.reason || "এই তারিখটি ব্লকড।"}` });
       return;
     }
-    if (!form.checkDate) return setStatus({ kind: "err", text: "তারিখ নির্বাচন করুন।" });
+    // v1.4.106: তারিখ 100% পূরণ না হলে এন্ট্রি সেভ হবে না
+    if (!isFullDate(form.checkDate))
+      return setStatus({
+        kind: "err",
+        text: "তারিখ 100% পূরণ করুন (সম্পূর্ণ তারিখ বাধ্যতামূলক) — না পূরণে এন্ট্রি সেভ হবে না।",
+      });
     if (!form.memberCode.trim()) return setStatus({ kind: "err", text: "মেম্বার কোড দিন।" });
     if (!form.bankName.trim()) return setStatus({ kind: "err", text: "ব্যাংকের নাম দিন।" });
     if (!form.checkNo.trim()) return setStatus({ kind: "err", text: "চেক নম্বর দিন।" });
@@ -634,7 +683,8 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
   }, [entries]);
 
   const filtered = useMemo(
-    () => (search.trim() ? entries.filter((e) => entryMatches(e, search)) : entries),
+    // v1.4.106: সার্চে রি-ইস্যুকৃত পুরনো এন্ট্রি বাদ — নতুন (চেইনের সর্বশেষ) এন্ট্রিটিই দেখাবে
+    () => searchVisibleEntries(entries, search),
     [entries, search]
   );
 
@@ -700,7 +750,7 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
   /** 🔎 v1.4.95: 👁 View-এ হুবহু একই চেকের ডুপ্লিকেট তথ্য একবার — ডিসপ্লে-অনলি ডিডুপ (ডাটা অক্ষত) */
   const viewGroups = useMemo(() => dedupeViewRows(rangedFiltered), [rangedFiltered]);
 
-  /** Return টিক টগল — এন্ট্রিটি দুই টেবিলের মধ্যে সরে যায়; মুছে যায় না, ডেটা অক্ষত থাকে */
+  /** Return টিক টগল — v1.4.106: টিক দিলে তারিখ-মডাল চাইবে (100% পূরণ ছাড়া সেভ হয় না); টিক তুললে আগের মতোই ফিরে আসে। ডেটা অক্ষত থাকে */
   const toggleReturned = (row: CheckEntry) => {
     if (isDayClosed(row.checkDate)) {
       setStatus({
@@ -709,15 +759,63 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
       });
       return;
     }
-    const nowReturned = !row.returned;
-    updateCheckEntry({ ...row, returned: nowReturned });
+    if (!row.returned) {
+      // টিক দেওয়ার সময় — রিটার্নের তারিখ চাইবে
+      setStatus(null);
+      setReturnFor(row);
+      setReturnDateInput("");
+      setReturnErr("");
+      return;
+    }
+    // টিক তোলার সময় — সরাসরি ফিরে আসে, রিটার্ন-তারিখ মুছে যায়
+    updateCheckEntry({ ...row, returned: false, returnDate: "" });
     setStatus({
       kind: "ok",
-      text: nowReturned
-        ? `↩ চেক #${row.checkNo} (${row.memberCode}) Return টেবিলে পাঠানো হয়েছে — এন্ট্রিটি মুছে যায়নি।`
-        : `✓ চেক #${row.checkNo} (${row.memberCode}) Return থেকে চেক লিস্টে ফিরে এসেছে।`,
+      text: `✓ চেক #${row.checkNo} (${row.memberCode}) Return থেকে চেক লিস্টে ফিরে এসেছে।`,
     });
   };
+
+  /** ↩ Return তারিখ কনফার্ম — v1.4.106: সম্পূর্ণ বৈধ তারিখ 100% বাধ্যতামূলক; না পূরণে এন্ট্রি সেভ হয় না */
+  const confirmReturn = () => {
+    const row = returnFor;
+    if (!row) return;
+    if (!isFullDate(returnDateInput)) {
+      setReturnErr("রিটার্নের তারিখ 100% পূরণ করুন (সম্পূর্ণ তারিখ বাধ্যতামূলক) — না পূরণে এন্ট্রি সেভ হবে না।");
+      return;
+    }
+    updateCheckEntry({ ...row, returned: true, returnDate: returnDateInput });
+    setReturnFor(null);
+    setReturnErr("");
+    setStatus({
+      kind: "ok",
+      text: `↩ চেক #${row.checkNo} (${row.memberCode}) Return টেবিলে পাঠানো হয়েছে — তারিখ: ${
+        formatDisplay(returnDateInput) || returnDateInput
+      }। এন্ট্রিটি মুছে যায়নি।`,
+    });
+  };
+
+  /** v1.4.106: নতুন রি-ইস্যু এন্ট্রিতে — কোন চেক বাতিল / কোন নতুন অ্যাড হলো (ব্যাজ) */
+  const reissueChangeBadges = (row: CheckEntry) =>
+    row.reissueChanges && (row.reissueChanges.cancelled.length > 0 || row.reissueChanges.added.length > 0) ? (
+      <div className="mt-1 flex flex-col gap-0.5">
+        {row.reissueChanges.cancelled.length > 0 && (
+          <span
+            className="inline-block whitespace-nowrap rounded border border-rose-300 bg-rose-50 px-1.5 py-0.5 text-[9px] font-black text-rose-800"
+            title="রি-ইস্যুতে বাতিল হওয়া পুরনো চেক"
+          >
+            🚫 বাতিল: {row.reissueChanges.cancelled.map((p) => `#${p.checkNo || "—"}`).join(", ")}
+          </span>
+        )}
+        {row.reissueChanges.added.length > 0 && (
+          <span
+            className="inline-block whitespace-nowrap rounded border border-emerald-300 bg-emerald-50 px-1.5 py-0.5 text-[9px] font-black text-emerald-800"
+            title="রি-ইস্যুতে নতুন অ্যাড হওয়া চেক"
+          >
+            ✨ নতুন: {row.reissueChanges.added.map((p) => `#${p.checkNo || "—"}`).join(", ")}
+          </span>
+        )}
+      </div>
+    ) : null;
 
   /* v1.4.48: একাধিক ব্যাংক + চেক নম্বরের জোড়া — ＋ বাটনে যোগ, ✕ বাটনে বাদ */
   const addBankPair = () =>
@@ -795,8 +893,12 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
   const handleReissueSubmit = () => {
     const orig = reissueFor;
     if (!orig) return;
-    if (!rForm.checkDate) {
-      setRStatus({ kind: "err", text: "রি-ইস্যুর তারিখ নির্বাচন করুন।" });
+    // v1.4.106: রি-ইস্যুর তারিখ 100% পূরণ না হলে এন্ট্রি সেভ হবে না
+    if (!isFullDate(rForm.checkDate)) {
+      setRStatus({
+        kind: "err",
+        text: "রি-ইস্যুর তারিখ 100% পূরণ করুন (সম্পূর্ণ তারিখ বাধ্যতামূলক) — না পূরণে এন্ট্রি সেভ হবে না।",
+      });
       return;
     }
     if (isDayClosed(rForm.checkDate)) {
@@ -856,7 +958,16 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
         source: "auto",
       });
     }
-    // ১) নতুন এন্ট্রি — পুরনো চেকের রেফারেন্সসহ (reissuedFrom)
+    // v1.4.106: কোন চেক বাতিল হলো (পুরনো এন্ট্রির সব জোড়া) ও কোন নতুন চেক অ্যাড হলো (নতুন এন্ট্রির সব জোড়া) — রেকর্ডে থাকবে
+    const cancelledPairs = [
+      { bankName: orig.bankName || "", checkNo: orig.checkNo || "" },
+      ...(orig.extraBanks || []).map((b) => ({ bankName: b?.bankName || "", checkNo: b?.checkNo || "" })),
+    ].filter((p) => p.bankName.trim() || p.checkNo.trim());
+    const addedPairs = [
+      { bankName: rForm.bankName.trim(), checkNo: rForm.checkNo.trim() },
+      ...cleanExtras.map((b) => ({ bankName: b.bankName, checkNo: b.checkNo })),
+    ].filter((p) => p.bankName.trim() || p.checkNo.trim());
+    // ১) নতুন এন্ট্রি — পুরনো চেকের রেফারেন্সসহ (reissuedFrom) + বাতিল/নতুন রেকর্ড (reissueChanges)
     const newEntry = saveCheckEntry({
       checkDate: rForm.checkDate,
       memberCode: rForm.memberCode.trim(),
@@ -877,6 +988,7 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
         checkNo: orig.checkNo || "",
         checkDate: orig.checkDate || "",
       },
+      reissueChanges: { cancelled: cancelledPairs, added: addedPairs },
     });
     // ২) পুরনো এন্ট্রিতে সিল — কোন তারিখে রি-ইস্যু হলো + নতুন চেক নম্বর (বাকি সব ডেটা অক্ষত)
     const latest =
@@ -885,6 +997,8 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
       ...latest,
       // v1.4.50: রি-ইস্যু হলে পুরনো এন্ট্রিটি Return টেবিলে চলে যাবে (নতুন এন্ট্রি চেক লিস্টেই থাকে)
       returned: true,
+      // v1.4.106: রি-ইস্যু তারিখটিই পুরনো এন্ট্রির রিটার্ন-তারিখ (Return টেবিলে তারিখসহ থাকবে)
+      returnDate: newEntry.checkDate,
       reissuedTo: { id: Number(newEntry.id), date: newEntry.checkDate, checkNo: newEntry.checkNo },
     });
     setReissueFor(null);
@@ -993,6 +1107,8 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
               {formatDisplay(row.reissuedFrom.checkDate) || row.reissuedFrom.checkDate})
             </span>
           )}
+          {/* v1.4.106: রি-ইস্যু এন্ট্রিতে বাতিল/নতুন চেকের ব্যাজ */}
+          {reissueChangeBadges(row)}
         </td>
         <td className="whitespace-nowrap px-2 py-1.5 text-center">
           {/* v1.4.50: প্রতি ব্যাংক-জোড়ার নিজস্ব MICR ব্যাজ — ব্যাংক/চেক নম্বরের স্ট্যাকের সাথে মিল রেখে */}
@@ -1040,11 +1156,17 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
               rowLocked
                 ? "দিন সমাপ্ত (Day Closed) — Return টিক বদলানো যাবে না"
                 : row.returned
-                ? "টিক তুললে এন্ট্রিটি চেক লিস্টে ফিরে যাবে"
-                : "টিক দিলে এন্ট্রিটি Return টেবিলে চলে যাবে"
+                ? `↩ রিটার্নের তারিখ: ${formatDisplay(row.returnDate || "") || row.returnDate || "—"} — টিক তুললে এন্ট্রিটি চেক লিস্টে ফিরে যাবে`
+                : "টিক দিলে তারিখ চাইবে — তারিখসহ এন্ট্রিটি Return টেবিলে চলে যাবে"
             }
             className="h-4 w-4 cursor-pointer accent-amber-600 disabled:cursor-not-allowed disabled:opacity-40"
           />
+          {/* v1.4.106: রিটার্নের তারিখ — টিকের নিচে ছোট অক্ষরে */}
+          {row.returned && row.returnDate && (
+            <div className="mt-0.5 text-[9px] font-black text-amber-700" title="রিটার্নের তারিখ">
+              ↩ {formatDisplay(row.returnDate) || row.returnDate}
+            </div>
+          )}
         </td>
         <td className="whitespace-nowrap px-2 py-1.5">
           <div className="flex items-center gap-1">
@@ -2056,6 +2178,8 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
                               {row.returned && (
                                 <span className="rounded border border-amber-400 bg-amber-100 px-1.5 py-0.5 text-[10px] font-black text-amber-800">
                                   ↩ RETURN
+                                  {/* v1.4.106: রিটার্নের তারিখসহ */}
+                                  {row.returnDate ? ` (${formatDisplay(row.returnDate) || row.returnDate})` : ""}
                                 </span>
                               )}
                               {rowLocked && <span title="দিন সমাপ্ত (Day Closed)">🔒</span>}
@@ -2109,6 +2233,8 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
                                       {formatDisplay(row.reissuedFrom.checkDate) || row.reissuedFrom.checkDate})
                                     </span>
                                   )}
+                                  {/* v1.4.106: বাতিল/নতুন অ্যাড ব্যাজ */}
+                                  {g.key === "member" && reissueChangeBadges(row)}
                                 </div>
                               </DetailRow>
                               <DetailRow label="MICR">
@@ -2170,6 +2296,8 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
                                     {formatDisplay(row.reissuedFrom.checkDate) || row.reissuedFrom.checkDate})
                                   </span>
                                 )}
+                                {/* v1.4.106: বাতিল/নতুন অ্যাড ব্যাজ */}
+                                {reissueChangeBadges(row)}
                               </div>
                             </DetailRow>
                           )}
@@ -2407,7 +2535,15 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
                               {row.project ? String(row.project).trim().toUpperCase() : "—"}
                             </td>
                             <td className="whitespace-nowrap border border-slate-300 px-1.5 py-1 text-center font-black">
-                              {row.returned ? <span className="text-amber-700">↩ RETURN</span> : "—"}
+                              {row.returned ? (
+                                <span className="text-amber-700">
+                                  ↩ RETURN
+                                  {/* v1.4.106: রিটার্নের তারিখসহ */}
+                                  {row.returnDate ? ` (${formatDisplay(row.returnDate) || row.returnDate})` : ""}
+                                </span>
+                              ) : (
+                                "—"
+                              )}
                             </td>
                             <td className="border border-slate-300 px-1.5 py-1 text-[10px] font-bold">
                               {row.reissuedTo && (
@@ -2421,7 +2557,18 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
                                   {formatDisplay(row.reissuedFrom.checkDate) || row.reissuedFrom.checkDate})-এর রি-ইস্যু
                                 </span>
                               )}
-                              {!row.reissuedTo && !row.reissuedFrom && "—"}
+                              {/* v1.4.106: রি-ইস্যুতে কোন চেক বাতিল / কোন নতুন অ্যাড */}
+                              {row.reissueChanges && (
+                                <span className="block text-[9px]">
+                                  <span className="text-rose-700">
+                                    🚫 বাতিল: {row.reissueChanges.cancelled.map((p) => `#${p.checkNo || "—"}`).join(", ") || "—"}
+                                  </span>{" "}
+                                  <span className="text-emerald-700">
+                                    ✨ নতুন: {row.reissueChanges.added.map((p) => `#${p.checkNo || "—"}`).join(", ") || "—"}
+                                  </span>
+                                </span>
+                              )}
+                              {!row.reissuedTo && !row.reissuedFrom && !row.reissueChanges && "—"}
                             </td>
                           </tr>
                         );
@@ -2453,6 +2600,67 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
       )}
 
       {/* ══════════════ v1.4.49: 🔁 CHECK REISSUE POPUP ══════════════ */}
+      {/* ══════════════ v1.4.106: ↩ RETURN তারিখ-মডাল — টিক দিলে তারিখ চাইবে; 100% পূরণ ছাড়া সেভ হয় না ══════════════ */}
+      {returnFor && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center overflow-y-auto bg-slate-950/70 p-3 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl border border-amber-300 bg-white shadow-2xl">
+            <div className="rounded-t-2xl border-b border-amber-200 bg-amber-50 px-4 py-3">
+              <h3 className="flex items-center gap-2 text-base font-black text-amber-900">
+                <span>↩</span> <span>চেক রিটার্ন — তারিখ দিন</span>
+              </h3>
+              <p className="mt-0.5 text-[11px] font-bold text-amber-800">
+                চেক: <span className="font-mono">#{returnFor.checkNo}</span> • {returnFor.bankName || "—"} • মেম্বার{" "}
+                <span className="font-mono">{returnFor.memberCode}</span>
+              </p>
+            </div>
+            <div className="space-y-3 p-4">
+              <div>
+                <label className={labelCls}>রিটার্নের তারিখ (বাধ্যতামূলক)</label>
+                <DatePicker
+                  value={returnDateInput}
+                  onChange={(v) => {
+                    setReturnDateInput(v || "");
+                    setReturnErr("");
+                  }}
+                  className="py-2 text-sm font-semibold"
+                  manualEntry
+                />
+                <p className="mt-1 text-[10px] font-bold text-slate-500">
+                  এই তারিখ 100% পূরণ না করলে এন্ট্রি সেভ হবে না।
+                </p>
+              </div>
+              {returnErr && (
+                <div className="rounded-xl border border-rose-300 bg-rose-50 px-3 py-2 text-xs font-black text-rose-800">
+                  ⚠️ {returnErr}
+                </div>
+              )}
+              <div className="flex items-center justify-end gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setReturnFor(null);
+                    setReturnErr("");
+                  }}
+                  className="cursor-pointer rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-black text-slate-700 shadow-xs transition hover:bg-slate-100"
+                >
+                  ✕ বাদ
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmReturn}
+                  title={isFullDate(returnDateInput) ? "রিটার্ন সেভ করুন" : "আগে সম্পূর্ণ তারিখ পূরণ করুন"}
+                  className={`cursor-pointer rounded-xl px-5 py-2 text-sm font-black text-white shadow transition ${
+                    isFullDate(returnDateInput) ? "bg-amber-600 hover:bg-amber-700" : "bg-slate-300"
+                  }`}
+                >
+                  ✓ রিটার্ন সেভ
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {reissueFor && (
         <div className="fixed inset-0 z-[70] flex items-start justify-center overflow-y-auto bg-slate-950/70 p-2 backdrop-blur-sm sm:items-center sm:p-4">
           <div className="my-auto w-full max-w-3xl rounded-2xl border border-teal-300 bg-white shadow-2xl">

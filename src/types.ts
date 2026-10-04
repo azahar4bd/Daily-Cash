@@ -52,6 +52,13 @@ export type CheckEntry = {
    */
   reissuedTo?: { id: number; date: string; checkNo: string };
   reissuedFrom?: { id: number; checkNo: string; checkDate: string };
+  /** ↩ রিটার্নের তারিখ (v1.4.106) — Return টিক দেওয়ার সময় বাধ্যতামূলক তারিখ; টিক তুললে ফাঁকা হয় */
+  returnDate?: string;
+  /**
+   * 🔁 রি-ইস্যু বিস্তারিত (v1.4.106) — নতুন (রি-ইস্যু) এন্ট্রিতে বসে:
+   * কোন চেক বাতিল হলো (পুরনো এন্ট্রির সব ব্যাংক/চেক) ও কোন নতুন চেক অ্যাড হলো (নতুন এন্ট্রির সব জোড়া)।
+   */
+  reissueChanges?: { cancelled: { bankName: string; checkNo: string }[]; added: { bankName: string; checkNo: string }[] };
   /** ডাটাবেজে পাওয়া গিয়েছিল কি না */
   foundInDb?: boolean;
   createdAt?: string;
