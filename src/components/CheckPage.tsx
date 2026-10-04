@@ -237,6 +237,26 @@ export const searchVisibleEntries = (list: CheckEntry[], search: string): CheckE
   return list.filter((e) => show.has(Number(e.id)));
 };
 
+/**
+ * 🔁 v1.4.107: রি-ইস্যু রেকর্ড বানায় — পুরনো এন্ট্রির প্রতিটি চেক সিঁদ্ধান্তসহ (রি-ইস্যু নাকি রিটার্ন)
+ * `decisions` map: পুরনো জোড়ার ইনডেক্স → "reissued" | "returned" (না দিলে ডিফল্ট "reissued")
+ */
+export const buildReissueChanges = (
+  orig: CheckEntry,
+  newPairs: { bankName: string; checkNo: string }[],
+  decisions: Record<number, "reissued" | "returned"> = {}
+): NonNullable<CheckEntry["reissueChanges"]> => {
+  const oldPairs = [
+    { bankName: orig.bankName || "", checkNo: orig.checkNo || "" },
+    ...(orig.extraBanks || []).map((b) => ({ bankName: b?.bankName || "", checkNo: b?.checkNo || "" })),
+  ].filter((p) => p.bankName.trim() || p.checkNo.trim());
+  return {
+    cancelled: oldPairs,
+    added: newPairs.filter((p) => p.bankName.trim() || p.checkNo.trim()),
+    decisions: oldPairs.map((p, i) => ({ ...p, action: decisions[i] || "reissued" })),
+  };
+};
+
 const emptyForm = (date: string) => ({
   checkDate: date,
   memberCode: "",
@@ -293,6 +313,8 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
   const [returnDateInput, setReturnDateInput] = useState("");
   const [returnErr, setReturnErr] = useState("");
   const [rForm, setRForm] = useState(emptyForm(todayISO()));
+  /** v1.4.107: রি-ইস্যু মডালে পূর্বের প্রতি চেকের সিদ্ধান্ত (ইনডেক্স → reissued|returned; না থাকলে reissued) */
+  const [rDecisions, setRDecisions] = useState<Record<number, "reissued" | "returned">>({});
   const [rMatchInfo, setRMatchInfo] = useState<"idle" | "found" | "notfound">("idle");
   const [rStatus, setRStatus] = useState<{ kind: "ok" | "warn" | "err"; text: string } | null>(null);
   const rLookupTimer = useRef<number | null>(null);
@@ -794,28 +816,52 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
     });
   };
 
-  /** v1.4.106: নতুন রি-ইস্যু এন্ট্রিতে — কোন চেক বাতিল / কোন নতুন অ্যাড হলো (ব্যাজ) */
-  const reissueChangeBadges = (row: CheckEntry) =>
-    row.reissueChanges && (row.reissueChanges.cancelled.length > 0 || row.reissueChanges.added.length > 0) ? (
+  /** v1.4.106/107: নতুন রি-ইস্যু এন্ট্রিতে — পূর্বের প্রতি চেকের সিদ্ধান্ত (🔁 রি-ইস্যু / ↩ রিটার্ন) + নতুন অ্যাড (ব্যাজ) */
+  const reissueChangeBadges = (row: CheckEntry) => {
+    const rc = row.reissueChanges;
+    if (!rc || (rc.cancelled.length === 0 && rc.added.length === 0)) return null;
+    const dec = rc.decisions;
+    const reissued = dec?.filter((d) => d.action === "reissued") || [];
+    const returned = dec?.filter((d) => d.action === "returned") || [];
+    return (
       <div className="mt-1 flex flex-col gap-0.5">
-        {row.reissueChanges.cancelled.length > 0 && (
+        {/* পূর্বের চেকের সিদ্ধান্ত থাকলে: কোনটি রি-ইস্যু হয়েছে, কোনটি রিটার্ন — আলাদা ব্যাজে */}
+        {dec && reissued.length > 0 && (
+          <span
+            className="inline-block whitespace-nowrap rounded border border-teal-300 bg-teal-50 px-1.5 py-0.5 text-[9px] font-black text-teal-800"
+            title="রি-ইস্যু হিসেবে ধরা পুরনো চেক — নতুন নম্বরে বদলে গেছে"
+          >
+            🔁 রি-ইস্যু: {reissued.map((p) => `#${p.checkNo || "—"}`).join(", ")}
+          </span>
+        )}
+        {dec && returned.length > 0 && (
+          <span
+            className="inline-block whitespace-nowrap rounded border border-purple-300 bg-purple-50 px-1.5 py-0.5 text-[9px] font-black text-purple-800"
+            title="রিটার্ন হিসেবে ধরা পুরনো চেক — রি-ইস্যু হয়নি, শুধু বাতিল"
+          >
+            ↩ রিটার্ন: {returned.map((p) => `#${p.checkNo || "—"}`).join(", ")}
+          </span>
+        )}
+        {/* পুরনো রেকর্ডে (decisions ছাড়া) — আগের বাতিল লাইন */}
+        {!dec && rc.cancelled.length > 0 && (
           <span
             className="inline-block whitespace-nowrap rounded border border-rose-300 bg-rose-50 px-1.5 py-0.5 text-[9px] font-black text-rose-800"
             title="রি-ইস্যুতে বাতিল হওয়া পুরনো চেক"
           >
-            🚫 বাতিল: {row.reissueChanges.cancelled.map((p) => `#${p.checkNo || "—"}`).join(", ")}
+            🚫 বাতিল: {rc.cancelled.map((p) => `#${p.checkNo || "—"}`).join(", ")}
           </span>
         )}
-        {row.reissueChanges.added.length > 0 && (
+        {rc.added.length > 0 && (
           <span
             className="inline-block whitespace-nowrap rounded border border-emerald-300 bg-emerald-50 px-1.5 py-0.5 text-[9px] font-black text-emerald-800"
             title="রি-ইস্যুতে নতুন অ্যাড হওয়া চেক"
           >
-            ✨ নতুন: {row.reissueChanges.added.map((p) => `#${p.checkNo || "—"}`).join(", ")}
+            ✨ নতুন: {rc.added.map((p) => `#${p.checkNo || "—"}`).join(", ")}
           </span>
         )}
       </div>
-    ) : null;
+    );
+  };
 
   /* v1.4.48: একাধিক ব্যাংক + চেক নম্বরের জোড়া — ＋ বাটনে যোগ, ✕ বাটনে বাদ */
   const addBankPair = () =>
@@ -854,6 +900,7 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
     const m = findMemberByCode(row.memberCode);
     setRMatchInfo(m ? "found" : "notfound");
     setRStatus(null);
+    setRDecisions({}); // v1.4.107: পূর্বের চেকের সিদ্ধান্ত প্রতিবার নতুন খোলার সাথে রিসেট (ডিফল্ট: 🔁 রি-ইস্যু)
     setReissueFor(row);
   };
 
@@ -958,15 +1005,15 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
         source: "auto",
       });
     }
-    // v1.4.106: কোন চেক বাতিল হলো (পুরনো এন্ট্রির সব জোড়া) ও কোন নতুন চেক অ্যাড হলো (নতুন এন্ট্রির সব জোড়া) — রেকর্ডে থাকবে
-    const cancelledPairs = [
-      { bankName: orig.bankName || "", checkNo: orig.checkNo || "" },
-      ...(orig.extraBanks || []).map((b) => ({ bankName: b?.bankName || "", checkNo: b?.checkNo || "" })),
-    ].filter((p) => p.bankName.trim() || p.checkNo.trim());
-    const addedPairs = [
-      { bankName: rForm.bankName.trim(), checkNo: rForm.checkNo.trim() },
-      ...cleanExtras.map((b) => ({ bankName: b.bankName, checkNo: b.checkNo })),
-    ].filter((p) => p.bankName.trim() || p.checkNo.trim());
+    // v1.4.106/107: কোন চেক বাতিল হলো ও কোন নতুন চেক অ্যাড হলো — প্রতি পূর্বের চেকের সিদ্ধান্তসহ (🔁 রি-ইস্যু / ↩ রিটার্ন)
+    const rcData = buildReissueChanges(
+      orig,
+      [
+        { bankName: rForm.bankName.trim(), checkNo: rForm.checkNo.trim() },
+        ...cleanExtras.map((b) => ({ bankName: b.bankName, checkNo: b.checkNo })),
+      ],
+      rDecisions
+    );
     // ১) নতুন এন্ট্রি — পুরনো চেকের রেফারেন্সসহ (reissuedFrom) + বাতিল/নতুন রেকর্ড (reissueChanges)
     const newEntry = saveCheckEntry({
       checkDate: rForm.checkDate,
@@ -988,7 +1035,7 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
         checkNo: orig.checkNo || "",
         checkDate: orig.checkDate || "",
       },
-      reissueChanges: { cancelled: cancelledPairs, added: addedPairs },
+      reissueChanges: rcData,
     });
     // ২) পুরনো এন্ট্রিতে সিল — কোন তারিখে রি-ইস্যু হলো + নতুন চেক নম্বর (বাকি সব ডেটা অক্ষত)
     const latest =
@@ -1011,7 +1058,9 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
       kind: "ok",
       text: `✓ চেক #${orig.checkNo} রি-ইস্যু হয়েছে → নতুন চেক #${newEntry.checkNo} (${
         formatDisplay(newEntry.checkDate) || newEntry.checkDate
-      }) — নতুন এন্ট্রি চেক লিস্টে আছে, পুরনো এন্ট্রিটি রি-ইস্যুর তারিখসহ Return টেবিলে পাঠানো হয়েছে। কোনো এন্ট্রি মুছে যায়নি.`,
+      }) — নতুন এন্ট্রি চেক লিস্টে আছে, পুরনো এন্ট্রিটি রি-ইস্যুর তারিখসহ Return টেবিলে পাঠানো হয়েছে। পূর্বের চেক: 🔁 রি-ইস্যু ${
+        rcData.decisions?.filter((d) => d.action === "reissued").length || 0
+      }টি, ↩ রিটার্ন ${rcData.decisions?.filter((d) => d.action === "returned").length || 0}টি ধরা হয়েছে। কোনো এন্ট্রি মুছে যায়নি.`,
     });
     reload();
   };
@@ -2557,12 +2606,31 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
                                   {formatDisplay(row.reissuedFrom.checkDate) || row.reissuedFrom.checkDate})-এর রি-ইস্যু
                                 </span>
                               )}
-                              {/* v1.4.106: রি-ইস্যুতে কোন চেক বাতিল / কোন নতুন অ্যাড */}
+                              {/* v1.4.106/107: রি-ইস্যুতে প্রতি পূর্বের চেকের সিদ্ধান্ত + নতুন অ্যাড */}
                               {row.reissueChanges && (
                                 <span className="block text-[9px]">
-                                  <span className="text-rose-700">
-                                    🚫 বাতিল: {row.reissueChanges.cancelled.map((p) => `#${p.checkNo || "—"}`).join(", ") || "—"}
-                                  </span>{" "}
+                                  {row.reissueChanges.decisions ? (
+                                    <>
+                                      <span className="text-teal-700">
+                                        🔁 রি-ইস্যু:{" "}
+                                        {row.reissueChanges.decisions
+                                          .filter((d) => d.action === "reissued")
+                                          .map((p) => `#${p.checkNo || "—"}`)
+                                          .join(", ") || "—"}
+                                      </span>{" "}
+                                      <span className="text-purple-700">
+                                        ↩ রিটার্ন:{" "}
+                                        {row.reissueChanges.decisions
+                                          .filter((d) => d.action === "returned")
+                                          .map((p) => `#${p.checkNo || "—"}`)
+                                          .join(", ") || "—"}
+                                      </span>{" "}
+                                    </>
+                                  ) : (
+                                    <span className="text-rose-700">
+                                      🚫 বাতিল: {row.reissueChanges.cancelled.map((p) => `#${p.checkNo || "—"}`).join(", ") || "—"}
+                                    </span>
+                                  )}{" "}
                                   <span className="text-emerald-700">
                                     ✨ নতুন: {row.reissueChanges.added.map((p) => `#${p.checkNo || "—"}`).join(", ") || "—"}
                                   </span>
@@ -2691,6 +2759,61 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
                 ✕ ক্লোজ
               </button>
             </div>
+
+            {/* v1.4.107: পূর্বের চেকগুলি — প্রতিটির জন্য 🔁 রি-ইস্যু নাকি ↩ রিটার্ন, সিদ্ধান্ত এন্ট্রিতে রেকর্ড হয় */}
+            {(() => {
+              const oldPairs = [
+                { bankName: reissueFor.bankName || "", checkNo: reissueFor.checkNo || "" },
+                ...(reissueFor.extraBanks || []).map((b) => ({ bankName: b?.bankName || "", checkNo: b?.checkNo || "" })),
+              ].filter((p) => p.bankName.trim() || p.checkNo.trim());
+              return (
+                <div className="border-b border-teal-100 bg-teal-50/60 px-4 py-2.5">
+                  <p className="mb-1.5 text-[11px] font-black text-teal-900">
+                    পূর্বের চেকগুলি — কোনটি 🔁 রি-ইস্যু হবে আর কোনটি ↩ রিটার্ন থাকছে নির্বাচন করুন:
+                  </p>
+                  <div className="flex flex-col gap-1.5">
+                    {oldPairs.map((p, i) => {
+                      const act = rDecisions[i] || "reissued";
+                      return (
+                        <div
+                          key={i}
+                          className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-2 py-1"
+                        >
+                          <span className="min-w-0 truncate font-mono text-xs font-black text-slate-800">
+                            #{p.checkNo || "—"}{" "}
+                            <span className="text-[10px] font-bold text-slate-500">({p.bankName || "—"})</span>
+                          </span>
+                          <div className="flex shrink-0 overflow-hidden rounded-lg border border-slate-300 text-[10px] font-black">
+                            <button
+                              type="button"
+                              aria-pressed={act === "reissued"}
+                              title="এই চেকটি রি-ইস্যু হবে — নতুন নম্বরে বদলে যাবে"
+                              onClick={() => setRDecisions((d) => ({ ...d, [i]: "reissued" }))}
+                              className={`cursor-pointer px-2 py-1 ${
+                                act === "reissued" ? "bg-teal-600 text-white" : "bg-white text-slate-600 hover:bg-teal-50"
+                              }`}
+                            >
+                              🔁 রি-ইস্যু
+                            </button>
+                            <button
+                              type="button"
+                              aria-pressed={act === "returned"}
+                              title="এই চেকটি শুধু রিটার্ন থাকছে — রি-ইস্যু হবে না"
+                              onClick={() => setRDecisions((d) => ({ ...d, [i]: "returned" }))}
+                              className={`cursor-pointer border-l border-slate-300 px-2 py-1 ${
+                                act === "returned" ? "bg-purple-600 text-white" : "bg-white text-slate-600 hover:bg-purple-50"
+                              }`}
+                            >
+                              ↩ রিটার্ন
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* ফর্ম — চেক এন্ট্রির সব ঘর */}
             <div className="max-h-[70vh] space-y-3 overflow-y-auto p-4">

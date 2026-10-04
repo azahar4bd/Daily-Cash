@@ -57,8 +57,13 @@ export type CheckEntry = {
   /**
    * 🔁 রি-ইস্যু বিস্তারিত (v1.4.106) — নতুন (রি-ইস্যু) এন্ট্রিতে বসে:
    * কোন চেক বাতিল হলো (পুরনো এন্ট্রির সব ব্যাংক/চেক) ও কোন নতুন চেক অ্যাড হলো (নতুন এন্ট্রির সব জোড়া)।
+   * v1.4.107: `decisions` — প্রতি পুরনো চেকের জন্য ইউজারের সিদ্ধান্ত: 🔁 রি-ইস্যু হয়েছে নাকি ↩ রিটার্ন।
    */
-  reissueChanges?: { cancelled: { bankName: string; checkNo: string }[]; added: { bankName: string; checkNo: string }[] };
+  reissueChanges?: {
+    cancelled: { bankName: string; checkNo: string }[];
+    added: { bankName: string; checkNo: string }[];
+    decisions?: { bankName: string; checkNo: string; action: "reissued" | "returned" }[];
+  };
   /** ডাটাবেজে পাওয়া গিয়েছিল কি না */
   foundInDb?: boolean;
   createdAt?: string;
