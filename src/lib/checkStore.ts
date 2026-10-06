@@ -191,6 +191,24 @@ export function deleteCheckEntry(id: number | string): void {
   persist(list, [id]);
 }
 
+/**
+ * 🧹 v1.4.114: পরিচিত টেস্ট মেম্বারের চেক-এন্ট্রি পার্জ —
+ * অ্যাপ খোলার মুহূর্তে চলে; টেস্ট এন্ট্রিগুলো প্রতিটি সিঙ্কে যেন ফিরে না আসে।
+ * (ফিরে-আসার কারণ: সিংক লোকাল+ক্লাউড ইউনিয়ন মার্জ করে — এক ডিভাইসে মুছলেও
+ *  অন্য ডিভাইসের লোকাল কপি আবার ক্লাউডে উঠে ফেরত নিয়ে আসত।)
+ */
+const PURGE_ENTRY_MEMBER_CODES: string[] = ["9001"];
+
+/** পার্জ-কোডের সব চেক-এন্ট্রি মুছে ফেলা — App মাউন্টে ডাকা হয়; মোছা সংখ্যা ফেরত দেয় */
+export function purgeBlockedCheckEntries(): number {
+  const nm = (v: unknown) => String(v ?? "").replace(/\s+/g, "").toUpperCase();
+  const purge = new Set(PURGE_ENTRY_MEMBER_CODES.map(nm));
+  const doomed = getCheckEntries().filter((e) => purge.has(nm(e.memberCode)));
+  if (!doomed.length) return 0;
+  for (const e of doomed) deleteCheckEntry(e.id);
+  return doomed.length;
+}
+
 /** টেবিলে দেখানোর ক্রম: নতুন তারিখ আগে, একই তারিখে সর্বশেষ এন্ট্রি আগে */
 export function getCheckEntriesSorted(): CheckEntry[] {
   return [...getCheckEntries()].sort((a, b) => {

@@ -16,7 +16,8 @@ import DayOpenModal from "./components/DayOpenModal";
 import DayCloseModal from "./components/DayCloseModal";
 import { todayISO } from "./components/DatePicker";
 import { initNeonSync } from "./lib/neonSync";
-import { seedMemberDatabase } from "./lib/memberDb";
+import { seedMemberDatabase, purgeBlockedMembers } from "./lib/memberDb";
+import { purgeBlockedCheckEntries } from "./lib/checkStore";
 import { forceFreshReload, dismissUpdateToast, APP_VERSION } from "./lib/version";
 import AuthScreen from "./components/AuthScreen";
 import { setBranch } from "./lib/branchScope";
@@ -64,8 +65,14 @@ export default function App() {
     // ☁️ Neon Cloud Database Synchronization — প্রতিটি অফিসের জন্য (আলাদা ক্লাউড স্কিমা)
     initNeonSync();
 
-    // অ্যাপের সাথে বাঁধা মেম্বার ডাটাবেজ বসানো (৪,৭৬১ জন) — শুধু গোবরা শাখায়
-    if (isDefaultBranch()) seedMemberDatabase();
+    // অ্যাপের সাথে বাঁধা মেম্বার ডাটাবেজ বসানো (৪,৭৭২ জন) — শুধু গোবরা শাখায়
+    if (isDefaultBranch()) {
+      seedMemberDatabase();
+      // 🧹 v1.4.114: চপচপে টেস্ট ডেটা (সদস্য ৯০০১ + তার চেক-এন্ট্রি) সব ডিভাইস থেকে চিরতরে মোছে
+      const pm = purgeBlockedMembers();
+      const pe = purgeBlockedCheckEntries();
+      if (pm || pe) console.log(`🧹 টেস্ট ডেটা পরিষ্কার — সদস্য: ${pm}, চেক-এন্ট্রি: ${pe}`);
+    }
   }, [session?.userId, session?.branchId]);
 
   useEffect(() => {

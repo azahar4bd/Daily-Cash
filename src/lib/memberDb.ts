@@ -100,6 +100,27 @@ export function clearMembers(): void {
   try { enqueueNeonAction({ type: "member_clear", payload: null }); } catch {}
 }
 
+/**
+ * 🧹 v1.4.114: পরিচিত টেস্ট/ভুল সদস্যের পার্জ-তালিকা —
+ * অ্যাপ খোলার মুহূর্তে চলে; যেকোনো ডিভাইসের লোকাল ডাটাবেজে থাকলে মুছে দেয়
+ * এবং ক্লাউডেও ডিলিট পাঠায়।
+ * (আগে UI-তে সদস্য মোছার রাস্তাই ছিল না, তাই টেস্ট ডেটা আটকে ছিল।)
+ */
+const PURGE_MEMBER_CODES: string[] = ["9001"];
+
+/** পার্জ-তালিকার সদস্য মুছে ফেলা — App মাউন্টে ডাকা হয়; মোছা সংখ্যা ফেরত দেয় */
+export function purgeBlockedMembers(): number {
+  const purge = new Set(PURGE_MEMBER_CODES.map((c) => normCode(c)));
+  const list = getMembers();
+  const doomed = list.filter((m) => purge.has(normCode(m.memberCode)));
+  if (!doomed.length) return 0;
+  persist(list.filter((m) => !purge.has(normCode(m.memberCode))));
+  for (const m of doomed) {
+    try { enqueueNeonAction({ type: "member_del", payload: m.memberCode }); } catch {}
+  }
+  return doomed.length;
+}
+
 /* ───────────── bundled seed ───────────── */
 
 export function seedMemberDatabase(force = false): { added: number; updated: number; total: number } | null {

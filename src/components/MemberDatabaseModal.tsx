@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { getMembers, normCode, parseMemberText, importMembers } from "@/lib/memberDb";
+import { getMembers, normCode, parseMemberText, importMembers, deleteMember } from "@/lib/memberDb";
 import type { Member } from "@/lib/memberDb";
 
 /**
@@ -38,7 +38,18 @@ export default function MemberDatabaseModal({
     return () => window.clearTimeout(t);
   }, [upMsg]);
 
-  /** ডাটাবেজ বদলালে (আপলোড/ক্লাউড থেকে ফেরা) তালিকা নতুন করে পড়া হবে */
+  /** 🗑️ v1.4.114: একক সদস্য মোছা — লোকাল + ক্লাউড সব ডিভাইস থেকে */
+  const handleDelete = (m: Member) => {
+    if (
+      !confirm(
+        `🗑️ মেম্বার কোড ${m.memberCode} — “${m.memberName || "—"}” স্থায়ীভাবে মুছে ফেলবেন?\n\n(এই অ্যাপের সব ডিভাইস ও ক্লাউড থেকে মুছে যাবে; ভুল হলে ডাটাবেজ আপডেটের সময় সিড থেকে ফিরতে পারে)`
+      )
+    )
+      return;
+    deleteMember(m.memberCode);
+  };
+
+  /** ডাটাবেজ বদলালে (আপলোড/ক্লাউড থেকে ফেরা/মুছে ফেলা) তালিকা নতুন করে পড়া হবে */
   useEffect(() => {
     if (!open) return;
     const h = () => setReloadKey((k) => k + 1);
@@ -288,7 +299,7 @@ export default function MemberDatabaseModal({
           ) : (
             <ul className="divide-y divide-slate-200">
               {shown.map((m, i) => (
-                <li key={`${m.memberCode}-${i}`}>
+                <li key={`${m.memberCode}-${i}`} className="flex items-stretch">
                   <button
                     type="button"
                     onClick={() => {
@@ -296,7 +307,7 @@ export default function MemberDatabaseModal({
                       onClose();
                     }}
                     title="এই মেম্বারটি বেছে নিন"
-                    className={`block w-full cursor-pointer px-4 py-2.5 text-left transition hover:bg-indigo-50 ${
+                    className={`block min-w-0 flex-1 cursor-pointer px-4 py-2.5 text-left transition hover:bg-indigo-50 ${
                       i % 2 ? "bg-slate-50/60" : "bg-white"
                     }`}
                   >
@@ -325,6 +336,17 @@ export default function MemberDatabaseModal({
                         )}
                       </div>
                     )}
+                  </button>
+                  {/* 🗑️ v1.4.114: সদস্য মোছার বাটন — প্রতিটি সারিতে */}
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(m)}
+                    title={`মেম্বার ${m.memberCode} স্থায়ীভাবে মুছে ফেলুন (লোকাল + ক্লাউড)`}
+                    className={`shrink-0 cursor-pointer border-l px-3 text-sm transition hover:bg-rose-100 hover:text-rose-700 ${
+                      i % 2 ? "border-rose-200/60 bg-slate-50/60 text-slate-400" : "border-rose-200/60 bg-white text-slate-400"
+                    }`}
+                  >
+                    🗑️
                   </button>
                 </li>
               ))}
