@@ -1835,6 +1835,17 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
               </div>
             )}
           </div>
+          {/* ↺ v1.4.115: তারিখ ফিল্টার রিসেট বাটন — ফিল্টার প্রয়োগ থাকলে এক ক্লিকে সব তারিখ ফেরত */}
+          {dateRange && (
+            <button
+              type="button"
+              onClick={clearDateRange}
+              title="তারিখ ফিল্টার রিসেট — সব তারিখের এন্ট্রি দেখুন"
+              className="flex h-full shrink-0 cursor-pointer items-center gap-1 whitespace-nowrap rounded-xl border border-amber-400 bg-amber-50 px-3 py-2 text-[11px] font-black text-amber-800 shadow-sm transition hover:border-amber-500 hover:bg-amber-100"
+            >
+              ↺ রিসেট
+            </button>
+          )}
           {/* 📄 v1.4.92: PDF ভিউ বাটন — তারিখ-হতে-তারিখ ফিল্টার প্রয়োগ থাকলেই শুধু আসে; না থাকলে নেই */}
           {dateRange && (
             <button
