@@ -182,6 +182,45 @@ const entryMatches = (e: CheckEntry, rawQuery: string): boolean => {
   return false;
 };
 
+/**
+ * 🖍️ v1.4.113: সার্চ-ফলাফলে মিলে যাওয়া অংশ হাইলাইট —
+ * টেক্সটকে ভেঙে ফেরত দেয়: কোন টুকরাটা মিলেছে (hit:true) কোনটা মেলেনি।
+ * মিলের নিয়ম সার্চের মতোই — হোয়াইটস্পেস বাদ + কেস-ইনসেনসিটিভ (normCode),
+ * কিন্তু হাইলাইট ঘিরে বসে আসল টেক্সটের ওপরেই (স্পেস-সহ নামও সুন্দর দেখায়)।
+ */
+export const splitHighlights = (text: unknown, q: string): { t: string; hit: boolean }[] => {
+  const raw = String(text ?? "");
+  const query = String(q ?? "").trim();
+  if (!raw || !query) return [{ t: raw, hit: false }];
+  const nq = normCode(query);
+  // নরমালাইজড টেক্সট + নরম-ইনডেক্স → আসল-ইনডেক্স ম্যাপ
+  const map: number[] = [];
+  let norm = "";
+  for (let i = 0; i < raw.length; i++) {
+    const ch = raw[i];
+    if (/\s/.test(ch)) continue;
+    norm += ch.toUpperCase();
+    map.push(i);
+  }
+  const parts: { t: string; hit: boolean }[] = [];
+  let pos = 0;
+  let cur = 0;
+  while (nq) {
+    const idx = norm.indexOf(nq, cur);
+    if (idx < 0) break;
+    const hitEnd = idx + nq.length;
+    const rawStart = map[idx];
+    const rawEnd = map[hitEnd - 1] + 1;
+    if (rawStart > pos) parts.push({ t: raw.slice(pos, rawStart), hit: false });
+    parts.push({ t: raw.slice(rawStart, rawEnd), hit: true });
+    pos = rawEnd;
+    cur = hitEnd;
+  }
+  if (!parts.length) return [{ t: raw, hit: false }];
+  if (pos < raw.length) parts.push({ t: raw.slice(pos), hit: false });
+  return parts;
+};
+
 /** ✅ v1.4.106: তারিখ 100% পূরণ হয়েছে কি না — সম্পূর্ণ YYYY-MM-DD ফরম্যাট + বাস্তব ক্যালেন্ডার-তারিখ। */
 export const isFullDate = (s: string): boolean => {
   const v = String(s || "").trim();
@@ -855,6 +894,29 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
    * পুরনো রি-ইস্যুকৃত এন্ট্রিগুলোর ব্যাজ/সার্চ-নিয়ম অক্ষত — শুধু নতুন রি-ইস্যু তৈরি বন্ধ। */
 
   /** দুই টেবিলের জন্য একই সারি-রেন্ডারার — চেহারা হুবহু এক */
+  /** 🖍️ v1.4.113: সার্চ-কোয়েরির মিলে-যাওয়া অংশ হলুদ হাইলাইটে দেখানোর ছোট্ট র‍্যাপার */
+  const Hl = ({ children }: { children: unknown }) => {
+    const s = String(children ?? "");
+    const parts = splitHighlights(s, search);
+    if (parts.length === 1 && !parts[0].hit) return <>{s}</>;
+    return (
+      <>
+        {parts.map((p, i) =>
+          p.hit ? (
+            <mark
+              key={i}
+              className="rounded-sm bg-yellow-300 px-[1px] text-slate-950"
+            >
+              {p.t}
+            </mark>
+          ) : (
+            <Fragment key={i}>{p.t}</Fragment>
+          )
+        )}
+      </>
+    );
+  };
+
   const renderCheckRow = (row: CheckEntry, sr: number, zebra: number) => {
     const rowLocked = isDayClosed(row.checkDate);
     return (
@@ -869,7 +931,7 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
           {formatDisplay(row.checkDate) || row.checkDate}
         </td>
         <td className="whitespace-nowrap px-2 py-1.5 font-mono text-xs font-black text-indigo-700">
-          {row.memberCode}
+          <Hl>{row.memberCode}</Hl>
           {row.foundInDb === false && (
             <span
               className="ml-1 rounded bg-amber-100 px-1 py-0.5 text-[9px] font-black text-amber-800"
@@ -879,11 +941,11 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
             </span>
           )}
         </td>
-        <td className="px-2 py-1.5 text-xs font-semibold text-slate-900">{row.memberName}</td>
+        <td className="px-2 py-1.5 text-xs font-semibold text-slate-900"><Hl>{row.memberName}</Hl></td>
         <td className="whitespace-nowrap px-2 py-1.5 font-mono text-xs font-bold text-slate-700">
-          {row.centreCode}
+          <Hl>{row.centreCode}</Hl>
         </td>
-        <td className="px-2 py-1.5 text-xs font-semibold text-slate-900">{row.centreName}</td>
+        <td className="px-2 py-1.5 text-xs font-semibold text-slate-900"><Hl>{row.centreName}</Hl></td>
         <td className="px-2 py-1.5 text-xs font-semibold text-slate-800">
           <div className="flex flex-col gap-0.5">
             {allBankPairs(row).map((b, bi) => (
@@ -910,7 +972,7 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
                 b.accountNo || b.accountType ? (
                   <span key={bi} className="inline-flex items-center gap-1">
                     <span className="font-mono text-xs font-black text-slate-900">
-                      {b.accountNo || "—"}
+                      <Hl>{b.accountNo || "—"}</Hl>
                     </span>
                     {b.accountType && (
                       <span
