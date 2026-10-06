@@ -160,40 +160,25 @@ const dedupeViewRows = (list: CheckEntry[]): { row: CheckEntry; dupes: CheckEntr
 /**
  * সার্চের সাথে এন্ট্রি মেলে কি না — টেবিল ফিল্টার ও সেভ-পরবর্তী যাচাইয়ে একই নিয়ম।
  * (সেভ/এডিটের পর এন্ট্রিটি ফিল্টারের বাইরে চলে গেলে তা ধরা পড়ে, ফিল্টার সরিয়ে দেওয়া হয়)
+ *
+ * 🔎 v1.4.112: সার্চের ফোকাস এখন থেকে মাত্র ৫টা ক্ষেত্রে (ইউজার-নির্দেশনা) —
+ *    ① মেম্বার কোড  ② সেন্টার কোড  ③ মেম্বার নাম  ④ সেন্টার নাম  ⑤ হিসাব নং (মূল + ＋ জোড়া)
+ *    → চেক নম্বর / তারিখ / ব্যাংকের নাম / প্রজেক্ট / MICR দিয়ে সার্চ বাদ —
+ *      এগুলোতে আংশিক মিল এসে চাওয়া মেম্বারের মাঝে অপ্রয়োজনীয় এন্ট্রি ভেসে উঠত।
+ *      (তারিখ-ভিত্তিক দেখার জন্য পাশের 📅 তারিখ হতে তারিখ ফিল্টার আছেই।)
  */
 const entryMatches = (e: CheckEntry, rawQuery: string): boolean => {
   const q = String(rawQuery || "").trim().toLowerCase();
   if (!q) return true;
   const nq = normCode(rawQuery);
-  if (nq && normCode(e.memberCode).includes(nq)) return true;
-  if (nq && normCode(e.centreCode).includes(nq)) return true;
-  if (nq && normCode(e.checkNo).includes(nq)) return true;
-  // v1.4.91: হিসাব নং দিয়েও সার্চ — মূল হিসাব নং + ＋ জোড়ার হিসাব নং, দুটোতেই
-  if (nq && normCode(e.accountNo).includes(nq)) return true;
-  if (nq && (e.extraBanks || []).some((b) => normCode(b?.accountNo || "").includes(nq))) return true;
-  if ((e.checkDate || "").includes(q)) return true;
-  if ((e.memberName || "").toLowerCase().includes(q)) return true;
-  if ((e.centreName || "").toLowerCase().includes(q)) return true;
-  if ((e.bankName || "").toLowerCase().includes(q)) return true;
-  if ((e.disbursse || "").toLowerCase().includes(q)) return true;
-  if ((e.project || "").toLowerCase().includes(q)) return true;
-  if (
-    (e.extraBanks || []).some(
-      (b) =>
-        (b?.bankName || "").toLowerCase().includes(q) ||
-        (b?.checkNo || "").toLowerCase().includes(q) ||
-        (nq && normCode(b?.checkNo || "").includes(nq))
-    )
-  )
-    return true;
-  // v1.4.49: রি-ইস্যু লিংক — পুরনো চেক নম্বর দিয়ে নতুন এন্ট্রি (ও উল্টোটা) খোঁজে
-  if (nq && normCode(e.reissuedTo?.checkNo || "").includes(nq)) return true;
-  if (nq && normCode(e.reissuedFrom?.checkNo || "").includes(nq)) return true;
-  if (q.includes("micr")) {
-    const wantsNon = q.includes("non");
-    const pairs = allBankPairs(e); // v1.4.50: যেকোনো জোড়ার MICR অবস্থানে মেলে
-    if (wantsNon ? pairs.some((p) => !p.micr) : pairs.some((p) => p.micr)) return true;
+  if (nq) {
+    if (normCode(e.memberCode).includes(nq)) return true; // ① মেম্বার কোড
+    if (normCode(e.centreCode).includes(nq)) return true; // ② সেন্টার কোড
+    if (normCode(e.accountNo).includes(nq)) return true; // ⑤ হিসাব নং (মূল)
+    if ((e.extraBanks || []).some((b) => normCode(b?.accountNo || "").includes(nq))) return true; // ⑤ হিসাব নং (＋ জোড়া)
   }
+  if ((e.memberName || "").toLowerCase().includes(q)) return true; // ③ মেম্বার নাম
+  if ((e.centreName || "").toLowerCase().includes(q)) return true; // ④ সেন্টার নাম
   return false;
 };
 
@@ -1696,7 +1681,7 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search — মেম্বার কোড, সেন্টার কোড, তারিখ, নাম, চেক নম্বর, হিসাব নং…"
+            placeholder="Search — মেম্বার কোড, সেন্টার কোড, মেম্বার নাম, সেন্টার নাম, হিসাব নং…"
             className="w-full rounded-xl border border-slate-300 bg-orange-50 py-2.5 pl-10 pr-28 text-sm font-semibold text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
             autoComplete="off"
           />
