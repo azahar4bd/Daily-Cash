@@ -462,18 +462,6 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
     [entries, form.accountNo, edit]
   );
 
-  /* ───────── v1.4.117: মেম্বার কোড লিখলেই আগের এন্ট্রি আছে কি না দেখায় ─────────
-   * ইউজার-নির্দেশ: "মেম্বার কোড, হিসাব নং লিখলে আগের কোন এন্ট্রি আছে কি না দেখাবে"।
-   * (হিসাব নং-এর জন্য উপরের banner-ই আছে; এটা মেম্বার কোডের হিন্ট — মোট কত + সর্বশেষটার সারসংক্ষেপ।
-   *  এন্ট্রি তালিকা নতুন→পুরনো সাজানো, তাই [0]-ই সর্বশেষ। এডিট-মোডে দেখায় না — উপদ্রব কমায়।) */
-  const prevMemberHits = useMemo(() => {
-    const key = normCode(form.memberCode);
-    if (!key || edit) return [] as CheckEntry[];
-    return entries.filter((e) => normCode(e.memberCode) === key);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [entries, form.memberCode, edit]);
-  const latestPrevHit = prevMemberHits.length ? prevMemberHits[0] : null;
-
   /* ───────── কোড টাইপ করার সাথে সাথেই নিজে থেকে খোঁজ (blur-এর অপেক্ষা নয়) ───────── */
   const lookupTimer = useRef<number | null>(null);
   const handleMemberCodeChange = (raw: string) => {
@@ -1254,28 +1242,9 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
                 <span className="text-[12px] font-black leading-[18px] text-emerald-900">{form.memberName}</span>
               </div>
             ) : null}
-            {/* v1.4.117: মেম্বার কোড লিখলেই আগের এন্ট্রি আছে কি না — মোট সংখ্যা + সর্বশেষটার সারসংক্ষেপ */}
-            {!edit && form.memberCode.trim() ? (
-              latestPrevHit ? (
-                <div className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 rounded-lg border border-sky-300 bg-sky-50 px-2 py-1 text-[11px] font-black text-sky-900">
-                  <span aria-hidden="true">📋</span>
-                  <span>
-                    আগের এন্ট্রি আছে — মোট <span className="font-mono">{prevMemberHits.length.toLocaleString("en-IN")}</span>
-                  </span>
-                  <span className="font-bold text-sky-700">
-                    • সর্বশেষ {formatDisplay(latestPrevHit.checkDate) || latestPrevHit.checkDate}
-                    {latestPrevHit.bankName ? ` • 🏦 ${latestPrevHit.bankName}` : ""}
-                    {latestPrevHit.checkNo ? ` • #${latestPrevHit.checkNo}` : ""}
-                    {latestPrevHit.disbursse ? ` • ৳${fmtAmt(latestPrevHit.disbursse)}` : ""}
-                  </span>
-                </div>
-              ) : (
-                <div className="mt-1 flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2 py-1 text-[10px] font-bold text-slate-500">
-                  <span aria-hidden="true">📋</span>
-                  <span>এই মেম্বার কোডের কোনো আগের চেক এন্ট্রি নেই</span>
-                </div>
-              )
-            ) : null}
+            {/* v1.4.118: v1.4.117-এর কমপ্যাক্ট হিন্ট বাদ (ইউজার-নির্দেশ) — এটি মোবাইল স্ক্রিন জায়গা নেয়;
+                আগের এন্ট্রি দেখাতে নিচে ফর্মের শেষে বিদ্যমান "🔎 এই মেম্বার কোডের সেভ করা চেক এন্ট্রি"
+                প্যানেল (এডিট/ডিলিট-সহ) আগের মতোই থাকে — সেটিই মূল উপায় */}
           </div>
 
           <div>
