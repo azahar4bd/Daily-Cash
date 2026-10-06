@@ -1113,16 +1113,37 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
     );
   };
 
-  const uniqueMembers = useMemo(
-    () => new Set(entries.map((e) => normCode(e.memberCode))).size,
-    [entries]
-  );
-
-  /** Disbursse amount সুন্দর করে দেখানোর জন্য */
+  /** Disbursse amount সুন্দর করে দেখানোর জন্য (v1.4.116: রো-মেমোর আগে সরানো — TDZ নিরাপদ) */
   const fmtAmt = (v: string) => {
     const n = Number(v);
     return v.trim() !== "" && Number.isFinite(n) ? n.toLocaleString("en-IN") : v;
   };
+
+  /* ⚡ v1.4.116: টাইপিং-ল্যাগ ফিক্স — ভারী টেবিল-সারি (৩০০+ রো × ১৪ কলাম) মেমোাইজড।
+   * ফর্মের প্রতি কিস্ট্রোকে পেজের বাকি অংশ রি-রেন্ডার হলেও এই সারিগুলো আবার বানায় না —
+   * শুধু এন্ট্রি-তালিকা, সার্চ-টেক্সট বা দিন-লক অবস্থা বদলালেই নতুন হিসাব হয়।
+   * (রো-হ্যান্ডলাররা click-ইভেন্টের `row` প্যারামিটার + স্টেবল সেটার/মডিউল-ফাংশন ছাড়া
+   *  রেন্ডার-স্টেট ধরে রাখে না — তাই স্টেইল-ক্লোজারের ঝুঁকি নেই) */
+  const listRowsJsx = useMemo(
+    () => pageRows.map((row, i) => renderCheckRow(row, i + 1, i)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [pageRows, search, dayClosed, lockPulse]
+  );
+  const retRowsJsx = useMemo(
+    () => retPageRows.map((row, i) => renderCheckRow(row, (retPage - 1) * PAGE_SIZE + i + 1, i)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [retPageRows, search, dayClosed, lockPulse]
+  );
+  const viewRowsJsx = useMemo(
+    () => viewGroups.map((g, i) => renderCheckRow(g.row, i + 1, i)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [viewGroups, search, dayClosed, lockPulse]
+  );
+
+  const uniqueMembers = useMemo(
+    () => new Set(entries.map((e) => normCode(e.memberCode))).size,
+    [entries]
+  );
 
   const inputCls =
     "w-full rounded-lg border border-slate-300 bg-orange-50 px-3 py-2 text-sm font-semibold text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"; // v1.4.100: হালকা বিস্কিট (ইউজার-নির্দেশ) — ফোকাস নীল, কন্ডিশনাল রঙ অক্ষত
@@ -1885,7 +1906,7 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
                     </td>
                   </tr>
                 ) : (
-                  pageRows.map((row, i) => renderCheckRow(row, i + 1, i))
+                  listRowsJsx
                 )}
               </tbody>
             </table>
@@ -1941,7 +1962,7 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
                     </td>
                   </tr>
                 ) : (
-                  retPageRows.map((row, i) => renderCheckRow(row, (retPage - 1) * PAGE_SIZE + i + 1, i))
+                  retRowsJsx
                 )}
               </tbody>
             </table>
@@ -2026,7 +2047,7 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
                           ))}
                         </tr>
                       </thead>
-                      <tbody>{viewGroups.map((g, i) => renderCheckRow(g.row, i + 1, i))}</tbody>
+                      <tbody>{viewRowsJsx}</tbody>
                     </table>
                     {viewGroups.some((g) => g.dupes.length > 0) && (
                       <p className="border-t border-amber-200 bg-amber-50 px-2 py-1 text-[10px] font-black text-amber-800">
