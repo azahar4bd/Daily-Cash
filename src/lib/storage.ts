@@ -170,15 +170,43 @@ export function saveDayOpen(payload: DayOpen): DayOpen {
 }
 
 /**
+ * 🔗 v1.4.119: সিকোয়েন্স-গেট — আগের কর্মদিবস Close ছাড়া পরের দিন Open হবে না।
+ * targetDate-এর ঠিক আগের কর্মদিবসটি (ওপেন/এন্ট্রি আছে এমন নিকটতম দিন) if not closed → তারিখ ফেরত।
+ * (ভুলে ডে ক্লোজ না করলে পরের দিন খোলা যাবে না — এডমিন পেজে বাইপাস আছে)
+ */
+export function prevUnclosedWorkingDay(targetDate: string): string | null {
+  if (!targetDate || !targetDate.includes("-")) return null;
+  const set = new Set<string>();
+  for (const o of getLocalDayOpens()) if (o.openDate && o.openDate.includes("-")) set.add(o.openDate);
+  for (const t of getLocalTxs()) if (t.txDate && t.txDate.includes("-")) set.add(t.txDate);
+  for (const s of getLocalStaffReports()) if (s.reportDate && s.reportDate.includes("-")) set.add(s.reportDate);
+  const prevs = Array.from(set).filter((d) => d < targetDate).sort();
+  const prev = prevs.length ? prevs[prevs.length - 1] : null;
+  if (!prev) return null;
+  return isDayClosed(prev) ? null : prev;
+}
+
+/**
  * কর্মদিবস শুরু (Day Open)
  * `manual` দিলে ওপেনিং ক্যাশ/ব্যাংক হাতে টাইপ করা সংখ্যা হিসেবে বসবে —
  * অ্যাপের নিজের হিসাবের বদলে সেই সংখ্যা থেকেই খতিয়ান এগোবে।
+ * `opts.force` (এডমিন) → সিকোয়েন্স-গেট বাইপাস করবে।
  */
 export function openDay(
   targetDate: string,
   openedBy: string = "Cashier",
-  manual?: { cash?: number | string | null; bank?: number | string | null; note?: string } | null
+  manual?: { cash?: number | string | null; bank?: number | string | null; note?: string } | null,
+  opts?: { force?: boolean }
 ): DayOpen {
+  // 🔗 v1.4.119: ভুলে আগের দিন Close না করলে পরের দিন Open হবে না
+  if (!opts?.force) {
+    const pending = prevUnclosedWorkingDay(targetDate);
+    if (pending) {
+      throw new Error(
+        `⛔ আগের কর্মদিবস ${pending} Day Close করা হয়নি — আগে সেটি Close করুন (⚙️ Day Admin থেকেও করা যায়), তারপর ${targetDate} Open হবে।`
+      );
+    }
+  }
   // এই দিনের আগের ম্যানুয়াল ওপেনিং থাকলেও সিস্টেমের আসল হিসাবটাই দেখতে হবে
   const sum = getSummary(targetDate, { skipManualOpeningFor: targetDate });
   const sysCash = Math.round(Number(sum.prevCash) || 0);

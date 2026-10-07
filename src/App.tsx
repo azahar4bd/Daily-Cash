@@ -14,6 +14,7 @@ import DateAuditTrackerModal from "./components/DateAuditTrackerModal";
 import DayStateBanner from "./components/DayStateBanner";
 import DayOpenModal from "./components/DayOpenModal";
 import DayCloseModal from "./components/DayCloseModal";
+import DayAdminModal from "./components/DayAdminModal";
 import { todayISO } from "./components/DatePicker";
 import { initNeonSync } from "./lib/neonSync";
 import { seedMemberDatabase, purgeBlockedMembers } from "./lib/memberDb";
@@ -38,6 +39,7 @@ export default function App() {
   const [trackerOpen, setTrackerOpen] = useState(false);
   const [dayOpenModalOpen, setDayOpenModalOpen] = useState(false);
   const [dayCloseModalOpen, setDayCloseModalOpen] = useState(false);
+  const [dayAdminOpen, setDayAdminOpen] = useState(false);
   const [updateReady, setUpdateReady] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string>(() => {
     try {
@@ -86,6 +88,7 @@ export default function App() {
     const handleOpenTracker = () => setTrackerOpen(true);
     const handleOpenDayModal = () => setDayOpenModalOpen(true);
     const handleOpenDayCloseModal = () => setDayCloseModalOpen(true);
+    const handleOpenDayAdmin = () => setDayAdminOpen(true);
     const handleNavigateTab = (e: Event) => {
       const tab = (e as CustomEvent).detail;
       if (typeof tab === "string" && tab) {
@@ -97,6 +100,7 @@ export default function App() {
     window.addEventListener("open-date-tracker", handleOpenTracker);
     window.addEventListener("open-day-open-modal", handleOpenDayModal);
     window.addEventListener("open-day-close-modal", handleOpenDayCloseModal);
+    window.addEventListener("open-day-admin", handleOpenDayAdmin);
     window.addEventListener("navigate-tab", handleNavigateTab as EventListener);
 
     const handleUpdate = () => setUpdateReady(true);
@@ -106,6 +110,7 @@ export default function App() {
       window.removeEventListener("open-date-tracker", handleOpenTracker);
       window.removeEventListener("open-day-open-modal", handleOpenDayModal);
       window.removeEventListener("open-day-close-modal", handleOpenDayCloseModal);
+      window.removeEventListener("open-day-admin", handleOpenDayAdmin);
       window.removeEventListener("navigate-tab", handleNavigateTab as EventListener);
       window.removeEventListener("app-update-available", handleUpdate);
     };
@@ -256,6 +261,18 @@ export default function App() {
         isOpen={dayCloseModalOpen}
         onClose={() => setDayCloseModalOpen(false)}
         selectedDate={selectedDate}
+      />
+
+      {/* ⚙️ v1.4.119: Day Admin — যেকোনো দিন Close / Re-open / পুরনো দিন এডিট */}
+      <DayAdminModal
+        isOpen={dayAdminOpen}
+        onClose={() => setDayAdminOpen(false)}
+        onJumpDate={(d) => {
+          handleDateChange(d);
+          setCurrentTab("receive");
+          setDayAdminOpen(false);
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }}
       />
 
       {/* Bottom Menu Navigation */}

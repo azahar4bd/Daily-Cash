@@ -113,10 +113,18 @@ export default function DayStateBanner({
             }
           >
             <span>☀️</span>
-            <span>
-              {blockedCheck.blocked ? "তারিখ ব্লকড" : "কর্মদিবস শুরু (Day Open) করুন"}
-            </span>
-          </button>
+          <span>
+            {blockedCheck.blocked ? "তারিখ ব্লকড" : "কর্মদিবস শুরু (Day Open) করুন"}
+          </span>
+        </button>
+        <button
+          type="button"
+          onClick={() => window.dispatchEvent(new CustomEvent("open-day-admin"))}
+          className="shrink-0 self-end sm:self-center rounded-xl border border-violet-300 bg-violet-50 px-2.5 py-2 text-xs font-black text-violet-700 shadow-xs transition hover:bg-violet-100 cursor-pointer"
+          title="⚙️ Day Admin — সব কর্মদিবস Close/Re-open/এডিট এক জায়গায়"
+        >
+          ⚙️
+        </button>
         </div>
       </div>
     );
@@ -141,6 +149,14 @@ export default function DayStateBanner({
         >
           <span>🔓</span>
           <span>Re-open Day</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => window.dispatchEvent(new CustomEvent("open-day-admin"))}
+          className="shrink-0 self-end sm:self-center rounded-xl border border-violet-300 bg-violet-50 px-2.5 py-1.5 text-xs font-black text-violet-700 shadow-xs transition hover:bg-violet-100 cursor-pointer"
+          title="⚙️ Day Admin — সব কর্মদিবস Close/Re-open/এডিট এক জায়গায়"
+        >
+          ⚙️
         </button>
       </div>
     );
@@ -192,6 +208,14 @@ export default function DayStateBanner({
         >
           <span>{blockedCheck.blocked ? "🚫" : "🔒"}</span>
           <span>{blockedCheck.blocked ? "তারিখ ব্লকড" : "Day Close করুন"}</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => window.dispatchEvent(new CustomEvent("open-day-admin"))}
+          className="shrink-0 rounded-xl border border-violet-300 bg-violet-50 px-2.5 py-1.5 text-xs font-black text-violet-700 shadow-xs transition hover:bg-violet-100 cursor-pointer"
+          title="⚙️ Day Admin — সব কর্মদিবস Close/Re-open/এডিট এক জায়গায়"
+        >
+          ⚙️
         </button>
       </div>
     </div>

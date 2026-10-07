@@ -167,6 +167,17 @@ export default function BottomMenu({
               <span>📅</span>
               <span className="text-[10px]">Audit</span>
             </button>
+
+            {/* ⚙️ v1.4.119: Day Admin — যেকোনো দিন Close/Re-open/পুরনো দিন এডিট (ডেস্কটপ বার) */}
+            <button
+              type="button"
+              onClick={() => window.dispatchEvent(new CustomEvent("open-day-admin"))}
+              className="rounded-lg bg-violet-900 hover:bg-violet-800 border border-violet-700 px-1.5 py-1 text-xs text-violet-200 font-bold transition cursor-pointer hidden 2xl:flex items-center gap-1"
+              title="⚙️ Day Admin — সব কর্মদিবস Close/Re-open/এডিট এক জায়গায়"
+            >
+              <span>⚙️</span>
+              <span className="text-[10px]">Day Admin</span>
+            </button>
           </div>
 
           {/* Right: Navigation Controls — always pinned visible */}
