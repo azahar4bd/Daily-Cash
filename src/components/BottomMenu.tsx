@@ -95,7 +95,7 @@ export default function BottomMenu({
             <button
               type="button"
               onClick={() => setNeonModalOpen(true)}
-              className="flex items-center gap-1.5 rounded-full border border-teal-300/25 bg-teal-400/10 px-2.5 py-1 text-[11px] font-bold text-teal-200 shadow-xs backdrop-blur transition-all duration-200 whitespace-nowrap cursor-pointer hover:-translate-y-px hover:bg-teal-400/20 hover:border-teal-300/40"
+              className="flex items-center gap-1.5 rounded-full border border-teal-300/25 bg-teal-400/10 px-2 py-1 text-[11px] font-bold text-teal-200 shadow-xs backdrop-blur transition-all duration-200 whitespace-nowrap cursor-pointer hover:-translate-y-px hover:bg-teal-400/20 hover:border-teal-300/40"
               title="Neon PostgreSQL Cloud Database Connected"
             >
               <span className="text-xs">🐘</span>
@@ -115,7 +115,7 @@ export default function BottomMenu({
             <button
               type="button"
               onClick={() => setSheetModalOpen(true)}
-              className="hidden sm:flex items-center gap-1.5 rounded-full border border-emerald-300/25 bg-emerald-400/10 px-2.5 py-1 text-[11px] font-bold text-emerald-200 shadow-xs backdrop-blur transition-all duration-200 whitespace-nowrap cursor-pointer hover:-translate-y-px hover:bg-emerald-400/20 hover:border-emerald-300/40"
+              className="hidden sm:flex items-center gap-1.5 rounded-full border border-emerald-300/25 bg-emerald-400/10 px-2 py-1 text-[11px] font-bold text-emerald-200 shadow-xs backdrop-blur transition-all duration-200 whitespace-nowrap cursor-pointer hover:-translate-y-px hover:bg-emerald-400/20 hover:border-emerald-300/40"
               title="Connect to Google Sheet"
             >
               <span>📊</span>
@@ -177,7 +177,7 @@ export default function BottomMenu({
             <button
               type="button"
               onClick={onOpenTracker}
-              className="hidden 2xl:flex items-center gap-1 rounded-full border border-amber-300/25 bg-amber-400/10 px-2.5 py-1 text-xs text-amber-300 font-bold backdrop-blur transition-all duration-200 cursor-pointer hover:-translate-y-px hover:bg-amber-400/20"
+              className="hidden 2xl:flex items-center gap-1 rounded-full border border-amber-300/25 bg-amber-400/10 px-2 py-1 text-xs text-amber-300 font-bold backdrop-blur transition-all duration-200 cursor-pointer hover:-translate-y-px hover:bg-amber-400/20"
               title="Open audit tracker for all dates"
             >
               <span>📅</span>
@@ -188,7 +188,7 @@ export default function BottomMenu({
             <button
               type="button"
               onClick={() => window.dispatchEvent(new CustomEvent("open-day-admin"))}
-              className="hidden 2xl:flex items-center gap-1 rounded-full border border-violet-300/30 bg-violet-500/15 px-2.5 py-1 text-xs text-violet-200 font-bold backdrop-blur transition-all duration-200 cursor-pointer hover:-translate-y-px hover:bg-violet-500/25 hover:border-violet-300/50"
+              className="hidden 2xl:flex items-center gap-1 rounded-full border border-violet-300/30 bg-violet-500/15 px-2 py-1 text-xs text-violet-200 font-bold backdrop-blur transition-all duration-200 cursor-pointer hover:-translate-y-px hover:bg-violet-500/25 hover:border-violet-300/50"
               title="⚙️ Day Admin — সব কর্মদিবস Close/Re-open/এডিট এক জায়গায়"
             >
               <span>⚙️</span>
@@ -197,18 +197,18 @@ export default function BottomMenu({
           </div>
 
           {/* Right: Navigation Controls — always pinned visible */}
-          <div className="flex shrink-0 items-center gap-1.5">
+          <div className="flex min-w-0 shrink-0 items-center gap-1.5 xl:shrink">
             {/* Desktop Tabs — v1.4.81: xl (1280px+) থেকেই; টান্দা জায়গা কম পড়লে ভিতরে স্ক্রল হয়, আর কোনোদিন অন্য আইটেমের উপর চড়ে বসে না
                 ✨ v1.4.121: গ্লাস-ডকের ভেতরে ট্যাব; অ্যাকটিভ = গ্রেডিয়েন্ট পিল + গ্লো */}
-            <div className="hidden xl:flex items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden max-w-[48vw] 2xl:max-w-none rounded-2xl border border-white/10 bg-white/5 p-1 backdrop-blur-md shadow-inner shadow-black/20">
+            <div className="hidden xl:flex min-w-0 items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden max-w-[48vw] 2xl:max-w-none rounded-2xl border border-white/10 bg-white/5 p-1 backdrop-blur-md shadow-inner shadow-black/20">
               {pages.map((p) => (
                 <button
                   key={p.id}
                   type="button"
                   onClick={() => onTabChange(p.id)}
-                  className={`relative flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl px-3 py-1.5 text-xs transition-all duration-200 cursor-pointer ${
+                  className={`relative flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl px-2.5 py-1.5 text-xs transition-all duration-200 cursor-pointer ${
                     currentTab === p.id
-                      ? "bg-linear-to-r from-indigo-500 via-blue-500 to-sky-500 font-black text-white shadow-lg shadow-indigo-500/50 ring-1 ring-white/30 scale-[1.04]"
+                      ? "bg-linear-to-r from-indigo-500 via-blue-500 to-sky-500 font-black text-white shadow-lg shadow-indigo-500/50 ring-1 ring-white/30 scale-[1.03]"
                       : "font-bold text-slate-300 hover:-translate-y-px hover:bg-white/10 hover:text-white"
                   }`}
                 >
