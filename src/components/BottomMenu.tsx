@@ -124,7 +124,7 @@ export default function BottomMenu({
           </div>
 
           {/* Center: Master Date Filter — compact so nothing overflows & the date dropdown is never clipped */}
-          <div className="flex min-w-0 flex-1 items-center justify-center gap-1.5">
+          <div className="flex min-w-0 flex-1 items-center justify-center gap-1.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <span className="text-[11px] font-bold text-slate-400 hidden 2xl:inline whitespace-nowrap">
               Date:
             </span>
@@ -181,7 +181,7 @@ export default function BottomMenu({
               title="Open audit tracker for all dates"
             >
               <span>📅</span>
-              <span className="text-[10px]">Audit</span>
+              <span className="text-[10px] hidden min-[1700px]:inline">Audit</span>
             </button>
 
             {/* ⚙️ v1.4.119: Day Admin — যেকোনো দিন Close/Re-open/পুরনো দিন এডিট (ডেস্কটপ বার) */}
@@ -192,7 +192,7 @@ export default function BottomMenu({
               title="⚙️ Day Admin — সব কর্মদিবস Close/Re-open/এডিট এক জায়গায়"
             >
               <span>⚙️</span>
-              <span className="text-[10px]">Day Admin</span>
+              <span className="text-[10px] hidden min-[1700px]:inline">Day Admin</span>
             </button>
           </div>
 
