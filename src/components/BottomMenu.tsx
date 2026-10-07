@@ -89,7 +89,7 @@ export default function BottomMenu({
         <div className="absolute inset-0 border-r border-white/10 bg-linear-to-b from-[#131f42]/97 to-[#0a1024] backdrop-blur-xl shadow-[10px_0_40px_-12px_rgba(4,10,30,0.7)]" />
         <div className="pointer-events-none absolute inset-y-0 right-0 w-px bg-linear-to-b from-transparent via-amber-300/60 to-transparent" />
 
-        <div className="relative flex h-full flex-col gap-1 overflow-y-auto px-3 py-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="relative flex h-full flex-col gap-1 px-3 py-4">
           {/* 💎 Brand */}
           <div className="mb-2 flex items-center gap-2.5 px-1">
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-linear-to-br from-amber-300 to-orange-500 text-lg shadow-lg shadow-amber-500/40 ring-1 ring-white/30">
@@ -129,6 +129,7 @@ export default function BottomMenu({
             )}
           </div>
 
+          <div className="mt-1 flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {/* 🧭 পেজ মেনু */}
           <p className="px-1 text-[9px] font-black uppercase tracking-[0.18em] text-slate-500">Pages</p>
           <nav className="flex flex-col gap-1">
@@ -219,9 +220,10 @@ export default function BottomMenu({
               <span>Install App</span>
             </button>
           </div>
+          </div>
 
           {/* ফুটার */}
-          <div className="mt-auto pt-3 text-center text-[9px] font-bold uppercase tracking-[0.2em] text-slate-600">
+          <div className="mt-1 pt-2 text-center text-[9px] font-bold uppercase tracking-[0.2em] text-slate-600">
             Gobra Branch · BKF
           </div>
         </div>
