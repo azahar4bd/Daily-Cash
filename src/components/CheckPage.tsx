@@ -295,7 +295,7 @@ const emptyForm = (date: string) => ({
   /** 📄 v1.4.108: Bank Statement টিক — হিসাব নং এর উপরে MICR-ধাঁচের */
   bankStatement: false,
   /** 🏦 অতিরিক্ত ব্যাংক + চেক নম্বরের জোড়া — প্রতিটিতে নিজস্ব MICR টিক (v1.4.48/50) */
-  extraBanks: [] as { bankName: string; checkNo: string; micr: boolean; accountNo?: string; accountType?: string }[],
+  extraBanks: [] as { bankName: string; checkNo: string; micr: boolean; accountNo?: string; accountType?: string; bankStatement?: boolean }[],
 });
 
 /** 📅 v1.4.55: ফিল্টার বাটনের সংক্ষিপ্ত তারিখ — "18-09" */
@@ -515,6 +515,7 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
         micr: Boolean(b.micr),
         accountNo: (b.accountNo || "").trim(),
         accountType: b.accountType || "",
+        bankStatement: Boolean(b.bankStatement), // v1.4.126: জোড়ার Stmt টিকও সেভ
       }))
       .filter((b) => b.bankName || b.checkNo);
     for (let i = 0; i < cleanExtras.length; i++) {
@@ -630,6 +631,7 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
         micr: b?.micr === true,
         accountNo: b?.accountNo || "",
         accountType: b?.accountType || "",
+        bankStatement: b?.bankStatement === true, // v1.4.126
       })),
     });
     // ডাটাবেজে আছে কি না যাচাই
@@ -881,8 +883,8 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
 
   /* v1.4.48: একাধিক ব্যাংক + চেক নম্বরের জোড়া — ＋ বাটনে যোগ, ✕ বাটনে বাদ */
   const addBankPair = () =>
-    setForm((f) => ({ ...f, extraBanks: [...f.extraBanks, { bankName: "", checkNo: "", micr: false, accountNo: "", accountType: "" }] }));
-  const updateExtraBank = (i: number, key: "bankName" | "checkNo" | "micr" | "accountNo" | "accountType", v: string | boolean) =>
+    setForm((f) => ({ ...f, extraBanks: [...f.extraBanks, { bankName: "", checkNo: "", micr: false, accountNo: "", accountType: "", bankStatement: false }] }));
+  const updateExtraBank = (i: number, key: "bankName" | "checkNo" | "micr" | "accountNo" | "accountType" | "bankStatement", v: string | boolean) =>
     setForm((f) => ({
       ...f,
       extraBanks: f.extraBanks.map((b, bi) => (bi === i ? { ...b, [key]: v } : b)),
@@ -955,17 +957,22 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
         </td>
         {/* 🏦 v1.4.74/75: হিসাব নং + ক্যাটাগরি — ব্যাংক-জোড়ার স্ট্যাকের সাথে মিলিয়ে; পুরনো এন্ট্রিতে ফাঁকা (—) */}
         <td className="whitespace-nowrap px-2 py-1.5">
-          {/* v1.4.108: Bank Statement ব্যাজ */}
-          {row.bankStatement && (
-            <div className="mb-0.5">
-              <span
-                className="inline-block rounded border border-sky-300 bg-sky-50 px-1.5 py-0.5 text-[9px] font-black text-sky-800"
-                title="এই এন্ট্রি Bank Statement হিসেবে ধরা হয়েছে"
-              >
-                📄 Bank Stmt
-              </span>
-            </div>
-          )}
+          {/* v1.4.108: Bank Statement ব্যাজ — v1.4.126: জোড়া-ব্যাংকের Stmt টিকও গননা হয় */}
+          {(() => {
+            const stmtCount =
+              (row.bankStatement ? 1 : 0) +
+              (row.extraBanks || []).filter((x) => x?.bankStatement).length;
+            return stmtCount > 0 ? (
+              <div className="mb-0.5">
+                <span
+                  className="inline-block rounded border border-sky-300 bg-sky-50 px-1.5 py-0.5 text-[9px] font-black text-sky-800"
+                  title={stmtCount > 1 ? `এই এন্ট্রিতে ${stmtCount}টি হিসাব Bank Statement` : "এই এন্ট্রি Bank Statement হিসেবে ধরা হয়েছে"}
+                >
+                  📄 Bank Stmt{stmtCount > 1 ? ` ×${stmtCount}` : ""}
+                </span>
+              </div>
+            ) : null;
+          })()}
           {allBankPairs(row).some((b) => b.accountNo || b.accountType) ? (
             <div className="flex flex-col gap-0.5">
               {allBankPairs(row).map((b, bi) =>
@@ -1267,6 +1274,7 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
               onChange={(v) => setForm((f) => ({ ...f, bankName: v }))}
               className={inputCls}
               extras={pastBanks}
+              placeholder="Bank name"
             />
           </div>
 
@@ -1434,8 +1442,26 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
                 </div>
                 {/* 🏦 v1.4.83: জোড়াতেও হিসাব নং ঘর চেক নং-এর আগে — ব্যাংকের পাশের ঘরেই */}
                 <div>
-                  <span className="mb-1 block text-[10px] font-black tracking-wide text-emerald-800">
-                    হিসাব নং #{bi + 2}
+                  <span className="mb-1 flex items-center justify-between gap-1">
+                    <span className="block text-[10px] font-black tracking-wide text-emerald-800">
+                      হিসাব নং #{bi + 2}
+                    </span>
+                    {/* 📄 v1.4.126: জোড়ার ব্যাংকেও Bank Stmt টগল — মূল ব্যাংকের মতোই; টেবিলে 📄 ব্যাজে গননা */}
+                    <label
+                      className="flex cursor-pointer select-none items-center gap-1 rounded-md border border-sky-300 bg-sky-50 px-1.5 py-0.5 text-[9px] font-black text-sky-800 transition hover:bg-sky-100"
+                      title="টিক দিলে এই হিসাব (#{} নং) Bank Statement হিসেবে ধরা হবে"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={Boolean(b.bankStatement)}
+                        onChange={(e) => updateExtraBank(bi, "bankStatement", e.target.checked)}
+                        className="h-3 w-3 cursor-pointer accent-sky-600"
+                      />
+                      <span className="whitespace-nowrap">Bank Stmt</span>
+                      <span className="rounded bg-white px-1 text-[8px] font-black text-slate-500">
+                        {b.bankStatement ? "BS ✓" : "—"}
+                      </span>
+                    </label>
                   </span>
                   {/* v1.4.90: জোড়ার হিসাবেও পূর্ব-মিল হলে মেম্বার কোড ঘরের উপরে */}
                   {(() => {

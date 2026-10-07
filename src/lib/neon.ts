@@ -725,7 +725,7 @@ export async function ensureBranchSchema(force = false): Promise<void> {
 
 /** v1.4.48: extra_banks JSON টেক্সট → ব্যাংক/চেক নম্বরের জোড়ার তালিকা (নষ্ট/খালি মান নিরাপদে উপেক্ষা)
  *  v1.4.50: প্রতি জোড়ার নিজস্ব MICR টিকও (micr) JSON-এর সাথেই যায়/আসে — নতুন কলাম লাগে না */
-const parseExtraBanks = (raw: any): { bankName: string; checkNo: string; micr: boolean; accountNo?: string; accountType?: string }[] | undefined => {
+const parseExtraBanks = (raw: any): { bankName: string; checkNo: string; micr: boolean; accountNo?: string; accountType?: string; bankStatement?: boolean }[] | undefined => {
   if (!raw) return undefined;
   try {
     const arr = JSON.parse(String(raw));
@@ -737,6 +737,7 @@ const parseExtraBanks = (raw: any): { bankName: string; checkNo: string; micr: b
         micr: b?.micr === true,
         accountNo: String(b?.accountNo || ""),
         accountType: String(b?.accountType || ""),
+        bankStatement: b?.bankStatement === true, // v1.4.126: জোড়ার Bank Statement টিকও
       }))
       .filter((b) => b.bankName || b.checkNo);
     return list.length > 0 ? list : undefined;
