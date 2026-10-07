@@ -13,7 +13,6 @@ const pages = [
   { id: "cashbook", label: "Cashbook", icon: "📖" },
   { id: "check", label: "Check", icon: "🧾" },
   { id: "entertainment", label: "Entertainment", icon: "🎉" }, // v1.4.71: নতুন পেজ
-  { id: "rebate", label: "Rebate", icon: "🏷️" }, // v1.4.70: রিবেট মেনুর সর্বশেষে
 ];
 
 export default function BottomMenu({

@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import Dashboard from "./components/Dashboard";
 import ReceivePage from "./components/ReceivePage";
 import PaymentPage from "./components/PaymentPage";
-import RebatePage from "./components/RebatePage";
 import EntertainmentPage from "./components/EntertainmentPage";
 import StaffReportManager from "./components/StaffReportManager";
 import CashSheet from "./components/CashSheet";
@@ -204,7 +203,6 @@ export default function App() {
         {currentTab === "receive" && <ReceivePage selectedDate={selectedDate} />}
         {currentTab === "payment" && <PaymentPage selectedDate={selectedDate} />}
         {currentTab === "entertainment" && <EntertainmentPage />}
-        {currentTab === "rebate" && <RebatePage />}
         {currentTab === "report" && <StaffReportManager selectedDate={selectedDate} />}
         {currentTab === "cashbook" && (
           <CashSheet selectedDate={selectedDate} setSelectedDate={handleDateChange} />

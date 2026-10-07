@@ -142,7 +142,6 @@ export default function NeonSyncModal({ open, onClose }: NeonSyncModalProps) {
                   ["day_opens", "ডে ওপেন"],
                   ["day_closures", "ডে ক্লোজ"],
                   ["categories", "ক্যাটাগরি"],
-                  ["rebate_rates", "রিবেট রেট"],
                 ].map(([k, label]) => (
                   <div key={k} className="rounded-lg border border-indigo-200 bg-white px-2 py-1.5">
                     <div className="text-[9px] font-bold uppercase text-slate-500">{label}</div>
