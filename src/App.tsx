@@ -143,7 +143,7 @@ export default function App() {
   };
 
   return (
-    <div className="app-bg min-h-screen text-slate-900 font-sans antialiased pb-20 print:p-0 print:m-0 print:bg-white">
+    <div className="app-bg min-h-screen text-slate-900 font-sans antialiased pb-20 xl:pb-4 xl:pl-60 print:p-0 print:m-0 print:pl-0 print:pb-0 print:bg-white">
       {/* Main Container */}
       <main className="mx-auto max-w-6xl px-3 sm:px-4 pt-3 sm:pt-5 print:p-0 print:max-w-none">
         {/* 🏢 বর্তমান অফিস + ইউজার + লগআউট */}
