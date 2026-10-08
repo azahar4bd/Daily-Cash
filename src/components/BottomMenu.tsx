@@ -283,7 +283,7 @@ export default function BottomMenu({
           </div>
 
           {/* Center: Master Date Filter — compact so nothing overflows & the date dropdown is never clipped */}
-          <div className="flex min-w-0 flex-1 items-center justify-center gap-1.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div className="flex min-w-0 flex-1 items-center justify-center gap-1.5">{/* v1.4.127: overflow-x সরানো (v1.4.123-এর সেফটি মোবাইলে তারিখ-ক্যালেন্ডার ক্লিপ করত; PC-তে এখন সাইডবার — ডক-ভেঙে-ওভারফ্লোয়ের ঝুঁকি গেছে) */}
             <span className="text-[11px] font-bold text-slate-400 hidden 2xl:inline whitespace-nowrap">
               Date:
             </span>
