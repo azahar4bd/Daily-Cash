@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { getDescSuggestions, rememberDescription, type DescSug } from "@/lib/paymentDescSuggest";
 import DatePicker from "./DatePicker";
 import SearchSelect from "./SearchSelect";
 import PaymentCategoryManager from "./PaymentCategoryManager";
@@ -78,6 +79,17 @@ export default function PaymentPage({ selectedDate }: { selectedDate: string }) 
     txDate: selectedDate,
   });
   const [edit, setEdit] = useState<PaymentFormState | null>(null);
+
+  /* 💡 v1.4.128: Description সাজেশন — মেম্বার কোড/অফিস-হেড কোড/নিজের আগের টেক্সট */
+  const [descOpen, setDescOpen] = useState(false);
+  const descSugs: DescSug[] = useMemo(
+    () => (descOpen && form.description.trim() ? getDescSuggestions(form.description) : []),
+    [descOpen, form.description]
+  );
+  const pickDesc = (s: DescSug) => {
+    setForm((f) => ({ ...f, description: s.insert }));
+    setDescOpen(false);
+  };
   const [msg, setMsg] = useState("");
 
   const loadData = () => {
@@ -171,6 +183,7 @@ export default function PaymentPage({ selectedDate }: { selectedDate: string }) 
       description: form.description || "",
       txDate: form.txDate,
     });
+    rememberDescription(form.description); // v1.4.128: নতুন লেখা পরের বার সাজেশনে আসবে
 
     setForm({
       category: "",
@@ -211,6 +224,7 @@ export default function PaymentPage({ selectedDate }: { selectedDate: string }) 
       description: edit.description || "",
       txDate: edit.txDate,
     });
+    rememberDescription(edit.description); // v1.4.128
 
     setEdit(null);
     loadData();
@@ -416,14 +430,25 @@ export default function PaymentPage({ selectedDate }: { selectedDate: string }) 
           )}
 
           {/* Description Field — v1.4.102: PC-তে Category+Amount-এর সাথে ১ম সারির ৩য় ঘর; মোবাইলে Sub Category থাকলে তার পাশে, না থাকলে পুরো প্রস্থ */}
-          <div className={`${isCurrentDisburse || isFundPayment ? "" : "col-span-2 md:col-span-1"} md:col-start-3 md:row-start-1`}>
-            <label className="mb-1 block text-xs font-bold text-slate-700">Description</label>
+          <div className={`${isCurrentDisburse || isFundPayment ? "" : "col-span-2 md:col-span-1"} md:col-start-3 md:row-start-1 relative`}>
+            <label className="mb-1 block text-xs font-bold text-slate-700">
+              Description <span className="text-[10px] font-black text-amber-600">💡 টাইপ করলেই সাজেশন</span>
+            </label>
             <input
               type="text"
               disabled={isDayClosed(form.txDate)}
               value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
-              placeholder=""
+              onFocus={() => setDescOpen(true)}
+              onBlur={() => setTimeout(() => setDescOpen(false), 160)}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") setDescOpen(false);
+                if (e.key === "Enter" && descSugs.length) {
+                  e.preventDefault();
+                  pickDesc(descSugs[0]);
+                }
+              }}
+              placeholder="কোড / নাম / মেম্বার কোড লিখুন…"
               autoComplete="off"
               className={`w-full h-[42px] rounded-lg border px-3 py-2 text-sm font-semibold text-slate-800 focus:outline-none ${
                 isDayClosed(form.txDate)
@@ -431,6 +456,28 @@ export default function PaymentPage({ selectedDate }: { selectedDate: string }) 
                   : "border-slate-300 bg-orange-50 focus:border-blue-500"
               }`}
             />
+            {/* 💡 v1.4.128: সাজেশন ড্রপডাউন — ট্যাপে সিলেক্ট */}
+            {descOpen && descSugs.length > 0 && (
+              <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-56 overflow-y-auto rounded-xl border border-slate-300 bg-white shadow-2xl">
+                {descSugs.map((sug, ix) => (
+                  <button
+                    key={ix}
+                    type="button"
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      pickDesc(sug);
+                    }}
+                    className={`flex w-full items-start gap-2 px-3 py-2 text-left transition cursor-pointer hover:bg-amber-50 ${ix > 0 ? "border-t border-slate-100" : ""}`}
+                  >
+                    <span className="mt-0.5 text-sm leading-none">{sug.icon}</span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[13px] font-black text-slate-800">{sug.title}</span>
+                      <span className="block truncate text-[10px] font-bold text-slate-500">{sug.sub}</span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
           </div>
 
