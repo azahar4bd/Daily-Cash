@@ -27,6 +27,7 @@ export default function EntertainmentPage() {
   const [category, setCategory] = useState<"জমা" | "খরচ" | "">("");
   const [description, setDescription] = useState("");
   const [amount, setAmount] = useState("");
+  const [editingId, setEditingId] = useState<number | null>(null); // ✏️ v1.4.132: এডিট মোড
 
   /* ── ফিল্টার: তারিখ-হতে-তারিখ + মাস ── */
   const [dateRange, setDateRange] = useState<{ from: string; to: string } | null>(null);
@@ -48,6 +49,18 @@ export default function EntertainmentPage() {
     setCategory("");
     setDescription("");
     setAmount("");
+    setEditingId(null); // ✏️ এডিট মোড বন্ধ
+  };
+
+  /** ✏️ এডিট শুরু — ফর্মে মান বসে */
+  const startEdit = (e: EntEntry) => {
+    setEditingId(e.id);
+    setDate(e.date || todayISO());
+    setCategory(e.category);
+    setDescription(e.description || "");
+    setAmount(String(e.amount || ""));
+    setStatus(null);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleSave = () => {
@@ -57,13 +70,14 @@ export default function EntertainmentPage() {
     if (!amount || !Number.isFinite(amt) || amt <= 0)
       return setStatus({ kind: "warn", text: "Amount-এ সঠিক সংখ্যা দিন।" });
     saveEntEntry({
+      ...(editingId != null ? { id: editingId } : {}), // ✏️ এডিট হলে id সহ আপডেট — ডুপ্লিকেট ন হয়
       date,
       category: category as "জমা" | "খরচ",
       description: description.trim(),
       amount: String(Math.round(amt)),
     });
     clearForm();
-    setStatus({ kind: "ok", text: "✓ এন্ট্রি সেভ হয়েছে।" });
+    setStatus({ kind: "ok", text: editingId != null ? "✓ এন্ট্রি আপডেট হয়েছে।" : "✓ এন্ট্রি সেভ হয়েছে।" });
     setTimeout(() => setStatus(null), 1800);
   };
 
@@ -169,6 +183,12 @@ export default function EntertainmentPage() {
           </span>
         </div>
 
+        {editingId != null && (
+          <div className="mb-2.5 flex items-center justify-between rounded-xl border border-amber-300 bg-amber-50 px-3 py-2">
+            <span className="text-[11px] font-black text-amber-800">✏️ এন্ট্রি এডিট মোডে — মান বদলে "আপডেট করুন"</span>
+            <button type="button" onClick={clearForm} className="text-[11px] font-black text-amber-700 hover:text-amber-900 cursor-pointer">✕ বাতিল</button>
+          </div>
+        )}
         {/* ══ এন্ট্রি ফর্ম: তারিখ / ক্যাটাগরি / ডেসক্রিপশন / Amount ══ */}
         <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
           <div>
@@ -201,8 +221,13 @@ export default function EntertainmentPage() {
               </span>
             )}
           </div>
-          <button type="button" onClick={handleSave} className="shrink-0 flex items-center gap-1.5 rounded-xl bg-violet-600 hover:bg-violet-700 active:bg-violet-800 px-5 py-2 text-sm font-black text-white shadow transition cursor-pointer">
-            <span>✚</span> সেভ করুন
+          {editingId != null && (
+            <button type="button" onClick={clearForm} className="shrink-0 rounded-xl border border-slate-300 bg-slate-100 hover:bg-slate-200 px-4 py-2 text-sm font-black text-slate-700 transition cursor-pointer">
+              বাতিল
+            </button>
+          )}
+          <button type="button" onClick={handleSave} className={`shrink-0 flex items-center gap-1.5 rounded-xl px-5 py-2 text-sm font-black text-white shadow transition cursor-pointer ${editingId != null ? "bg-amber-600 hover:bg-amber-700 active:bg-amber-800" : "bg-violet-600 hover:bg-violet-700 active:bg-violet-800"}`}>
+            <span>{editingId != null ? "✎" : "✚"}</span> {editingId != null ? "আপডেট করুন" : "সেভ করুন"}
           </button>
         </div>
       </div>
@@ -298,7 +323,7 @@ export default function EntertainmentPage() {
                 <th className="px-3 py-2 text-center">ক্যাটাগরি</th>
                 <th className="px-3 py-2">ডেসক্রিপশন</th>
                 <th className="px-3 py-2 text-right">Amount</th>
-                <th className="px-3 py-2 text-center">✕</th>
+                <th className="px-3 py-2 text-center">✏️ / ✕</th>
               </tr>
             </thead>
             <tbody>
@@ -317,7 +342,15 @@ export default function EntertainmentPage() {
                     <td className={`px-3 py-2 text-right font-mono font-bold ${e.category === "জমা" ? "text-emerald-700" : "text-rose-700"}`}>
                       {e.category === "জমা" ? "+" : "-"}{fmt(Number(e.amount) || 0)}
                     </td>
-                    <td className="px-3 py-2 text-center">
+                    <td className="px-3 py-2 text-center whitespace-nowrap">
+                      <button
+                        type="button"
+                        onClick={() => startEdit(e)}
+                        className="mr-1 rounded-lg px-1.5 py-0.5 text-[11px] font-black text-slate-400 hover:bg-amber-100 hover:text-amber-600 cursor-pointer"
+                        title="এন্ট্রি এডিট করুন"
+                      >
+                        ✏️
+                      </button>
                       <button
                         type="button"
                         onClick={() => { if (confirm(`"${e.description || e.category}" — ${fmt(Number(e.amount))} টাকার এন্ট্রিটি মুছে ফেলবেন?`)) deleteEntEntry(e.id); }}
