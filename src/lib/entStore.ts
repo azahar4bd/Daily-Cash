@@ -7,6 +7,9 @@ import { enqueueNeonAction } from "./neonSync";
 
 export const ENT_KEY = "gobra_entertainment_entries";
 export const ENT_CLOUD_KEY = "entertainment_entries";
+/* 🪦 v1.4.131: মোছা এন্ট্রির "টম্বস্টোন" — ইউনিয়ন মার্জে ডিলিট হওয়া এন্ট্রি আর ফেরত আসে না */
+export const ENT_TOMBSTONE_KEY = "gobra_entertainment_deleted_ids";
+export const ENT_TOMBSTONE_CLOUD_KEY = "entertainment_deleted_ids";
 
 export type EntEntry = {
   id: number;
@@ -53,6 +56,46 @@ export function saveEntEntry(
   return entry;
 }
 
+export function getEntTombstones(): Set<string> {
+  try {
+    const raw = localStorage.getItem(ENT_TOMBSTONE_KEY);
+    const list: unknown[] = raw ? JSON.parse(raw) : [];
+    return new Set((Array.isArray(list) ? list : []).map(String));
+  } catch {
+    return new Set();
+  }
+}
+
+export function storeEntTombstones(list: Iterable<string>): void {
+  const arr = [...new Set([...list].map(String))].slice(0, 500); // সর্বোচ্চ ৫০০ মনে রাখি
+  localStorage.setItem(ENT_TOMBSTONE_KEY, JSON.stringify(arr));
+}
+
+export function addEntTombstone(id: string): void {
+  storeEntTombstones([...getEntTombstones(), String(id)]);
+  // ☁️ মোছা-তালিকা ক্লাউডে — অন্য ডিভাইসেও ডিলিট পৌঁছে যায়
+  enqueueNeonAction({
+    type: "setting",
+    payload: { key: ENT_TOMBSTONE_CLOUD_KEY, value: JSON.stringify([...getEntTombstones()]) },
+  });
+}
+
+/** ক্লাউড ∪ লোকাল ইউনিয়ন মার্জ — তবে টম্বস্টোনযুক্ত id ফেরত আসে না (v1.4.131) */
+export function mergeEntEntries(cloudList: EntEntry[], localList: EntEntry[]): EntEntry[] {
+  const tomb = getEntTombstones();
+  const byId = new Map<string, EntEntry>();
+  for (const e of cloudList) if (e && !tomb.has(String(e.id))) byId.set(String(e.id), e);
+  for (const e of localList) if (e && !tomb.has(String(e.id))) byId.set(String(e.id), e);
+  const merged = [...byId.values()];
+  merged.sort(
+    (a, b) =>
+      String(b.date || "").localeCompare(String(a.date || "")) ||
+      Number(b.id) - Number(a.id)
+  );
+  return merged;
+}
+
 export function deleteEntEntry(id: number | string): void {
+  addEntTombstone(String(id)); // 🪦 প্রথমে টম্বস্টোন — মার্জে এরপর কখনোই ফিরবে না
   writeAll(getEntEntries().filter((e) => String(e.id) !== String(id)));
 }

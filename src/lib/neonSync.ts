@@ -39,6 +39,7 @@ import {
 } from "./neon";
 import type { CheckEntry } from "@/types";
 import type { Member } from "./memberDb";
+import { ENT_TOMBSTONE_CLOUD_KEY, getEntTombstones, storeEntTombstones, mergeEntEntries } from "./entStore";
 import type {
   Tx,
   StaffReportItem,
@@ -372,19 +373,25 @@ async function doSyncAllWithNeon(): Promise<{ success: boolean; message: string 
     /* ── ✅ 🎉 Entertainment সিংক (v1.4.71, app_settings KV যোগে) — id-ভিত্তিক ইউনিয়ন মার্জ; নতুন যোগ হারায় না ── */
     try {
       const ENT_KEY_L = "gobra_entertainment_entries";
+      /* 🪦 v1.4.131: ক্লাউডের মোছা-তালিকা লোকালে যোগ — অন্য ডিভাইসের ডিলিট এখানেও পৌঁছায় */
+      try {
+        const cloudTombRaw = await fetchAppSettingFromNeon(ENT_TOMBSTONE_CLOUD_KEY);
+        if (cloudTombRaw) {
+          const cloudTomb: unknown[] = JSON.parse(cloudTombRaw);
+          storeEntTombstones([...getEntTombstones(), ...(Array.isArray(cloudTomb) ? cloudTomb.map(String) : [])]);
+        }
+      } catch {}
       const cloudRaw = await fetchAppSettingFromNeon("entertainment_entries");
       if (cloudRaw) {
         const cloudList: any[] = JSON.parse(cloudRaw);
         const localRaw = localStorage.getItem(ENT_KEY_L);
         const localList: any[] = localRaw ? JSON.parse(localRaw) : [];
-        const byId = new Map<string, any>();
-        for (const e of cloudList) byId.set(String(e?.id), e);
-        for (const e of localList) if (!byId.has(String(e?.id))) byId.set(String(e?.id), e);
-        const merged = [...byId.values()];
-        const key = (x: any) => `${x.date}|${x.id}`;
-        merged.sort((a: any, b: any) => String(key(b)).localeCompare(String(key(a))));
+        const merged = mergeEntEntries(cloudList, localList); // ইউনিয়ন − টম্বস্টোন (ডিলিট হওয়া আর ফেরে না)
         const mergedStr = JSON.stringify(merged);
-        const cloudSorted = JSON.stringify([...cloudList].sort((a: any, b: any) => String(key(b)).localeCompare(String(key(a)))));
+        const key = (x: any) => `${x.date}|${x.id}`;
+        const cloudSorted = JSON.stringify(
+          mergeEntEntries([...cloudList].sort((a: any, b: any) => String(key(b)).localeCompare(String(key(a)))), [])
+        );
         if (mergedStr !== (localRaw || "[]")) {
           localStorage.setItem(ENT_KEY_L, mergedStr);
           window.dispatchEvent(new Event("entertainment-changed"));
