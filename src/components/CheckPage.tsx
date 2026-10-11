@@ -448,6 +448,9 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
     if (!key || edit) return null;
     let hit: CheckEntry | null = null;
     for (const e of entries) {
+      // v1.4.129: রিটার্নড চেক পূর্ব-এন্ট্রি বলে ধরা হয় না (নতুন এন্ট্রিতে banner আসবে না)
+      // — রিটার্ন টেবিলে সার্চে তবু পাওয়া যাবে
+      if (e.returned) continue;
       const match =
         normCode(e.accountNo) === key ||
         (e.extraBanks || []).some((b) => normCode(b?.accountNo) === key);
@@ -741,7 +744,8 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
   const memberEntries = useMemo(() => {
     const key = normCode(form.memberCode);
     if (!key) return [] as CheckEntry[];
-    return entries.filter((e) => normCode(e.memberCode) === key);
+    // 🔁 v1.4.129: রিটার্নড চেক নতুন এন্ট্রির "পূর্বের এন্ট্রি" বলে গণ্য নয় — রিটার্ন টেবিলে সার্চে পাওয়া যাবে
+    return entries.filter((e) => normCode(e.memberCode) === key && !e.returned);
   }, [entries, form.memberCode]);
 
   useEffect(() => {
