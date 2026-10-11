@@ -308,6 +308,11 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
   const [form, setForm] = useState(emptyForm(baseDate));
   const [edit, setEdit] = useState<CheckEntry | null>(null);
   const [search, setSearch] = useState("");
+  const [searchQ, setSearchQ] = useState(""); // ⚡ v1.4.130: ডিবাউন্সড সার্চ-ক্যোয়ারি
+  useEffect(() => {
+    const t = setTimeout(() => setSearchQ(search), 140);
+    return () => clearTimeout(t);
+  }, [search]);
   const [matchInfo, setMatchInfo] = useState<"idle" | "found" | "notfound">("idle");
   const [dbCount, setDbCount] = useState(0);
   const [status, setStatus] = useState<{ kind: "ok" | "warn" | "err"; text: string } | null>(null);
@@ -727,8 +732,8 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
 
   const filtered = useMemo(
     // v1.4.106: সার্চে রি-ইস্যুকৃত পুরনো এন্ট্রি বাদ — নতুন (চেইনের সর্বশেষ) এন্ট্রিটিই দেখাবে
-    () => searchVisibleEntries(entries, search),
-    [entries, search]
+    () => searchVisibleEntries(entries, searchQ),
+    [entries, searchQ]
   );
 
   /** 📅 v1.4.55: তারিখ হতে তারিখ — সার্চ ফলাফলের উপর প্রয়োগ হয় (দুই প্রান্তই অন্তর্ভুক্ত) */
@@ -751,7 +756,10 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
   useEffect(() => {
     setPage(1);
     setRetPage(1);
-  }, [search, dateRange]);
+  }, [searchQ, dateRange]);
+
+  /* ⚡ v1.4.130: সার্চ-ল্যাগ ফিক্স — ইনপুট `search` তৎক্ষণাৎ আপডেট হয় (পেইন্ট কখনোই দেরি নয়);
+   * ভারী কাজ (entryMatches-ফিল্টার + টুকরো হাইলাইট + রো-রেন্ডার) শুধু ১৪০ms ডিবাউন্সড `searchQ`-তে চলে */
 
   /** 📅 তারিখ ফিল্টার প্রয়োগ — এক প্রান্ত খালি থাকলে সেই দিনটিই; উল্টো দিলে অটো-সয়াপ */
   const applyDateRange = () => {
@@ -903,7 +911,7 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
   /** 🖍️ v1.4.113: সার্চ-কোয়েরির মিলে-যাওয়া অংশ হলুদ হাইলাইটে দেখানোর ছোট্ট র‍্যাপার */
   const Hl = ({ children }: { children: unknown }) => {
     const s = String(children ?? "");
-    const parts = splitHighlights(s, search);
+    const parts = splitHighlights(s, searchQ);
     if (parts.length === 1 && !parts[0].hit) return <>{s}</>;
     return (
       <>
@@ -1138,17 +1146,17 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
   const listRowsJsx = useMemo(
     () => pageRows.map((row, i) => renderCheckRow(row, i + 1, i)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [pageRows, search, dayClosed, lockPulse]
+    [pageRows, searchQ, dayClosed, lockPulse]
   );
   const retRowsJsx = useMemo(
     () => retPageRows.map((row, i) => renderCheckRow(row, (retPage - 1) * PAGE_SIZE + i + 1, i)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [retPageRows, search, dayClosed, lockPulse]
+    [retPageRows, searchQ, dayClosed, lockPulse]
   );
   const viewRowsJsx = useMemo(
     () => viewGroups.map((g, i) => renderCheckRow(g.row, i + 1, i)),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [viewGroups, search, dayClosed, lockPulse]
+    [viewGroups, searchQ, dayClosed, lockPulse]
   );
 
   const uniqueMembers = useMemo(
