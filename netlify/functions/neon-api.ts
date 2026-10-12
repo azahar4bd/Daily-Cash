@@ -244,6 +244,27 @@ export function createHandler(deps: HandlerDeps) {
         return json(200, { ok: true, user: upd[0], pendingCount: await pendingCount() });
       }
 
+      /* ── 🛡️ টোকেনগেটড SQL গেটওয়ে (v1.4.135 ধাপ-২) — ব্রাউজারের সব ডেটা-যাতায়াত এখন এই দরজায় ── */
+      if (action === "sql") {
+        if (!requireAuth()) return json(401, { ok: false, error: "unauthorized" });
+        const queries: { text: string; params?: unknown[] }[] = Array.isArray(body.queries) ? body.queries : [];
+        if (!queries.length) return json(400, { ok: false, error: "কোয়েরি দিন।" });
+        if (queries.length > 80) return json(400, { ok: false, error: "একসাথে অনেক বেশি কোয়েরি।" });
+        // ⛔ বিধ্বংসী ব্লকলিস্ট (অ্যাপ কখনোই DROP/TRUNCATE চালায় না)
+        const BLOCK = /\b(drop\s+table|drop\s+schema|truncate\b|create\s+extension|alter\s+role|grant\b|revoke\b)/i;
+        for (const q of queries) {
+          if (!q || typeof q.text !== "string" || !q.text.trim()) return json(400, { ok: false, error: "অসম্পূর্ণ কোয়েরি।" });
+          if (BLOCK.test(q.text)) return json(403, { ok: false, error: "নিষিদ্ধ কোয়েরি — প্রত্যাখ্যাত।" });
+        }
+        const url = process.env.NEON_DATABASE_URL || process.env.DATABASE_URL || "";
+        const db = getDb(url);
+        const tx = Boolean(body.transaction);
+        const results = tx
+          ? await db.transaction(queries.map((q) => db.query(q.text, (q.params as any[]) || [])))
+          : await Promise.all(queries.map((q) => db.query(q.text, (q.params as any[]) || [])));
+        return json(200, { ok: true, results });
+      }
+
       /* ── 🙋 আমি কে (টোকেন যাচয় + pending-সংখ্যা) ── */
       if (action === "meet") {
         const p = requireAuth();
@@ -266,6 +287,8 @@ export function createHandler(deps: HandlerDeps) {
 /* ════════════════ আসল হ্যান্ডলার (env থেকে) ════════════════ */
 
 let cached: ReturnType<typeof createHandler> | null = null;
+let dbCached: any = null;
+const getDb = (url: string) => (dbCached ||= neon(url));
 
 export async function handler(event: any, _context: any) {
   if (!cached) {

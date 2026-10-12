@@ -1,4 +1,3 @@
-import { neon } from "@neondatabase/serverless";
 import { getCurrentBranch, DEFAULT_BRANCH_ID } from "./branchScope";
 import type { CheckEntry } from "@/types";
 import type { Member } from "./memberDb";
@@ -14,13 +13,84 @@ import type {
   DayOpen,
 } from "@/types";
 
-export const NEON_DATABASE_URL =
-  (typeof import.meta !== "undefined" && (import.meta as any).env?.VITE_NEON_DATABASE_URL) ||
-  "postgresql://neondb_owner:npg_ZWT8gcO4xuym@ep-aged-night-b3r0h0bv.c-4.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require";
+/* 🛡️ v1.4.135 (নিরাপত্তা ধাপ-২): ডেটাবেজ-চাবি ব্রাউজার থেকে পুরো তলে গেল!
+ * কোনো সরাসরি সংযোগ নেই — সব SQL টোকেনগেটড সার্ভার-প্রহরী (.netlify/functions/neon-api) দিয়ে যায়।
+ * টোকেন নেই = ডেটাবেজে প্রবেশই নেই। */
+export const NEON_DATABASE_URL = ""; // ⛔ ইচ্ছাকৃতভাবে ফাঁকা — ক্লায়েন্টে চাবি রাখা নিষেধ
 
-// Create Neon serverless HTTP sql client
-// (disableWarningInBrowsers: কনসোলে বড় সতর্কবার্তা ছাপা বন্ধ — অ্যাপের নিজস্ব নিয়ন্ত্রণ আছে)
-export const sql = neon(NEON_DATABASE_URL, { disableWarningInBrowsers: true });
+import { getServerToken } from "./serverAuth";
+
+type RawMarker = { __neonRaw: string };
+
+/** ট্যাগড টেমপ্লেট/কোয়েরি → {text, params} (pg $1.. ফরম্যাট) */
+function buildQuery(a: any, rest: any[]): { text: string; params: any[] } {
+  if (typeof a === "string") return { text: a, params: (rest[0] as any[]) || [] };
+  const strings = a as TemplateStringsArray;
+  const values = rest;
+  let text = "";
+  const params: any[] = [];
+  for (let i = 0; i < strings.length; i++) {
+    text += strings[i];
+    if (i < values.length) {
+      const v: any = values[i];
+      if (v && (v as RawMarker).__neonRaw) text += (v as RawMarker).__neonRaw; // unsafe-লিটেরাল (টেবিল-নাম)
+      else {
+        params.push(v);
+        text += `$${params.length}`;
+      }
+    }
+  }
+  return { text, params };
+}
+
+/** প্রহরীর কাছে কোয়েরি পাঠাই → প্রতিটির rows ফেরায় */
+async function remoteExec(queries: { text: string; params: any[] }[], transaction: boolean): Promise<any[][]> {
+  const token = getServerToken();
+  if (!token) throw new Error("সার্ভার-লগইন নেই — আগে সাইন ইন করুন");
+  const res = await fetch("/.netlify/functions/neon-api", {
+    method: "POST",
+    headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+    body: JSON.stringify({ action: "sql", queries, transaction }),
+  });
+  let data: any = null;
+  try { data = await res.json(); } catch { data = { ok: false, error: `HTTP ${res.status}` }; }
+  if (!data?.ok) throw new Error(data?.error || `HTTP ${res.status}`);
+  return data.results as any[][];
+}
+
+/** PromiseLike কোয়েরি — এককভাবে await করলেও চলে, transaction-এ ব্যাচও হয় */
+class RemoteQuery implements PromiseLike<any[]> {
+  __q: { text: string; params: any[] };
+  constructor(q: { text: string; params: any[] }) { this.__q = q; }
+  then<TResult1 = any[], TResult2 = never>(
+    onfulfilled?: ((value: any[]) => TResult1 | PromiseLike<TResult1>) | null,
+    onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | null
+  ): Promise<TResult1 | TResult2> {
+    return remoteExec([this.__q], false).then((rs) => rs[0]).then(onfulfilled, onrejected);
+  }
+  catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | null): Promise<any[] | TResult> {
+    return this.then(undefined, onrejected);
+  }
+  finally(onfinally?: (() => void) | null): Promise<any[]> {
+    return this.then().finally(onfinally || undefined);
+  }
+}
+
+function makeRemoteSql() {
+  const tag: any = (a: any, ...rest: any[]) => new RemoteQuery(buildQuery(a, rest));
+  tag.query = (q: string, params: any[] = []) => new RemoteQuery({ text: q, params });
+  tag.unsafe = (raw: string): RawMarker => ({ __neonRaw: raw });
+  tag.transaction = (items: any[]) => {
+    const qs = items
+      .map((it: any) => it?.__q || (typeof it === "string" ? { text: it, params: [] } : null))
+      .filter(Boolean);
+    if (!qs.length) return Promise.resolve([]);
+    return remoteExec(qs, true);
+  };
+  return tag;
+}
+
+export const sql: any = makeRemoteSql();
 
 /* ══════════════════════════════════════════════════════════════
  * 🏢 মাল্টি-অফিস ক্লাউড স্কোপ
