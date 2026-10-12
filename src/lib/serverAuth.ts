@@ -90,6 +90,11 @@ export async function serverLogin(mobile: string, password: string): Promise<Log
   return d;
 }
 
+/** 📝 নতুন সাইন-আপ (মোবাইল+পাসওয়ার্ড) — pending হিসেবে জমা */
+export async function serverRegister(input: { name: string; mobile: string; password: string; branchId?: string }): Promise<LoginResult> {
+  return call("register", { name: input.name, mobile: input.mobile, password: input.password, branchId: input.branchId });
+}
+
 /** 🔵 Google ID-টোকেন — সার্ভারে যাচয়; নতুন হলে pending */
 export async function serverGoogleLogin(credential: string): Promise<LoginResult> {
   const d = await call("google", { credential });

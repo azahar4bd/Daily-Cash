@@ -182,6 +182,28 @@ export function createHandler(deps: HandlerDeps) {
         });
       }
 
+      /* ── 📝 নতুন সাইন-আপ (মোবাইল+পাসওয়ার্ড) — pending; অ্যাডমিন অনুমতিতে চালু ── */
+      if (action === "register") {
+        const name = String(body.name || "").trim();
+        const mobile = normalizeMobile(body.mobile);
+        const password = String(body.password || "");
+        const branch = String(body.branchId || "gobra").toLowerCase().replace(/[^a-z0-9_]/g, "_") || "gobra";
+        if (name.length < 2) return json(400, { ok: false, error: "নাম লিখুন (কমপক্ষে ২ অক্ষর)।" });
+        if (mobile.length < 6) return json(400, { ok: false, error: "সঠিক মোবাইল নম্বর দিন।" });
+        if (password.length < 6) return json(400, { ok: false, error: "পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে।" });
+        const dup: AppUserRow[] = await sql.query(`SELECT id, status FROM app_users WHERE mobile = $1`, [mobile]);
+        if (dup?.length) {
+          if (dup[0].status === "pending") return json(200, { ok: true, pending: true, message: "⏳ এই নম্বরের অনুরোধ আগেই জমা — অ্যাডমিনের অনুমতির অপেক্ষায়।" });
+          return json(409, { ok: false, error: "এই নম্বরে ইউজার আছে — সাইন ইন করুন।" });
+        }
+        await sql.query(
+          `INSERT INTO app_users (name, mobile, pass_hash, branch_id, role, status)
+           VALUES ($1, $2, $3, $4, 'member', 'pending')`,
+          [name, mobile, legacyHash(password, mobile), branch]
+        );
+        return json(200, { ok: true, pending: true, message: "⏳ আপনার সাথে অ্যাডমিনের অনুমতি চেয়ে জমা হয়েছে — অনুমতি পেলে ঢুকতে পারবেন।" });
+      }
+
       /* ── 🔵 Google লগইন ── */
       if (action === "google") {
         const credential = String(body.credential || "");

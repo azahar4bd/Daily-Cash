@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { BKF_LOGO } from "@/assets/logoBase64";
 import { signIn, signUp, listBranches, isValidMobile, forceLocalSession } from "@/lib/auth";
 import type { Session } from "@/lib/auth";
-import { serverLogin, serverGoogleLogin, loadGoogleScript } from "@/lib/serverAuth";
+import { serverLogin, serverGoogleLogin, serverRegister, loadGoogleScript } from "@/lib/serverAuth";
 
 const GOOGLE_CLIENT_ID = String((import.meta as any).env?.VITE_GOOGLE_CLIENT_ID || "161441191624-q3e0gtm5avvvo3f8qpclph8ukleqshvb.apps.googleusercontent.com"); // v1.4.134: Google সাইন-ইন চালু
 const GOOGLE_ORIGIN = String((import.meta as any).env?.VITE_GOOGLE_ORIGIN || "https://cash-gobra-bkf.netlify.app");
@@ -82,6 +82,12 @@ export default function AuthScreen({ onAuthed }: { onAuthed: (s: Session) => voi
 const handleSignUp = async () => {
     setErr("");
     setBusy(true);
+    /* 🛡️ v1.4.137: সাইন-আপ আগে সার্ভারে — অ্যাডমিন অনুমতি ছাড়া ঢুকবে না (অফলাইনে লোকালে ফলব্যাক) */
+    try {
+      const sr = await serverRegister({ name: name.trim(), mobile, password: pw, branchId: "gobra" });
+      if (sr.ok || sr.pending) { setErr(sr.message || "⏳ অনুমতির জন্য জমা হয়েছে।"); setBusy(false); return; }
+      if (sr.error && sr.error !== "server error") { setErr(sr.error); setBusy(false); return; }
+    } catch { /* নেটবিহীন — লোকালে ফলব্যাক */ }
     try {
       const res = await signUp({ name, mobile, branchName, password: pw, confirmPassword: confirmPw });
       if (!res.ok || !res.session) {
