@@ -193,6 +193,18 @@ function startSession(user: AuthUser): Session {
   return session;
 }
 
+/** 🛡️ সার্ভারে লগইন সফল হলে লোকাল সেশন সাজায় (পাসওয়ার্ড-মিলানো আর লাগে না) */
+export function forceLocalSession(userId: string, branchId: string): Session {
+  const session: Session = {
+    userId: String(userId),
+    branchId: String(branchId || DEFAULT_BRANCH_ID),
+    loginAt: new Date().toISOString(),
+  };
+  writeJSON(SESSION_KEY, session);
+  setBranch(session.branchId);
+  return session;
+}
+
 export function signOut(): void {
   try {
     window.localStorage.removeItem(SESSION_KEY);

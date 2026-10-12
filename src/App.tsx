@@ -20,6 +20,8 @@ import { seedMemberDatabase, purgeBlockedMembers } from "./lib/memberDb";
 import { purgeBlockedCheckEntries } from "./lib/checkStore";
 import { forceFreshReload, dismissUpdateToast, APP_VERSION } from "./lib/version";
 import AuthScreen from "./components/AuthScreen";
+import AdminApprovals from "./components/AdminApprovals";
+import { clearServerSession } from "./lib/serverAuth";
 import { setBranch } from "./lib/branchScope";
 import { isDefaultBranch } from "./lib/branchScope";
 import {
@@ -139,11 +141,14 @@ export default function App() {
     )
       return;
     signOut();
+    clearServerSession();
     window.location.reload();
   };
 
   return (
     <div className="app-bg min-h-screen text-slate-900 font-sans antialiased pb-20 xl:pb-4 xl:pl-60 print:p-0 print:m-0 print:pl-0 print:pb-0 print:bg-white">
+      {/* 🔔 (admin) লগইন-অনুমতি কেন্দ্র — সার্ভার-অ্যাডমিন হলে ভাসমান ঘণ্টা */}
+      <AdminApprovals />
       {/* Main Container */}
       <main className="mx-auto max-w-6xl px-3 sm:px-4 pt-3 sm:pt-5 print:p-0 print:max-w-none">
         {/* 🏢 বর্তমান অফিস + ইউজার + লগআউট */}

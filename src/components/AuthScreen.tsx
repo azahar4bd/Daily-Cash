@@ -1,7 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { BKF_LOGO } from "@/assets/logoBase64";
-import { signIn, signUp, listBranches, isValidMobile } from "@/lib/auth";
+import { signIn, signUp, listBranches, isValidMobile, forceLocalSession } from "@/lib/auth";
 import type { Session } from "@/lib/auth";
+import { serverLogin, serverGoogleLogin, loadGoogleScript } from "@/lib/serverAuth";
+
+const GOOGLE_CLIENT_ID = String((import.meta as any).env?.VITE_GOOGLE_CLIENT_ID || "");
 
 /**
  * 🔐 সাইন ইন / সাইন আপ স্ক্রিন
@@ -37,7 +40,23 @@ export default function AuthScreen({ onAuthed }: { onAuthed: (s: Session) => voi
 
   const digitsOnly = (v: string) => v.replace(/[^0-9+]/g, "").slice(0, 16);
 
+  /* 🛡️ v1.4.133: সার্ভার-প্রথম লগইন — নেট না থাকলে লোকালে পড়ে */
   const handleSignIn = async () => {
+    const pw = loginPw;
+    try {
+      const r = await serverLogin(loginMobile, pw);
+      if (r.ok && r.token && r.user) {
+        onAuthed(forceLocalSession(String(r.user.mobile || loginMobile), r.user.branchId));
+        return;
+      }
+      if (r.pending) { setErr(r.error || "⏳ অ্যাডমিনের অনুমতির অপেক্ষা রয়েছে।"); return; }
+      if (r.error === "server error" || !r.error) { /* সার্ভার অসুবিধা — লোকালে ফলব্যাক */ }
+      else { setErr(r.error); return; } // পাসওয়ার্ড-ভুল ইত্যাদি — প্রকৃত উত্তর
+    } catch { /* নেটবিহীন — লোকালে ফলব্যাক */ }
+    await doLocalSignIn();
+  };
+
+  const doLocalSignIn = async () => {
     setErr("");
     setBusy(true);
     try {
@@ -54,7 +73,7 @@ export default function AuthScreen({ onAuthed }: { onAuthed: (s: Session) => voi
     }
   };
 
-  const handleSignUp = async () => {
+const handleSignUp = async () => {
     setErr("");
     setBusy(true);
     try {
@@ -70,6 +89,42 @@ export default function AuthScreen({ onAuthed }: { onAuthed: (s: Session) => voi
       setBusy(false);
     }
   };
+
+  /* 🔵 Google দিয়ে প্রবেশ (v1.4.133) */
+  const googleDivRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!GOOGLE_CLIENT_ID) return;
+    if (tab !== "in") return;
+    let cancelled = false;
+    (async () => {
+      try {
+        await loadGoogleScript();
+        if (cancelled || !googleDivRef.current) return;
+        const g = (window as any).google;
+        g.accounts.id.initialize({
+          client_id: GOOGLE_CLIENT_ID,
+          callback: async (resp: any) => {
+            setErr("");
+            setBusy(true);
+            try {
+              const r = await serverGoogleLogin(String(resp?.credential || ""));
+              if (r.ok && r.token && r.user) {
+                onAuthed(forceLocalSession(String(r.user.mobile || r.user.email || "google-user"), r.user.branchId));
+              } else {
+                setErr(r.error || r.message || (r.pending ? "⏳ অ্যাডমিনের অনুমতির অপেক্ষা রয়েছে।" : "Google লগইন হয়নি।"));
+              }
+            } catch {
+              setErr("Google লগইনে সমস্যা — ইন্টারনেট দেখুন।");
+            } finally {
+              setBusy(false);
+            }
+          },
+        });
+        g.accounts.id.renderButton(googleDivRef.current, { theme: "outline", size: "large", width: 320, text: "signin_with", locale: "bn" });
+      } catch {}
+    })();
+    return () => { cancelled = true; };
+  }, [tab]);
 
   const knownBranch = branches.find(
     (b) => b.name.trim().toLowerCase() === branchName.trim().toLowerCase()
@@ -171,6 +226,20 @@ export default function AuthScreen({ onAuthed }: { onAuthed: (s: Session) => voi
                 >
                   {busy ? "অপেক্ষা করুন…" : "🔓 সাইন ইন করুন"}
                 </button>
+
+                {GOOGLE_CLIENT_ID && (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <div className="h-px flex-1 bg-slate-300" />
+                      <span className="text-[10px] font-black text-slate-500">অথবা</span>
+                      <div className="h-px flex-1 bg-slate-300" />
+                    </div>
+                    <div ref={googleDivRef} className="flex justify-center" />
+                    <p className="text-center text-[10px] font-semibold text-slate-500">
+                      🛡️ নতুন Google অ্যাকাউন্টে অ্যাডমিনের অনুমতি লাগবে
+                    </p>
+                  </div>
+                )}
 
                 <p className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-[11px] font-semibold leading-relaxed text-blue-900">
                   💡 মোবাইল নম্বরই আপনার ইউজার আইডি। যে অফিসের আইডি দিয়ে ঢুকবেন, সেই
