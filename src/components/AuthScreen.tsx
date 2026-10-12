@@ -84,7 +84,10 @@ const handleSignUp = async () => {
     setBusy(true);
     /* 🛡️ v1.4.137: সাইন-আপ আগে সার্ভারে — অ্যাডমিন অনুমতি ছাড়া ঢুকবে না (অফলাইনে লোকালে ফলব্যাক) */
     try {
-      const sr = await serverRegister({ name: name.trim(), mobile, password: pw, branchId: "gobra" });
+      /* 🆕 v1.4.139: ফর্মের আসল শাখাই যায় — পরিচিত শাখা হলে তার id, নতুন হলে স্ল্যাগ (আগে সব gobra হার্ডকোড ছিল) */
+      const reqSlug = branchName.trim().toLowerCase().replace(/[^a-z0-9_]/g, "_");
+      const reqBranch = (knownBranch && knownBranch.id) || reqSlug || "gobra";
+      const sr = await serverRegister({ name: name.trim(), mobile, password: pw, branchId: reqBranch });
       if (sr.ok || sr.pending) { setErr(sr.message || "⏳ অনুমতির জন্য জমা হয়েছে।"); setBusy(false); return; }
       if (sr.error && sr.error !== "server error") { setErr(sr.error); setBusy(false); return; }
     } catch { /* নেটবিহীন — লোকালে ফলব্যাক */ }

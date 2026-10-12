@@ -53,7 +53,9 @@ export default function AdminApprovals() {
   const decide = async (id: number, approve: boolean) => {
     setBusy(true);
     setMsg("");
-    const d = approve ? await serverApprove(id, "gobra") : await serverReject(id);
+    /* 🆕 v1.4.139: অনুরোধকারী যে শাখা চেয়েছে সেখানেই অনুমতি (আগে সবাই gobra-তে ঢুকে যেত) */
+    const row = list.find((p) => p.id === id);
+    const d = approve ? await serverApprove(id, row?.branch_id || "gobra") : await serverReject(id);
     setBusy(false);
     if (!d.ok) return setMsg(d.error || "ব্যর্থ হয়েছে");
     setMsg(approve ? "✅ অনুমতি দেওয়া হয়েছে" : "❌ বাধা দেওয়া হয়েছে");
@@ -99,7 +101,7 @@ export default function AdminApprovals() {
                   <div key={u.id} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
                     <div className="mb-1 text-sm font-black text-slate-900">{u.name}</div>
                     <div className="mb-2 text-[11px] font-semibold text-slate-500">
-                      {u.email || u.mobile || "—"} • {new Date(u.created_at).toLocaleDateString("en-GB")}
+                      {u.email || u.mobile || "—"} • 🏢 {u.branch_id || "gobra"} • {new Date(u.created_at).toLocaleDateString("en-GB")}
                     </div>
                     <div className="flex gap-2">
                       <button

@@ -70,6 +70,9 @@ async function call(action: string, extra: Record<string, unknown> = {}, token =
   } catch {
     data = { ok: false, error: `HTTP ${res.status}` };
   }
+  /* 🆕 v1.4.139: পুরনো/আর্কাইভ ঠিকানায় পৌঁছে গেলে Netlify-র কাঁচা "usage_exceeded" বাংলায় বোঝাই */
+  if (data && data.error === "usage_exceeded")
+    data.error = "⚠️ পুরনো/আর্কাইভ ঠিকানায় আছেন — সে সার্ভার বন্ধ। ➡️ নতুন লিংক খুলুন: cash-gobra-bkf.netlify.app";
   return data;
 }
 
