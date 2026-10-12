@@ -5,6 +5,12 @@ import type { Session } from "@/lib/auth";
 import { serverLogin, serverGoogleLogin, loadGoogleScript } from "@/lib/serverAuth";
 
 const GOOGLE_CLIENT_ID = String((import.meta as any).env?.VITE_GOOGLE_CLIENT_ID || "161441191624-q3e0gtm5avvvo3f8qpclph8ukleqshvb.apps.googleusercontent.com"); // v1.4.134: Google সাইন-ইন চালু
+const GOOGLE_ORIGIN = String((import.meta as any).env?.VITE_GOOGLE_ORIGIN || "https://cash-gobra-bkf.netlify.app");
+/** v1.4.136: ভুল ঠিকানায় থাকলে Google-বোতাম নীরব হয়ে যায় — সঙ্গে সঙ্গে সতর্ক-ব্যানার দেখাই */
+const isOriginOk = (): boolean => {
+  try { return window.location.origin === GOOGLE_ORIGIN || window.location.hostname === "localhost"; }
+  catch { return true; }
+};
 
 /**
  * 🔐 সাইন ইন / সাইন আপ স্ক্রিন
@@ -227,7 +233,14 @@ const handleSignUp = async () => {
                   {busy ? "অপেক্ষা করুন…" : "🔓 সাইন ইন করুন"}
                 </button>
 
-                {GOOGLE_CLIENT_ID && (
+                {GOOGLE_CLIENT_ID && !isOriginOk() && (
+                  <div className="rounded-xl border-2 border-rose-300 bg-rose-50 px-3 py-2.5 text-[11px] font-bold leading-relaxed text-rose-800">
+                    ⚠️ Google লগইন এই ঠিকানায় চলবে না। যথাযথ ঠিকানা:{" "}
+                    <a href={GOOGLE_ORIGIN} className="font-black underline">{GOOGLE_ORIGIN}</a>{" "}
+                    — এটা খুলে লগইন করুন।
+                  </div>
+                )}
+                {GOOGLE_CLIENT_ID && isOriginOk() && (
                   <div className="space-y-2">
                     <div className="flex items-center gap-2">
                       <div className="h-px flex-1 bg-slate-300" />
