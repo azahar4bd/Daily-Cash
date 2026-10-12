@@ -4,7 +4,7 @@ import { signIn, signUp, listBranches, isValidMobile, forceLocalSession } from "
 import type { Session } from "@/lib/auth";
 import { serverLogin, serverGoogleLogin, loadGoogleScript } from "@/lib/serverAuth";
 
-const GOOGLE_CLIENT_ID = String((import.meta as any).env?.VITE_GOOGLE_CLIENT_ID || "");
+const GOOGLE_CLIENT_ID = String((import.meta as any).env?.VITE_GOOGLE_CLIENT_ID || "161441191624-q3e0gtm5avvvo3f8qpclph8ukleqshvb.apps.googleusercontent.com"); // v1.4.134: Google সাইন-ইন চালু
 
 /**
  * 🔐 সাইন ইন / সাইন আপ স্ক্রিন
