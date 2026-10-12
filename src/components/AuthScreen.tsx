@@ -52,7 +52,7 @@ export default function AuthScreen({ onAuthed }: { onAuthed: (s: Session) => voi
     try {
       const r = await serverLogin(loginMobile, pw);
       if (r.ok && r.token && r.user) {
-        onAuthed(forceLocalSession(String(r.user.mobile || loginMobile), r.user.branchId));
+        onAuthed(forceLocalSession(String(r.user.mobile || loginMobile), r.user.branchId, { name: r.user.name }));
         return;
       }
       if (r.pending) { setErr(r.error || "⏳ অ্যাডমিনের অনুমতির অপেক্ষা রয়েছে।"); return; }
@@ -121,7 +121,7 @@ const handleSignUp = async () => {
             try {
               const r = await serverGoogleLogin(String(resp?.credential || ""));
               if (r.ok && r.token && r.user) {
-                onAuthed(forceLocalSession(String(r.user.mobile || r.user.email || "google-user"), r.user.branchId));
+                onAuthed(forceLocalSession(String(r.user.mobile || r.user.email || "google-user"), r.user.branchId, { name: r.user.name }));
               } else {
                 setErr(r.error || r.message || (r.pending ? "⏳ অ্যাডমিনের অনুমতির অপেক্ষা রয়েছে।" : "Google লগইন হয়নি।"));
               }

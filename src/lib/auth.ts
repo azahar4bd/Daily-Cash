@@ -144,8 +144,10 @@ const saveUsers = (list: AuthUser[]) => writeJSON(USERS_KEY, list);
 const saveBranches = (list: Branch[]) => writeJSON(BRANCHES_KEY, list);
 
 export const findUser = (mobile: string): AuthUser | null => {
+  const raw = String(mobile);
   const id = normalizeMobile(mobile);
-  return listUsers().find((u) => normalizeMobile(u.mobile) === id) || null;
+  // v1.4.138: ইমেইল-ইউজার (Google) normalizeMobile-এ ভাঙে — id-বরাবর কাঁচা মিলও খঁুজি
+  return listUsers().find((u) => normalizeMobile(u.mobile) === id || u.id === raw) || null;
 };
 
 export const getBranch = (branchId: string): Branch | null =>
@@ -193,13 +195,28 @@ function startSession(user: AuthUser): Session {
   return session;
 }
 
-/** 🛡️ সার্ভারে লগইন সফল হলে লোকাল সেশন সাজায় (পাসওয়ার্ড-মিলানো আর লাগে না) */
-export function forceLocalSession(userId: string, branchId: string): Session {
-  const session: Session = {
-    userId: String(userId),
-    branchId: String(branchId || DEFAULT_BRANCH_ID),
-    loginAt: new Date().toISOString(),
-  };
+/** 🛡️ সার্ভারে লগইন সফল হলে লোকাল সেশন সাজায় (পাসওয়ার্ড-মিলানো আর লাগে না)
+ *  v1.4.138: লোকাল ইউজার-তালিকায় না থাকলে যোগ করি — নইলে getSession() রিলোডে সেশন বাতিল করে
+ *  ("১ সেকেন্ডে ঢুকে বের" বাগ)। Google (ইমেইল) ও সার্ভার-রেজিস্টার্ড মোবাইল — দুটোর জরিদরাও। */
+export function forceLocalSession(userId: string, branchId: string, meta?: { name?: string }): Session {
+  const id = String(userId);
+  const branch = String(branchId || DEFAULT_BRANCH_ID);
+  if (!findUser(id)) {
+    const isEmail = /[a-z]@/i.test(id);
+    saveUsers([
+      ...listUsers(),
+      {
+        id,
+        name: (meta?.name || "").trim() || id,
+        mobile: isEmail ? "" : id,
+        branchId: branch,
+        passHash: "",
+        createdAt: new Date().toISOString(),
+        lastLoginAt: new Date().toISOString(),
+      },
+    ]);
+  }
+  const session: Session = { userId: id, branchId: branch, loginAt: new Date().toISOString() };
   writeJSON(SESSION_KEY, session);
   setBranch(session.branchId);
   return session;
