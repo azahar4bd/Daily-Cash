@@ -6,9 +6,14 @@ import { serverLogin, serverGoogleLogin, serverRegister, loadGoogleScript } from
 
 const GOOGLE_CLIENT_ID = String((import.meta as any).env?.VITE_GOOGLE_CLIENT_ID || "161441191624-q3e0gtm5avvvo3f8qpclph8ukleqshvb.apps.googleusercontent.com"); // v1.4.134: Google সাইন-ইন চালু
 const GOOGLE_ORIGIN = String((import.meta as any).env?.VITE_GOOGLE_ORIGIN || "https://cash-gobra-bkf.netlify.app");
+/** v1.4.141: অনুমোদিত ঠিকানার তালিকা — মূল + ফ্রি daily-লিংক (কমা-দিয়ে env-তেও বাড়ানো যায়) */
+const GOOGLE_ORIGINS: string[] = String(
+  (import.meta as any).env?.VITE_GOOGLE_ORIGINS ||
+    "https://cash-gobra-bkf.netlify.app,https://live--cash-gobra-bkf.netlify.app"
+).split(",").map((s: string) => s.trim()).filter(Boolean);
 /** v1.4.136: ভুল ঠিকানায় থাকলে Google-বোতাম নীরব হয়ে যায় — সঙ্গে সঙ্গে সতর্ক-ব্যানার দেখাই */
 const isOriginOk = (): boolean => {
-  try { return window.location.origin === GOOGLE_ORIGIN || window.location.hostname === "localhost"; }
+  try { return GOOGLE_ORIGINS.includes(window.location.origin) || window.location.hostname === "localhost"; }
   catch { return true; }
 };
 
