@@ -10,7 +10,9 @@
    ────────────────────────────────────────────────────────────── */
 import { getLocalTxs, getLocalStaffReports, getSummary, getCategories } from "./storage";
 
-const DEFAULT_STAFF = ["Sakib", "Mintu", "Alamgir", "Monir"];
+import { isDefaultBranch } from "./branchScope";
+/** v1.4.142: কর্মী-ডিফল্ট শুধু গোবরা — নতুন অফিসে হিসাব লিক নয় */
+const DEFAULT_STAFF: string[] = isDefaultBranch() ? ["Sakib", "Mintu", "Alamgir", "Monir"] : [];
 
 const matchStaffCategory = (cat: string, staffName: string) => {
   const c = cat.toLowerCase().trim();

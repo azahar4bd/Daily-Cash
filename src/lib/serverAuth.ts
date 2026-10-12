@@ -58,6 +58,20 @@ export function clearServerSession(): void {
   } catch {}
 }
 
+/* 🔐 v1.4.142: অ্যাডমিন-গেট টোকেন (শুধু এই ট্যাবে, সেশন-স্টোরেজে) — যেকোনো অফিস থেকে পাসওয়ার্ডে অ্যাডমিন-প্যানেল */
+const GATE_KEY = "gobra_admin_gate_token";
+export function getGateToken(): string {
+  try { return sessionStorage.getItem(GATE_KEY) || ""; } catch { return ""; }
+}
+export function setGateToken(t: string): void {
+  try { sessionStorage.setItem(GATE_KEY, t); } catch {}
+}
+export function clearGateToken(): void {
+  try { sessionStorage.removeItem(GATE_KEY); } catch {}
+}
+/** গেট-টোকেন থাকলে সেটাই (অ্যাডমিন-ডাকের জন্য) */
+const gateOr = (): string => getGateToken();
+
 async function call(action: string, extra: Record<string, unknown> = {}, token = "") {
   const res = await fetch(API_BASE, {
     method: "POST",
@@ -118,33 +132,45 @@ export async function serverMeet(): Promise<LoginResult> {
 
 /** 📋 (admin) অনুমতির অপেক্ষায় ইউজাররা */
 export async function serverPendingList(): Promise<{ ok: boolean; pending: PendingUser[] }> {
-  const d = await call("pending-list");
+  const d = await call("pending-list", {}, gateOr());
   return { ok: Boolean(d.ok), pending: Array.isArray(d.pending) ? d.pending : [] };
 }
 
 /** ✅/❌ (admin) অনুমতি / বাধা */
 export async function serverApprove(userId: number, branchId = "gobra"): Promise<LoginResult> {
-  return call("approve", { userId, branchId });
+  return call("approve", { userId, branchId }, gateOr());
 }
 export async function serverReject(userId: number): Promise<LoginResult> {
-  return call("reject", { userId });
+  return call("reject", { userId }, gateOr());
 }
 
 /** 🏢 (super) শাখা-তালিকা — ব্যবহারকারীসংখ্যাসহ */
 export async function serverBranchList(): Promise<{ ok: boolean; branches: { branch_id: string; users: number }[] }> {
-  const d = await call("branch-list");
+  const d = await call("branch-list", {}, gateOr());
   return { ok: Boolean(d.ok), branches: Array.isArray(d.branches) ? d.branches : [] };
 }
 
 /** 👥 (super) সব শাখার সব ইউজার — ভুল তৈরি খোঁজার জন্য */
 export async function serverUserList(): Promise<{ ok: boolean; users: PendingUser[] }> {
-  const d = await call("user-list");
+  const d = await call("user-list", {}, gateOr());
   return { ok: Boolean(d.ok), users: Array.isArray(d.users) ? d.users : [] };
 }
 
 /** 🗑️ (super) ভুল ইউজার স্থায়ীভাবে মোছা (নিজেকে মোছা যায় না) */
 export async function serverUserDelete(userId: number): Promise<LoginResult> {
-  return call("user-delete", { userId });
+  return call("user-delete", { userId }, gateOr());
+}
+
+/** 🔐 অ্যাডমিন-গেট খোলা — সফল হলে গেট-টোকেন জমা (v1.4.142) */
+export async function serverGate(password: string): Promise<{ ok: boolean; error?: string; pendingCount?: number }> {
+  const d = await call("gate", { password });
+  if (d.ok && d.gateToken) setGateToken(d.gateToken);
+  return { ok: Boolean(d.ok), error: d.error, pendingCount: d.pendingCount };
+}
+
+/** 🔑 অ্যাডমিন-গেট পাসওয়ার্ড বদল (রিসেট) */
+export async function serverGatePassChange(oldPass: string, newPass: string): Promise<LoginResult> {
+  return call("gate-pass-change", { oldPass, newPass });
 }
 
 /** 🔵 Google Identity Services স্ক্রিপ্ট (একবারই লোড) */

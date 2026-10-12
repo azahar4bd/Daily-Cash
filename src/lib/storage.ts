@@ -13,6 +13,7 @@ import type {
   DayState,
 } from "@/types";
 import { DEFAULT_CATEGORIES, DEFAULT_SUBCAT_RULES, DEFAULT_KALLYAN_RULE } from "./categories";
+import { isDefaultBranch } from "./branchScope";
 import { DEFAULT_REBATE_RATES } from "./defaultRebateRates";
 import { enqueueNeonAction } from "./neonSync";
 import { deleteTxFromNeon, deleteStaffReportFromNeon } from "./neon";
@@ -1088,7 +1089,7 @@ export function getReportPageFigures(selectedDate: string): {
     0
   );
 
-  const DEFAULT_STAFF = ["monir", "sakib", "mintu", "alamgir"];
+  const DEFAULT_STAFF = isDefaultBranch() ? ["monir", "sakib", "mintu", "alamgir"] : []; // v1.4.142
   const staffReceives = targetReceives
     .filter((t) => DEFAULT_STAFF.some((st) => t.category.toLowerCase().includes(st)))
     .reduce((s, t) => s + (Number(t.amount) || 0), 0);

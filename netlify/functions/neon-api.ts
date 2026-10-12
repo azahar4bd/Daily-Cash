@@ -276,12 +276,56 @@ export function createHandler(deps: HandlerDeps) {
         return json(200, { ok: true, user: upd[0], pendingCount: await pendingCount() });
       }
 
-      /* ── 🏢 শাখা-তালিকা (🌐 super) ── */
+      /* ── 🔐 অ্যাডমিন-গেট (v1.4.142) — যেকোনো অফিস/সদস্য পাসওয়ার্ড দিয়ে অ্যাডমিন-প্যানেল খুলতে পারে ── */
+      const gateHashOf = (pw: string): string => legacyHash(pw, "admingate");
+      const currentGateHash = async (): Promise<string> => {
+        const r = await sql.query(`SELECT value FROM "public"."app_settings" WHERE key='admin_gate_pass_hash'`, []);
+        return r?.[0]?.value || gateHashOf("azahar2026"); // ডিফল্ট (পরে বদলানো যায়)
+      };
+
+      if (action === "gate") {
+        const pw = String(body.password || "");
+        if (!pw) return json(400, { ok: false, error: "পাসওয়ার্ড দিন।" });
+        if (gateHashOf(pw) !== (await currentGateHash()))
+          return json(401, { ok: false, error: "পাসওয়ার্ড মিলছে না।" });
+        const gateToken = signToken(
+          { uid: 0, name: "অ্যাডমিন (গেট)", branch_id: "gobra", role: "gate", is_super: true, method: "password", exp: Date.now() + 1000 * 60 * 60 * 12 },
+          secret
+        );
+        return json(200, { ok: true, gateToken, pendingCount: await pendingCount() });
+      }
+
+      if (action === "gate-pass-change") {
+        const oldPw = String(body.oldPass || "");
+        const newPw = String(body.newPass || "");
+        if (newPw.length < 6) return json(400, { ok: false, error: "নতুন পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে।" });
+        if (gateHashOf(oldPw) !== (await currentGateHash()))
+          return json(401, { ok: false, error: "আগের পাসওয়ার্ড মিলছে না।" });
+        await sql.query(
+          `INSERT INTO "public"."app_settings" (key, value) VALUES ('admin_gate_pass_hash', $1)
+           ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`,
+          [gateHashOf(newPw)]
+        );
+        return json(200, { ok: true, message: "🔑 অ্যাডমিন-পাসওয়ার্ড বদলে গেছে।" });
+      }
+
+      /* ── 🏢 শাখা-তালিকা (🌐 super) — app_users ∪ ক্লাউড-স্কিমা (ইউজারশূন্য অফিসও দেখে) ── */
       if (action === "branch-list") {
         if (!requireSuper()) return json(401, { ok: false, error: "unauthorized" });
         const rows = await sql.query(
-          `SELECT branch_id, COUNT(*)::int AS users FROM app_users GROUP BY branch_id ORDER BY branch_id`, []);
-        return json(200, { ok: true, branches: rows || [] });
+          `SELECT branch_id, COUNT(*)::int AS users FROM app_users GROUP BY branch_id
+           UNION ALL
+           SELECT CASE WHEN s.schema_name='public' THEN 'gobra' ELSE substring(s.schema_name from 4) END, 0
+           FROM information_schema.schemata s
+           WHERE (s.schema_name='public' OR s.schema_name LIKE 'br\_%')`, []);
+        const merged = new Map<string, number>();
+        for (const r of rows || []) {
+          const k = String(r.branch_id);
+          merged.set(k, (merged.get(k) || 0) + Number(r.users || 0));
+        }
+        const branches = [...merged.entries()].map(([branch_id, users]) => ({ branch_id, users }));
+        branches.sort((a, b) => a.branch_id.localeCompare(b.branch_id));
+        return json(200, { ok: true, branches });
       }
 
       /* ── 👥 সব ইউজার (🌐 super) ── */

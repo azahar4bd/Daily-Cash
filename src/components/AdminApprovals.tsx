@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import {
   getServerUser,
+  getGateToken,
   serverMeet,
   serverPendingList,
   serverApprove,
@@ -8,6 +9,8 @@ import {
   serverBranchList,
   serverUserList,
   serverUserDelete,
+  serverGate,
+  serverGatePassChange,
   type PendingUser,
 } from "@/lib/serverAuth";
 import { forceLocalSession } from "@/lib/auth";
@@ -29,22 +32,30 @@ export default function AdminApprovals() {
   const [isSuper, setIsSuper] = useState(false);
   const [branches, setBranches] = useState<{ branch_id: string; users: number }[]>([]);
   const [allUsers, setAllUsers] = useState<PendingUser[]>([]);
+  /* 🔐 v1.4.142: গেট-আনলক + ফর্ম-স্টেট */
+  const [gateUnlocked, setGateUnlocked] = useState(() => Boolean(getGateToken()));
+  const [gatePw, setGatePw] = useState("");
+  const [gateErr, setGateErr] = useState("");
+  const [newOffice, setNewOffice] = useState("");
+  const [oldPass, setOldPass] = useState("");
+  const [newPass, setNewPass] = useState("");
 
   const refresh = useCallback(async () => {
     try {
       const u = getServerUser();
-      if (!u || (u.role !== "admin" && u.is_super !== true)) { setIsAdmin(false); return; }
-      setIsAdmin(true);
-      setIsSuper(u.is_super === true);
+      const sessionAdmin = Boolean(u && (u.role === "admin" || u.is_super === true));
+      setIsAdmin(sessionAdmin);
+      setIsSuper((u?.is_super === true) || gateUnlocked);
+      if (!sessionAdmin && !gateUnlocked) return; // v1.4.142: ঘণ্টা সবাই দেখে — পোলিং শুধু অনুমোদিতরা
       const m = await serverMeet();
-      if (!m.ok) return;
-      setCount(m.pendingCount || 0);
-      if (open) {
+      if (sessionAdmin && !m.ok) return;
+      if (sessionAdmin) setCount(m.pendingCount || 0);
+      if (open && (u?.is_super === true || gateUnlocked)) {
         const l = await serverPendingList();
         if (l.ok) setList(l.pending);
       }
     } catch {}
-  }, [open]);
+  }, [open, gateUnlocked]);
 
   useEffect(() => {
     refresh();
@@ -52,19 +63,27 @@ export default function AdminApprovals() {
     return () => clearInterval(t);
   }, [refresh]);
 
-  if (!isAdmin) return null;
+  /* v1.4.142: 🔔 ঘণ্টা সব অফিসে সবাই দেখে — ভেতরে 🔐 গেট (লাল ব্যাজ শুধু অ্যাডমিন-সেশনে) */
 
   const loadSuper = async () => {
-    const me = getServerUser();
-    if (me?.is_super !== true) return;
+    if (!canManage()) return;
     const b = await serverBranchList();
     if (b.ok) setBranches(b.branches);
     const ul = await serverUserList();
     if (ul.ok) setAllUsers(ul.users);
   };
 
+  /* 🔐 অ্যাডমিন-সেশন বা গেট-পাসওয়ার্ড — যেকোনো একটা থাকলেই প্যানেল ব্যবহারযোগ্য */
+  const canManage = (): boolean => {
+    if (getGateToken()) return true;
+    const u = getServerUser();
+    return Boolean(u && (u.role === "admin" || u.is_super === true));
+  };
+
   const openPanel = async () => {
     setOpen(true);
+    setGateErr("");
+    if (!canManage()) return; // গেট-ফর্ম দেখাবে
     const l = await serverPendingList();
     if (l.ok) setList(l.pending);
     await loadSuper();
@@ -111,6 +130,36 @@ export default function AdminApprovals() {
     switchBranch(branchId); // রিলোড — নতুন অফিসের খতিয়ান খুলে যাবে
   };
 
+  /* 🔐 গেট খোলা (যেকোনো সদস্য/অফিস থেকে) */
+  const handleGate = async () => {
+    setBusy(true);
+    setGateErr("");
+    const d = await serverGate(gatePw.trim());
+    setBusy(false);
+    if (!d.ok) return setGateErr(d.error || "পাসওয়ার্ড মিলছে না।");
+    setGateUnlocked(true);
+    setIsSuper(true);
+    setGatePw("");
+    setCount(d.pendingCount ?? 0);
+    await loadSuper();
+  };
+
+  /* 🔑 গেট-পাসওয়ার্ড বদল (রিসেট) */
+  const handlePassChange = async () => {
+    if (newPass.trim().length < 6) return setMsg("নতুন পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে।");
+    setBusy(true);
+    setMsg("");
+    const d = await serverGatePassChange(oldPass.trim(), newPass.trim());
+    setBusy(false);
+    if (!d.ok) return setMsg(d.error || "ব্যর্থ হয়েছে");
+    setMsg(d.message || "🔑 পাসওয়ার্ড বদলে গেছে");
+    setOldPass("");
+    setNewPass("");
+    setTimeout(() => setMsg(""), 2500);
+  };
+
+  const newOfficeSlug = newOffice.trim().toLowerCase().replace(/[^a-z0-9_]/g, "_");
+
   return (
     <>
       {/* ভাসমান ঘণ্টা */}
@@ -121,7 +170,7 @@ export default function AdminApprovals() {
         className="fixed bottom-20 right-3 z-40 flex h-11 w-11 items-center justify-center rounded-full border border-indigo-300 bg-white text-lg shadow-xl hover:bg-indigo-50 cursor-pointer"
       >
         🔔
-        {count > 0 && (
+        {isAdmin && count > 0 && (
           <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-600 px-1 text-[10px] font-black text-white">
             {count}
           </span>
@@ -138,6 +187,33 @@ export default function AdminApprovals() {
               <h2 className="text-sm font-black text-slate-900">🔔 লগইন অনুমতির অনুরোধ</h2>
               <button type="button" onClick={() => setOpen(false)} className="rounded px-2 text-lg font-black text-slate-400 hover:text-slate-700 cursor-pointer">✕</button>
             </div>
+            {!canManage() ? (
+              <div className="py-2">
+                <div className="mb-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] font-bold leading-relaxed text-amber-800">
+                  🔐 এটা অ্যাডমিন-প্যানেল — খুলতে অ্যাডমিন-পাসওয়ার্ড দিন।
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    type="password"
+                    value={gatePw}
+                    onChange={(e) => setGatePw(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") handleGate(); }}
+                    placeholder="অ্যাডমিন-পাসওয়ার্ড"
+                    className="min-w-0 flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm font-bold"
+                  />
+                  <button
+                    type="button"
+                    disabled={busy || !gatePw.trim()}
+                    onClick={handleGate}
+                    className="rounded-lg bg-indigo-600 px-4 py-2 text-xs font-black text-white hover:bg-indigo-700 disabled:opacity-50 cursor-pointer"
+                  >
+                    খুলুন
+                  </button>
+                </div>
+                {gateErr && <div className="mt-2 text-[11px] font-black text-rose-600">{gateErr}</div>}
+              </div>
+            ) : (
+              <>
             {msg && <div className="mb-2 rounded-lg bg-indigo-50 px-3 py-2 text-[11px] font-black text-indigo-800">{msg}</div>}
             {list.length === 0 ? (
               <div className="py-6 text-center text-sm font-semibold text-slate-400">✓ কোনো অনুরোধ অপেক্ষা করছে না</div>
@@ -171,7 +247,7 @@ export default function AdminApprovals() {
                 ))}
               </div>
             )}
-            {isSuper && (
+            {(isSuper || gateUnlocked) && (
               <>
                 {/* 🏢 অফিসসমূহ — এক ক্লিকে বদল, পাসওয়ার্ড লাগে না (v1.4.140) */}
                 <div className="mt-3 border-t border-slate-200 pt-2">
@@ -241,6 +317,35 @@ export default function AdminApprovals() {
                     })}
                   </div>
                 </div>
+              </>
+            )}
+
+            {/* 🔑 অ্যাডমিন-পাসওয়ার্ড বদল + ➕ নতুন অফিস (v1.4.142) */}
+            {(isSuper || gateUnlocked) && (
+              <>
+                <div className="mt-2 border-t border-slate-200 pt-2">
+                  <div className="mb-1 text-[11px] font-black text-slate-600">🔑 অ্যাডমিন-পাসওয়ার্ড বদলান</div>
+                  <div className="flex gap-1.5">
+                    <input type="password" value={oldPass} onChange={(e) => setOldPass(e.target.value)} placeholder="আগের পাসওয়ার্ড"
+                      className="min-w-0 flex-1 rounded-lg border border-slate-300 px-2 py-1.5 text-[11px] font-bold" />
+                    <input type="password" value={newPass} onChange={(e) => setNewPass(e.target.value)} placeholder="নতুন (৬+ অক্ষর)"
+                      className="min-w-0 flex-1 rounded-lg border border-slate-300 px-2 py-1.5 text-[11px] font-bold" />
+                    <button type="button" disabled={busy || !oldPass.trim() || !newPass.trim()} onClick={handlePassChange}
+                      className="rounded-lg bg-slate-800 px-2.5 py-1.5 text-[10px] font-black text-white hover:bg-slate-900 disabled:opacity-40 cursor-pointer">বদলান</button>
+                  </div>
+                </div>
+                <div className="mt-2 border-t border-slate-200 pt-2">
+                  <div className="mb-1 text-[11px] font-black text-slate-600">➕ নতুন অফিস খুলুন</div>
+                  <div className="flex gap-1.5">
+                    <input value={newOffice} onChange={(e) => setNewOffice(e.target.value)} placeholder="ইংরেজিতে নাম (যেমন: narail2)"
+                      className="min-w-0 flex-1 rounded-lg border border-slate-300 px-2 py-1.5 text-[11px] font-bold" />
+                    <button type="button" disabled={busy || !newOfficeSlug} onClick={() => handleSwitch(newOfficeSlug)}
+                      className="rounded-lg bg-indigo-600 px-2.5 py-1.5 text-[10px] font-black text-white hover:bg-indigo-700 disabled:opacity-40 cursor-pointer">খুলুন ও যান</button>
+                  </div>
+                  {newOfficeSlug && <div className="mt-1 text-[10px] font-semibold text-slate-400">🏢 হবে: {newOfficeSlug} — সেটিংস নিজে বুঝে নেবে, হিসাব একদম খালি</div>}
+                </div>
+              </>
+            )}
               </>
             )}
           </div>

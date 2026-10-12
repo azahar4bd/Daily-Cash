@@ -777,11 +777,17 @@ export async function ensureBranchSchema(force = false): Promise<void> {
         }
         // 🌱 v1.4.140: নতুন অফিসের "সিস্টেম" গোবরা থেকে বুঝে দেয় (কেবল খালি হলে) —
         //    লেনদেন/চেক/কর্মী-ডাটা/দিন-খোলাবন্ধ কিছুই যায় না
-        for (const t of ["categories", "sc_rates", "subcat_rules", "kallyan_rule", "rebate_rates", "site_content"]) {
+        for (const t of ["sc_rates", "subcat_rules", "kallyan_rule", "rebate_rates", "site_content"]) {
           stmts.push(
             `INSERT INTO "${sch}"."${t}" SELECT * FROM "public"."${t}" WHERE NOT EXISTS (SELECT 1 FROM "${sch}"."${t}")`
           );
         }
+        // ❌ v1.4.142: categories-এ receive-ধরনের "কর্মীর নাম" (staff_reports-এ যাঁরা) যাবে না — বাকিটুকু যাবে
+        stmts.push(
+          `INSERT INTO "${sch}"."categories" SELECT * FROM "public"."categories" c
+           WHERE NOT EXISTS (SELECT 1 FROM "${sch}"."categories")
+             AND (c.type <> 'receive' OR lower(c.name) NOT IN (SELECT lower(staff_name) FROM "public"."staff_reports"))`
+        );
         // app_settings-এ শুধু সেটিংস-কী — ❌ এন্টারটেইনমেন্ট-এর ডাটা নতুন অফিসে যাবে না
         stmts.push(
           `INSERT INTO "${sch}"."app_settings" SELECT * FROM "public"."app_settings"

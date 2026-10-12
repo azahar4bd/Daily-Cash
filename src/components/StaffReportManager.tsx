@@ -24,7 +24,9 @@ import { cmpStaff } from "@/lib/sortOrder";
 import SearchSelect from "./SearchSelect";
 import type { StaffReportItem, Tx } from "@/types";
 
-const DEFAULT_STAFF = ["Sakib", "Mintu", "Alamgir", "Monir"];
+import { isDefaultBranch } from "@/lib/branchScope";
+/** v1.4.142: ডিফল্ট কর্মী-তালিকা শুধু গোবরার — নতুন অফিস খালি শুরু হয়, নিজের কর্মী নিজে জমে */
+const DEFAULT_STAFF: string[] = isDefaultBranch() ? ["Sakib", "Mintu", "Alamgir", "Monir"] : [];
 
 function detectIsMobile(): boolean {
   if (typeof window === "undefined") return false;
@@ -785,7 +787,7 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
                 setForm({ ...form, staffName: v });
                 if (isMobile) setActiveKeyboardField("loan");
               }}
-              options={DEFAULT_STAFF}
+              options={allStaffNames}
             />
           </div>
 
