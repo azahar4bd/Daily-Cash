@@ -206,11 +206,27 @@ export function createHandler(deps: HandlerDeps) {
           if (dup[0].status === "pending") return json(200, { ok: true, pending: true, message: "⏳ এই নম্বরের অনুরোধ আগেই জমা — অ্যাডমিনের অনুমতির অপেক্ষায়।" });
           return json(409, { ok: false, error: "এই নম্বরে ইউজার আছে — সাইন ইন করুন।" });
         }
+        /* 🆕 v1.4.143: ওই অফিসে এটাই প্রথম ইউজার? তাহলে প্রতিষ্ঠাতা — অনুমতি ছাড়াই অ্যাডমিন হয়ে ঢুকে যায়;
+           পরে join করা অন্য ইউজারদেরই শুধু অনুমতি লাগবে */
+        const brRows = await sql.query(`SELECT 1 FROM app_users WHERE branch_id = $1 LIMIT 1`, [branch]);
+        const isNewOffice = !brRows?.length;
         await sql.query(
           `INSERT INTO app_users (name, mobile, pass_hash, branch_id, role, status)
-           VALUES ($1, $2, $3, $4, 'member', 'pending')`,
-          [name, mobile, legacyHash(password, mobile), branch]
+           VALUES ($1, $2, $3, $4, $5, $6)`,
+          [name, mobile, legacyHash(password, mobile), branch, isNewOffice ? "admin" : "member", isNewOffice ? "approved" : "pending"]
         );
+        if (isNewOffice) {
+          const nrows: AppUserRow[] = await sql.query(`SELECT * FROM app_users WHERE mobile = $1`, [mobile]);
+          const nu = nrows?.[0];
+          if (nu) {
+            return json(200, {
+              ok: true,
+              token: tokenFor(nu, "password"),
+              user: { name: nu.name, mobile: nu.mobile, branchId: nu.branch_id, role: nu.role, is_super: Boolean(nu.is_super) },
+              message: "🎉 নতুন অফিস তৈরি হলো — আপনি এর প্রথম অ্যাডমিন।",
+            });
+          }
+        }
         return json(200, { ok: true, pending: true, message: "⏳ আপনার সাথে অ্যাডমিনের অনুমতি চেয়ে জমা হয়েছে — অনুমতি পেলে ঢুকতে পারবেন।" });
       }
 
@@ -309,23 +325,12 @@ export function createHandler(deps: HandlerDeps) {
         return json(200, { ok: true, message: "🔑 অ্যাডমিন-পাসওয়ার্ড বদলে গেছে।" });
       }
 
-      /* ── 🏢 শাখা-তালিকা (🌐 super) — app_users ∪ ক্লাউড-স্কিমা (ইউজারশূন্য অফিসও দেখে) ── */
+      /* ── 🏢 শাখা-তালিকা (🌐 super) — যত অফিসে ইউজার আছে ঠিক ততগুলোই (v1.4.143) ── */
       if (action === "branch-list") {
         if (!requireSuper()) return json(401, { ok: false, error: "unauthorized" });
         const rows = await sql.query(
-          `SELECT branch_id, COUNT(*)::int AS users FROM app_users GROUP BY branch_id
-           UNION ALL
-           SELECT CASE WHEN s.schema_name='public' THEN 'gobra' ELSE substring(s.schema_name from 4) END, 0
-           FROM information_schema.schemata s
-           WHERE (s.schema_name='public' OR s.schema_name LIKE 'br\_%')`, []);
-        const merged = new Map<string, number>();
-        for (const r of rows || []) {
-          const k = String(r.branch_id);
-          merged.set(k, (merged.get(k) || 0) + Number(r.users || 0));
-        }
-        const branches = [...merged.entries()].map(([branch_id, users]) => ({ branch_id, users }));
-        branches.sort((a, b) => a.branch_id.localeCompare(b.branch_id));
-        return json(200, { ok: true, branches });
+          `SELECT branch_id, COUNT(*)::int AS users FROM app_users GROUP BY branch_id ORDER BY branch_id`, []);
+        return json(200, { ok: true, branches: rows || [] });
       }
 
       /* ── 👥 সব ইউজার (🌐 super) ── */

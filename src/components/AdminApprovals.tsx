@@ -36,7 +36,6 @@ export default function AdminApprovals() {
   const [gateUnlocked, setGateUnlocked] = useState(() => Boolean(getGateToken()));
   const [gatePw, setGatePw] = useState("");
   const [gateErr, setGateErr] = useState("");
-  const [newOffice, setNewOffice] = useState("");
   const [oldPass, setOldPass] = useState("");
   const [newPass, setNewPass] = useState("");
 
@@ -73,12 +72,8 @@ export default function AdminApprovals() {
     if (ul.ok) setAllUsers(ul.users);
   };
 
-  /* 🔐 অ্যাডমিন-সেশন বা গেট-পাসওয়ার্ড — যেকোনো একটা থাকলেই প্যানেল ব্যবহারযোগ্য */
-  const canManage = (): boolean => {
-    if (getGateToken()) return true;
-    const u = getServerUser();
-    return Boolean(u && (u.role === "admin" || u.is_super === true));
-  };
+  /* 🔐 v1.4.143: অ্যাডমিন-প্যানেলে ঢুকতে সবার পাসওয়ার্ড লাগবে (অ্যাডমিন-সেশনেও) — ট্যাব চলাকালীন একবার */
+  const canManage = (): boolean => Boolean(getGateToken());
 
   const openPanel = async () => {
     setOpen(true);
@@ -158,7 +153,6 @@ export default function AdminApprovals() {
     setTimeout(() => setMsg(""), 2500);
   };
 
-  const newOfficeSlug = newOffice.trim().toLowerCase().replace(/[^a-z0-9_]/g, "_");
 
   return (
     <>
@@ -333,16 +327,6 @@ export default function AdminApprovals() {
                     <button type="button" disabled={busy || !oldPass.trim() || !newPass.trim()} onClick={handlePassChange}
                       className="rounded-lg bg-slate-800 px-2.5 py-1.5 text-[10px] font-black text-white hover:bg-slate-900 disabled:opacity-40 cursor-pointer">বদলান</button>
                   </div>
-                </div>
-                <div className="mt-2 border-t border-slate-200 pt-2">
-                  <div className="mb-1 text-[11px] font-black text-slate-600">➕ নতুন অফিস খুলুন</div>
-                  <div className="flex gap-1.5">
-                    <input value={newOffice} onChange={(e) => setNewOffice(e.target.value)} placeholder="ইংরেজিতে নাম (যেমন: narail2)"
-                      className="min-w-0 flex-1 rounded-lg border border-slate-300 px-2 py-1.5 text-[11px] font-bold" />
-                    <button type="button" disabled={busy || !newOfficeSlug} onClick={() => handleSwitch(newOfficeSlug)}
-                      className="rounded-lg bg-indigo-600 px-2.5 py-1.5 text-[10px] font-black text-white hover:bg-indigo-700 disabled:opacity-40 cursor-pointer">খুলুন ও যান</button>
-                  </div>
-                  {newOfficeSlug && <div className="mt-1 text-[10px] font-semibold text-slate-400">🏢 হবে: {newOfficeSlug} — সেটিংস নিজে বুঝে নেবে, হিসাব একদম খালি</div>}
                 </div>
               </>
             )}

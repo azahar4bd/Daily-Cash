@@ -215,6 +215,16 @@ export function forceLocalSession(userId: string, branchId: string, meta?: { nam
         lastLoginAt: new Date().toISOString(),
       },
     ]);
+  } else {
+    /* 🆕 v1.4.143: বিদ্যমান ইউজারের শাখাও হালনাগাদ করি —
+       নইলে রিলোডে main.tsx পুরনো AuthUser.branchId-তে ফিরে যায় (অফিস-সুইচ মরে যেত) */
+    saveUsers(
+      listUsers().map((u) =>
+        u.id === id
+          ? { ...u, branchId: branch, ...(meta?.name && meta.name.trim() ? { name: meta.name.trim() } : {}) }
+          : u
+      )
+    );
   }
   const session: Session = { userId: id, branchId: branch, loginAt: new Date().toISOString() };
   writeJSON(SESSION_KEY, session);

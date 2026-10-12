@@ -93,6 +93,12 @@ const handleSignUp = async () => {
       const reqSlug = branchName.trim().toLowerCase().replace(/[^a-z0-9_]/g, "_");
       const reqBranch = (knownBranch && knownBranch.id) || reqSlug || "gobra";
       const sr = await serverRegister({ name: name.trim(), mobile, password: pw, branchId: reqBranch });
+      if (sr.ok && sr.token && sr.user) {
+        // 🆕 v1.4.143: নতুন অফিসের প্রতিষ্ঠাতা — অনুমতি ছাড়াই সরাসরি ঢুকে যায়
+        onAuthed(forceLocalSession(String(sr.user.mobile || mobile), String(sr.user.branchId || reqBranch), { name: sr.user.name || name.trim() }));
+        setBusy(false);
+        return;
+      }
       if (sr.ok || sr.pending) { setErr(sr.message || "⏳ অনুমতির জন্য জমা হয়েছে।"); setBusy(false); return; }
       if (sr.error && sr.error !== "server error") { setErr(sr.error); setBusy(false); return; }
     } catch { /* নেটবিহীন — লোকালে ফলব্যাক */ }
