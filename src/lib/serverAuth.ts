@@ -10,6 +10,8 @@ export type ServerUser = {
   email?: string | null;
   branchId: string;
   role: string;
+  /** 🌐 v1.4.140: মালিক-চিহ্ন — সব শাখা দেখা/বদলানো/মোছার ক্ষমতা */
+  is_super?: boolean;
 };
 
 export type PendingUser = {
@@ -20,6 +22,7 @@ export type PendingUser = {
   branch_id: string;
   role: string;
   status: string;
+  is_super?: boolean;
   created_at: string;
 };
 
@@ -125,6 +128,23 @@ export async function serverApprove(userId: number, branchId = "gobra"): Promise
 }
 export async function serverReject(userId: number): Promise<LoginResult> {
   return call("reject", { userId });
+}
+
+/** 🏢 (super) শাখা-তালিকা — ব্যবহারকারীসংখ্যাসহ */
+export async function serverBranchList(): Promise<{ ok: boolean; branches: { branch_id: string; users: number }[] }> {
+  const d = await call("branch-list");
+  return { ok: Boolean(d.ok), branches: Array.isArray(d.branches) ? d.branches : [] };
+}
+
+/** 👥 (super) সব শাখার সব ইউজার — ভুল তৈরি খোঁজার জন্য */
+export async function serverUserList(): Promise<{ ok: boolean; users: PendingUser[] }> {
+  const d = await call("user-list");
+  return { ok: Boolean(d.ok), users: Array.isArray(d.users) ? d.users : [] };
+}
+
+/** 🗑️ (super) ভুল ইউজার স্থায়ীভাবে মোছা (নিজেকে মোছা যায় না) */
+export async function serverUserDelete(userId: number): Promise<LoginResult> {
+  return call("user-delete", { userId });
 }
 
 /** 🔵 Google Identity Services স্ক্রিপ্ট (একবারই লোড) */

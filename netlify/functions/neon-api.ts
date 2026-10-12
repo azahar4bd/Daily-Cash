@@ -26,6 +26,8 @@ export type TokenPayload = {
   email?: string;
   branch_id: string;
   role: string; // "admin" | "member"
+  /** 🌐 v1.4.140: মালিক-চিহ্ন — সব শাখার ঊর্ধ্বে */
+  is_super?: boolean;
   method: "password" | "google";
   exp: number; // epoch ms
 };
@@ -86,6 +88,7 @@ export type AppUserRow = {
   branch_id: string;
   role: string;
   status: string; // approved | pending | rejected
+  is_super?: boolean;
 };
 
 /** টেবিল নিশ্চিত + গোবরা ডিফল্ট অ্যাডমিন সিড */
@@ -105,6 +108,8 @@ export async function ensureUsersTable(sql: any): Promise<void> {
      )`,
     []
   );
+  // 🆕 v1.4.140: মালিক-চিহ্ন কলাম (পুরনো টেবিলে বারবার যোগ করা নিরাপদ)
+  await sql.query(`ALTER TABLE app_users ADD COLUMN IF NOT EXISTS is_super BOOLEAN DEFAULT FALSE`, []);
   const DEFAULT_MOBILE = "013241655828"; // লিগ্যাসি ডিফল্ট — সার্ভারেই অ্যাডমিন বীজ
   const existing = await sql.query(`SELECT id FROM app_users WHERE mobile = $1`, [DEFAULT_MOBILE]);
   if (!existing?.length) {
@@ -136,6 +141,7 @@ export function createHandler(deps: HandlerDeps) {
         email: u.email || undefined,
         branch_id: u.branch_id,
         role: u.role,
+        is_super: Boolean(u.is_super),
         method,
         exp: Date.now() + 1000 * 60 * 60 * 24 * 30, // ৩০ দিন
       },
@@ -154,7 +160,11 @@ export function createHandler(deps: HandlerDeps) {
       const requireAuth = (): TokenPayload | null => authPayload();
       const requireAdmin = (): TokenPayload | null => {
         const p = authPayload();
-        return p && p.role === "admin" ? p : null;
+        return p && (p.role === "admin" || p.is_super === true) ? p : null; // 🆕 super-কে অ্যাডমিন গণ্য
+      };
+      const requireSuper = (): TokenPayload | null => {
+        const p = authPayload();
+        return p && p.is_super === true ? p : null; // 🆕 v1.4.140: কেবল মালিক
       };
       const pendingCount = async (): Promise<number> => {
         const r = await sql.query(`SELECT COUNT(*)::int AS c FROM app_users WHERE status='pending'`, []);
@@ -177,8 +187,8 @@ export function createHandler(deps: HandlerDeps) {
         return json(200, {
           ok: true,
           token: tokenFor(u, "password"),
-          user: { name: u.name, mobile: u.mobile, branchId: u.branch_id, role: u.role },
-          pendingCount: u.role === "admin" ? await pendingCount() : 0,
+          user: { name: u.name, mobile: u.mobile, branchId: u.branch_id, role: u.role, is_super: Boolean(u.is_super) },
+          pendingCount: u.role === "admin" || u.is_super ? await pendingCount() : 0,
         });
       }
 
@@ -237,8 +247,8 @@ export function createHandler(deps: HandlerDeps) {
         return json(200, {
           ok: true,
           token: tokenFor(u, "google"),
-          user: { name: u.name, email, branchId: u.branch_id, role: u.role },
-          pendingCount: u.role === "admin" ? await pendingCount() : 0,
+          user: { name: u.name, email, branchId: u.branch_id, role: u.role, is_super: Boolean(u.is_super) },
+          pendingCount: u.role === "admin" || u.is_super ? await pendingCount() : 0,
         });
       }
 
@@ -264,6 +274,34 @@ export function createHandler(deps: HandlerDeps) {
         );
         if (!upd?.length) return json(404, { ok: false, error: "ইউজার পাওয়া যায়নি।" });
         return json(200, { ok: true, user: upd[0], pendingCount: await pendingCount() });
+      }
+
+      /* ── 🏢 শাখা-তালিকা (🌐 super) ── */
+      if (action === "branch-list") {
+        if (!requireSuper()) return json(401, { ok: false, error: "unauthorized" });
+        const rows = await sql.query(
+          `SELECT branch_id, COUNT(*)::int AS users FROM app_users GROUP BY branch_id ORDER BY branch_id`, []);
+        return json(200, { ok: true, branches: rows || [] });
+      }
+
+      /* ── 👥 সব ইউজার (🌐 super) ── */
+      if (action === "user-list") {
+        if (!requireSuper()) return json(401, { ok: false, error: "unauthorized" });
+        const rows = await sql.query(
+          `SELECT id, name, mobile, email, branch_id, role, status, is_super, created_at
+           FROM app_users ORDER BY branch_id, id`, []);
+        return json(200, { ok: true, users: rows || [] });
+      }
+
+      /* ── 🗑️ ইউজার মোছা (🌐 super) — ভুল তৈরির প্রতিষেধক; নিজেকে মোছা যায় না ── */
+      if (action === "user-delete") {
+        const p = requireSuper();
+        if (!p) return json(401, { ok: false, error: "unauthorized" });
+        const id = Number(body.userId);
+        if (!id) return json(400, { ok: false, error: "userId দিন।" });
+        if (id === p.uid) return json(400, { ok: false, error: "নিজের অ্যাকাউন্ট এভাবে মোছা যায় না — অন্য মালিক দিয়ে করান।" });
+        await sql.query(`DELETE FROM app_users WHERE id = $1`, [id]);
+        return json(200, { ok: true });
       }
 
       /* ── 🛡️ টোকেনগেটড SQL গেটওয়ে (v1.4.135 ধাপ-২) — ব্রাউজারের সব ডেটা-যাতায়াত এখন এই দরজায় ── */
@@ -293,8 +331,8 @@ export function createHandler(deps: HandlerDeps) {
         if (!p) return json(401, { ok: false, error: "unauthorized" });
         return json(200, {
           ok: true,
-          user: { name: p.name, mobile: p.mobile, email: p.email, branchId: p.branch_id, role: p.role },
-          pendingCount: p.role === "admin" ? await pendingCount() : 0,
+          user: { name: p.name, mobile: p.mobile, email: p.email, branchId: p.branch_id, role: p.role, is_super: p.is_super === true },
+          pendingCount: p.role === "admin" || p.is_super ? await pendingCount() : 0,
         });
       }
 

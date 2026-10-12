@@ -775,6 +775,19 @@ export async function ensureBranchSchema(force = false): Promise<void> {
         for (const t of CORE_TABLES) {
           stmts.push(`CREATE TABLE IF NOT EXISTS "${sch}"."${t}" (LIKE "public"."${t}" INCLUDING ALL)`);
         }
+        // 🌱 v1.4.140: নতুন অফিসের "সিস্টেম" গোবরা থেকে বুঝে দেয় (কেবল খালি হলে) —
+        //    লেনদেন/চেক/কর্মী-ডাটা/দিন-খোলাবন্ধ কিছুই যায় না
+        for (const t of ["categories", "sc_rates", "subcat_rules", "kallyan_rule", "rebate_rates", "site_content"]) {
+          stmts.push(
+            `INSERT INTO "${sch}"."${t}" SELECT * FROM "public"."${t}" WHERE NOT EXISTS (SELECT 1 FROM "${sch}"."${t}")`
+          );
+        }
+        // app_settings-এ শুধু সেটিংস-কী — ❌ এন্টারটেইনমেন্ট-এর ডাটা নতুন অফিসে যাবে না
+        stmts.push(
+          `INSERT INTO "${sch}"."app_settings" SELECT * FROM "public"."app_settings"
+           WHERE key NOT IN ('entertainment_entries', 'entertainment_deleted_ids')
+             AND NOT EXISTS (SELECT 1 FROM "${sch}"."app_settings")`
+        );
       }
       stmts.push(...checkEntriesDdl(sch), ...membersDdl(sch), ...categoriesDdl(sch));
       // এক HTTP রিকোয়েস্টে সব DDL (ট্রানজেকশন অ্যারে)
