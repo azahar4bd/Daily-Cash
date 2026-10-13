@@ -112,7 +112,10 @@ export async function serverLogin(mobile: string, password: string): Promise<Log
 
 /** 📝 নতুন সাইন-আপ (মোবাইল+পাসওয়ার্ড) — pending হিসেবে জমা */
 export async function serverRegister(input: { name: string; mobile: string; password: string; branchId?: string }): Promise<LoginResult> {
-  return call("register", { name: input.name, mobile: input.mobile, password: input.password, branchId: input.branchId });
+  const d = await call("register", { name: input.name, mobile: input.mobile, password: input.password, branchId: input.branchId });
+  // 🆕 v1.4.145: প্রতিষ্ঠাতা-টোকেন জমা করি — নইলে ফোনের সব ক্লাউড-কল 401, নতুন অফিসের স্কিমা কখনোই তৈরি হতো না (br_test-বাগ)
+  if (d?.ok && d.token && d.user) saveSession(d.token, d.user);
+  return d;
 }
 
 /** 🔵 Google ID-টোকেন — সার্ভারে যাচয়; নতুন হলে pending */

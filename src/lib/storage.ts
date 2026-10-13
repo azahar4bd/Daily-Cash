@@ -399,6 +399,56 @@ export function deleteStaffReport(id: number | string): void {
   deleteStaffReportFromNeon(id).catch(console.error);
 }
 
+/* ══════════════════════════════════════════════════════════════
+ * 👷 কর্মী-তালিকা (স্টাফ) — নিজস্ব ভান্ডার (v1.4.145)
+ *  - ব্রাঞ্চ-স্কোপড প্রক্সি → প্রতি অফিসে আলদা তালিকা; নতুন অফিসে একদম খালি
+ *  - গোবরায় প্রথমবারে ডিফল্ট ৪ জন বসে যায় (Sakib/Mintu/Alamgir/Monir)
+ *  - এটাই রিপোর্টের Dena/Poana, Staff টেবিল ও রিসিভ-ম্যানেজারের 👷 তালিকার উৎস
+ * ══════════════════════════════════════════════════════════════ */
+const STAFF_NAMES_KEY = "gobra_staff_names";
+
+export interface StaffItem { id: number; name: string }
+
+function readStaffRaw(): StaffItem[] | null {
+  try {
+    const raw = localStorage.getItem(STAFF_NAMES_KEY);
+    if (raw == null) return null;
+    const arr = JSON.parse(raw || "[]");
+    return Array.isArray(arr)
+      ? arr.filter((x) => x && String(x.name || "").trim()).map((x: any, i: number) => ({ id: Number(x.id) || i + 1, name: String(x.name).trim() }))
+      : [];
+  } catch { return [] }
+}
+
+export function getStaffList(): StaffItem[] {
+  const existing = readStaffRaw();
+  if (existing != null) return existing;
+  // প্রথম বার — ব্রাঞ্চ অনুযায়ী সিড
+  const seed: StaffItem[] = isDefaultBranch()
+    ? ["Sakib", "Mintu", "Alamgir", "Monir"].map((name, i) => ({ id: i + 1, name }))
+    : [];
+  try { localStorage.setItem(STAFF_NAMES_KEY, JSON.stringify(seed)); } catch {}
+  return seed;
+}
+
+export function saveStaffList(list: StaffItem[]): void {
+  try { localStorage.setItem(STAFF_NAMES_KEY, JSON.stringify(list)); } catch {}
+}
+
+export function addStaffName(name: string): StaffItem | null {
+  const nm = String(name || "").trim();
+  if (!nm) return null;
+  const list = getStaffList();
+  if (list.some((s) => s.name.toLowerCase() === nm.toLowerCase())) return null;
+  const item: StaffItem = { id: list.reduce((m, s) => Math.max(m, s.id), 0) + 1, name: nm };
+  saveStaffList([...list, item]);
+  return item;
+}
+
+export function deleteStaffName(id: number): void {
+  saveStaffList(getStaffList().filter((s) => s.id !== id));
+}
+
 export function getCategories(type: string): Cat[] {
   try {
     const raw = localStorage.getItem(CAT_KEY);
@@ -1089,7 +1139,7 @@ export function getReportPageFigures(selectedDate: string): {
     0
   );
 
-  const DEFAULT_STAFF = isDefaultBranch() ? ["monir", "sakib", "mintu", "alamgir"] : []; // v1.4.142
+  const DEFAULT_STAFF = getStaffList().map((sf) => sf.name.toLowerCase().trim()); // v1.4.145: স্টাফ-স্টোর থেকে
   const staffReceives = targetReceives
     .filter((t) => DEFAULT_STAFF.some((st) => t.category.toLowerCase().includes(st)))
     .reduce((s, t) => s + (Number(t.amount) || 0), 0);

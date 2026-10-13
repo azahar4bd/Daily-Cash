@@ -24,10 +24,9 @@ import { cmpStaff } from "@/lib/sortOrder";
 import SearchSelect from "./SearchSelect";
 import type { StaffReportItem, Tx } from "@/types";
 
-import { isDefaultBranch } from "@/lib/branchScope";
-/** v1.4.142: ডিফল্ট কর্মী-তালিকা শুধু গোবরার — নতুন অফিস খালি শুরু হয়, নিজের কর্মী নিজে জমে */
-/** কল করার মুহূর্তে শাখা যাচাই (v1.4.144 — মডিউল-লোডে শাখা এখনো বসেনি) */
-const defaultStaff = (): string[] => (isDefaultBranch() ? ["Sakib", "Mintu", "Alamgir", "Monir"] : []);
+import { getStaffList } from "@/lib/storage";
+/** v1.4.145: কর্মী-তালিকা নিজস্ব স্টোর থেকে (গোবরায় ডিফল্ট ৪ জন, নতুন অফিসে খালি — ম্যানেজ উইন্ডোতেই যোগ হয়) */
+const officeStaff = (): string[] => getStaffList().map((sf) => sf.name);
 
 function detectIsMobile(): boolean {
   if (typeof window === "undefined") return false;
@@ -406,7 +405,7 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
 
   // Dena / Poana calculations
   const allStaffNames = Array.from(
-    new Set([...defaultStaff(), ...reports.map((r) => r.staffName.trim())])
+    new Set([...officeStaff(), ...reports.map((r) => r.staffName.trim())])
   ).sort(cmpStaff);
   const receiveTxs = allTxList.filter((t) => t.type === "receive" && t.txDate === selectedDate);
 
@@ -491,7 +490,7 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
       const c = t.category.toLowerCase().trim();
       if (c.includes("bank withdraw") || c.includes("fund receive")) return false;
       if (c.includes("welfare") || c.includes("kallayan") || c.includes("loan form")) return false;
-      if (defaultStaff().some((st) => matchStaffCategory(c, st))) return false;
+      if (officeStaff().some((st) => matchStaffCategory(c, st))) return false;
       return true;
     })
     .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);

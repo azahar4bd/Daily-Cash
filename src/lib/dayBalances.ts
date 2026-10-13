@@ -8,12 +8,10 @@
    জায়গায় দুই সংখ্যা (যেমন 520 বনাম 1,075) দেখাত। এখন ডে ক্লোজ
    ওই একই সূত্র ব্যবহার করে, তাই Closing = Today ব্যালেন্স সবসময় মিলবে।
    ────────────────────────────────────────────────────────────── */
-import { getLocalTxs, getLocalStaffReports, getSummary, getCategories } from "./storage";
+import { getLocalTxs, getLocalStaffReports, getSummary, getCategories, getStaffList } from "./storage";
 
-import { isDefaultBranch } from "./branchScope";
-/** v1.4.142: কর্মী-ডিফল্ট শুধু গোবরা — নতুন অফিসে হিসাব লিক নয় */
-/** কল করার মুহূর্তে শাখা যাচাই (v1.4.144 — মডিউল-লোডে শাখা এখনো বসেনি) */
-const gobaStaff = (): string[] => (isDefaultBranch() ? ["Sakib", "Mintu", "Alamgir", "Monir"] : []);
+/** v1.4.145: কর্মী-তালিকা নিজস্ব স্টোর থেকে — গোবরা ৪ জন, নতুন অফিসে খালি */
+const officeStaff = (): string[] => getStaffList().map((sf) => sf.name);
 
 const matchStaffCategory = (cat: string, staffName: string) => {
   const c = cat.toLowerCase().trim();
@@ -99,7 +97,7 @@ export function getReportDayBalances(date: string): ReportDayBalances {
       const c = t.category.toLowerCase().trim();
       if (c.includes("bank withdraw") || c.includes("fund receive")) return false;
       if (c.includes("welfare") || c.includes("kallayan") || c.includes("loan form")) return false;
-      if (gobaStaff().some((st) => matchStaffCategory(c, st))) return false;
+      if (officeStaff().some((st) => matchStaffCategory(c, st))) return false;
       return true;
     })
     .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);

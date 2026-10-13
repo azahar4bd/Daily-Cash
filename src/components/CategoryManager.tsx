@@ -1,8 +1,22 @@
 import { useState } from "react";
 import { titleCase } from "@/lib/categories";
 import type { Cat } from "@/types";
-import { addCategory, updateCategory, deleteCategory, moveCategory } from "@/lib/storage";
+import {
+  addCategory,
+  updateCategory,
+  deleteCategory,
+  moveCategory,
+  getStaffList,
+  addStaffName,
+  deleteStaffName,
+} from "@/lib/storage";
 
+/**
+ * 🆕 v1.4.145: রিসিভ-ক্যাটাগরি ম্যানেজ ২ ভাগে —
+ *  ① 👷 Staff Name — প্রতি অফিসের নিজস্ব কর্মী-তালিকা (নতুন অফিসে খালি থাকে, এখানেই যোগ করতে হয়)
+ *  ② 🗂️ Unique ক্যাটাগরি — সাধারণ জমা-খাত (bank withdraw, fund receive, others income…)
+ * কর্মী-নাম যোগ করলে receive-ক্যাটাগরিও নিজে বানায় (জমা-ডিপোজিটের প্রবাহ বরাবর)।
+ */
 export default function CategoryManager({
   type,
   cats,
@@ -15,9 +29,18 @@ export default function CategoryManager({
   onClose: () => void;
 }) {
   const [newName, setNewName] = useState("");
+  const [newStaff, setNewStaff] = useState("");
   const [editId, setEditId] = useState<number | null>(null);
   const [editName, setEditName] = useState("");
   const [err, setErr] = useState("");
+  const [staffTick, setStaffTick] = useState(0);
+
+  const staffList = staffTick >= 0 ? getStaffList() : []; // tick → পুনঃপঠন
+  const isReceive = type === "receive";
+
+  const staffNamesLower = staffList.map((s) => s.name.toLowerCase());
+  const staffCats = isReceive ? cats.filter((c) => staffNamesLower.includes(c.name.toLowerCase())) : [];
+  const uniqueCats = isReceive ? cats.filter((c) => !staffNamesLower.includes(c.name.toLowerCase())) : cats;
 
   const add = () => {
     if (!newName.trim()) return;
@@ -27,6 +50,31 @@ export default function CategoryManager({
     addCategory(type, newName);
     setErr("");
     setNewName("");
+    onChanged();
+  };
+
+  /** 👷 কর্মী যোগ — স্টাফ-তালিকা + receive-ক্যাটাগরি (জমার প্রবাহ বজায়) */
+  const addStaff = () => {
+    const nm = newStaff.trim();
+    if (!nm) return;
+    if (staffNamesLower.some((n) => n === nm.toLowerCase()) || cats.some((c) => c.name.toLowerCase() === nm.toLowerCase())) {
+      return setErr("Already exists");
+    }
+    addStaffName(nm);
+    addCategory("receive", nm); // Dena/Poana-এ Today Deposit-এর প্রবাহ বজায় রাখে
+    setErr("");
+    setNewStaff("");
+    setStaffTick((t) => t + 1);
+    onChanged();
+  };
+
+  /** 👷 কর্মী মোছা — স্টাফ-তালিকা + মিলে-যাওয়া receive-ক্যাটাগরি (পুরনো এন্ট্রি/রিপোর্ট অক্ষত) */
+  const delStaff = (staffId: number, nm: string) => {
+    if (!confirm(`"${titleCase(nm)}" কর্মী মুছবেন? আগের এন্ট্রিগুলো রিপোর্টে থেকে যাবে।`)) return;
+    deleteStaffName(staffId);
+    const cat = staffCats.find((c) => c.name.toLowerCase() === nm.toLowerCase());
+    if (cat) deleteCategory(cat.id);
+    setStaffTick((t) => t + 1);
     onChanged();
   };
 
@@ -58,13 +106,58 @@ export default function CategoryManager({
             ×
           </button>
         </div>
-        <div className="p-4 sm:p-5">
+        <div className="p-4 sm:p-5 overflow-y-auto max-h-[85dvh]">
+          {err && <p className="mt-1 text-xs text-rose-600 font-semibold">{err}</p>}
+
+          {/* ══ ① 👷 Staff Name ══ */}
+          {isReceive && (
+            <div className="rounded-xl border-2 border-indigo-200 bg-indigo-50/50 p-3 mb-4">
+              <div className="text-[13px] font-black text-indigo-900">👷 Staff Name</div>
+              <div className="text-[10px] font-semibold text-slate-500 mt-0.5">
+                কর্মীর নাম এখানেই যোগ করুন — Dena/Poana ও Staff Collection টেবিল এই তালিকাতেই চলে। নতুন অফিসে একদম খালি থাকে।
+              </div>
+              <div className="mt-2 flex gap-2">
+                <input
+                  value={newStaff}
+                  onChange={(e) => setNewStaff(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && addStaff()}
+                  placeholder="নতুন কর্মীর নাম"
+                  className="flex-1 rounded-lg border border-indigo-300 bg-white px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none"
+                />
+                <button
+                  onClick={addStaff}
+                  className="rounded-lg bg-indigo-600 px-4 py-2 font-bold text-xs sm:text-sm text-white hover:bg-indigo-700 shadow-xs"
+                >
+                  Add
+                </button>
+              </div>
+              <ul className="mt-2 max-h-40 divide-y divide-indigo-100 rounded-xl border border-indigo-200 bg-white overflow-auto">
+                {staffList.map((s) => (
+                  <li key={s.id} className="flex items-center gap-2 px-3 py-2">
+                    <span className="flex-1 text-sm font-bold text-slate-800">👷 {titleCase(s.name)}</span>
+                    <button
+                      onClick={() => delStaff(s.id, s.name)}
+                      className="rounded bg-rose-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-rose-700"
+                    >
+                      Delete
+                    </button>
+                  </li>
+                ))}
+                {staffList.length === 0 && (
+                  <li className="px-3 py-4 text-center text-xs text-slate-400">কর্মী নেই — নাম লিখে Add চাপুন</li>
+                )}
+              </ul>
+            </div>
+          )}
+
+          {/* ══ ② 🗂️ Unique ক্যাটাগরি ══ */}
+          {isReceive && <div className="text-[13px] font-black text-slate-700 mb-1.5">🗂️ Unique ক্যাটাগরি (সাধারণ জমা-খাত)</div>}
           <div className="flex gap-2">
             <input
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && add()}
-              placeholder="New category name"
+              placeholder={isReceive ? "নতুন ক্যাটাগরির নাম" : "New category name"}
               className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
             />
             <button
@@ -74,10 +167,9 @@ export default function CategoryManager({
               Add
             </button>
           </div>
-          {err && <p className="mt-1 text-xs text-rose-600 font-semibold">{err}</p>}
           <p className="mt-3 text-[11px] font-semibold text-slate-400">↑↓ চেপে ক্যাটাগরি নিজের মতো সাজান — ড্রপডাউনেও এই ক্রমই আসবে</p>
-          <ul className="mt-1 max-h-72 divide-y rounded-xl border border-slate-200 overflow-auto">
-            {cats.map((c, idx) => (
+          <ul className="mt-1 max-h-64 divide-y rounded-xl border border-slate-200 overflow-auto">
+            {uniqueCats.map((c, idx) => (
               <li key={c.id} className="flex items-center gap-2 px-3 py-2 hover:bg-slate-50">
                 {editId === c.id ? (
                   <>
@@ -109,7 +201,7 @@ export default function CategoryManager({
                       </button>
                       <button
                         title="এক ঘর নিচে"
-                        disabled={idx === cats.length - 1}
+                        disabled={idx === uniqueCats.length - 1}
                         onClick={() => move(c.id, 1)}
                         className="rounded-md bg-slate-200 px-1.5 py-1 text-xs font-black text-slate-700 hover:bg-slate-300 disabled:opacity-30 disabled:cursor-not-allowed"
                       >
@@ -132,7 +224,7 @@ export default function CategoryManager({
                 )}
               </li>
             ))}
-            {cats.length === 0 && <li className="px-3 py-6 text-center text-xs text-slate-400">No categories</li>}
+            {uniqueCats.length === 0 && <li className="px-3 py-6 text-center text-xs text-slate-400">No categories</li>}
           </ul>
         </div>
       </div>
