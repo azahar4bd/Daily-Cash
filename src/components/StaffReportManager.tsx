@@ -22,6 +22,8 @@ import {
 } from "@/lib/storage";
 import { cmpStaff } from "@/lib/sortOrder";
 import SearchSelect from "./SearchSelect";
+import { currentBranchName } from "@/lib/auth";
+import { printSection } from "@/lib/printReport";
 import type { StaffReportItem, Tx } from "@/types";
 
 import { getStaffList } from "@/lib/storage";
@@ -55,6 +57,11 @@ const matchStaffCategory = (cat: string, staffName: string) => {
 };
 
 export default function StaffReportManager({ selectedDate }: { selectedDate: string }) {
+  // 🖨️ v1.4.146: প্রতি রিপোর্ট-সেকশনের প্রিন্ট-রেফ
+  const staffTableRef = useRef<HTMLDivElement>(null);
+  const denaPoanaRef = useRef<HTMLDivElement>(null);
+  const todayAllRef = useRef<HTMLDivElement>(null);
+
   const [reports, setReports] = useState<StaffReportItem[]>([]);
   const [form, setForm] = useState({
     staffName: "",
@@ -965,6 +972,21 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
           </h3>
           <div className="flex items-center gap-2">
             {/* v1.4.59: স্টাফ ফিল্টার টাইপ-সার্চ নয় — প্লেইন ড্রপডাউন (নেটিভ) */}
+            {/* 🖨️ v1.4.146 */}
+            <button
+              type="button"
+              onClick={() =>
+                printSection(staffTableRef.current, {
+                  title: "Staff Collection Report Table",
+                  subtitle: `${currentBranchName()} • Date: ${selectedDate}${filterStaff ? ` • Staff: ${titleCase(filterStaff)}` : ""}`,
+                  landscape: true,
+                })
+              }
+              title="এই রিপোর্ট প্রিন্ট করুন (A4 ল্যান্ডস্কেপ)"
+              className="print:hidden cursor-pointer rounded-lg bg-indigo-700 px-2.5 py-1 text-[11px] font-black text-white hover:bg-indigo-800 shadow-sm"
+            >
+              🖨️ Print
+            </button>
             <select
               value={filterStaff}
               onChange={(e) => setFilterStaff(e.target.value)}
@@ -977,7 +999,7 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
             </select>
           </div>
         </div>
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto" ref={staffTableRef}>
           <table className="w-full border-collapse border border-[#d4a373] text-center text-xs sm:text-sm">
             <thead>
               <tr className="bg-[#fdecd2] text-slate-950 font-bold border-b border-[#d4a373]">
@@ -1146,10 +1168,23 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
 
       {/* Dena / Poana Table */}
       <div className="rounded-2xl border-2 border-blue-900 bg-white shadow-sm overflow-hidden max-w-2xl mx-auto">
-        <div className="bg-[#fdecd2] py-2 text-center border-b-2 border-blue-900">
+        <div className="bg-[#fdecd2] py-2 text-center border-b-2 border-blue-900 relative">
           <h3 className="font-serif font-black text-xl sm:text-2xl text-slate-900">Dena / Poana</h3>
+          <button
+            type="button"
+            onClick={() =>
+              printSection(denaPoanaRef.current, {
+                title: "Dena / Poana",
+                subtitle: `${currentBranchName()} • Date: ${selectedDate}`,
+              })
+            }
+            title="এই রিপোর্ট প্রিন্ট করুন"
+            className="print:hidden absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer rounded-lg bg-indigo-700 px-2.5 py-1 text-[11px] font-black text-white hover:bg-indigo-800 shadow-sm"
+          >
+            🖨️
+          </button>
         </div>
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto" ref={denaPoanaRef}>
           <table className="w-full border-collapse border border-amber-200 text-xs sm:text-sm">
             <thead>
               <tr className="bg-[#eedbc9] text-slate-900 font-bold text-center">
@@ -1194,10 +1229,23 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
 
       {/* Today All Report */}
       <div className="rounded-2xl border-2 border-blue-900 bg-white shadow-sm overflow-hidden max-w-3xl mx-auto">
-        <div className="bg-[#fdecd2] py-2 text-center border-b-2 border-blue-900">
+        <div className="bg-[#fdecd2] py-2 text-center border-b-2 border-blue-900 relative">
           <h3 className="font-serif font-black text-xl sm:text-2xl text-slate-900">Today All Report</h3>
+          <button
+            type="button"
+            onClick={() =>
+              printSection(todayAllRef.current, {
+                title: "Today All Report",
+                subtitle: `${currentBranchName()} • Date: ${selectedDate}`,
+              })
+            }
+            title="এই রিপোর্ট প্রিন্ট করুন"
+            className="print:hidden absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer rounded-lg bg-indigo-700 px-2.5 py-1 text-[11px] font-black text-white hover:bg-indigo-800 shadow-sm"
+          >
+            🖨️
+          </button>
         </div>
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto" ref={todayAllRef}>
           <table className="w-full border-collapse border border-amber-200 text-xs sm:text-sm">
             <thead>
               <tr className="bg-[#fdecd2] text-slate-900 font-black text-center">
