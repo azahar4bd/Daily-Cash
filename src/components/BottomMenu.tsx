@@ -85,7 +85,7 @@ export default function BottomMenu({
   return (
     <>
       {/* ═══════════ PC: সবসময়-দৃশ্যমান প্রিমিয়াম সাইড মেনু (xl+) ═══════════ */}
-      <aside className="fixed inset-y-0 left-0 z-40 hidden w-60 flex-col text-white xl:flex print:hidden">
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-60 flex-col text-white lg:flex print:hidden">
         <div className="absolute inset-0 border-r border-white/10 bg-linear-to-b from-[#131f42]/97 to-[#0a1024] backdrop-blur-xl shadow-[10px_0_40px_-12px_rgba(4,10,30,0.7)]" />
         <div className="pointer-events-none absolute inset-y-0 right-0 w-px bg-linear-to-b from-transparent via-amber-300/60 to-transparent" />
 
@@ -230,12 +230,12 @@ export default function BottomMenu({
       </aside>
 
       {/* ═══════════ মোবাইল/ট্যাবলেট: হুবহু নিচের বার (xl-এর নিচে) ═══════════ */}
-      <nav className="fixed inset-x-0 bottom-0 z-40 text-white pb-[env(safe-area-inset-bottom,0px)] xl:hidden print:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-40 text-white pb-[env(safe-area-inset-bottom,0px)] lg:hidden print:hidden">
         {/* ✨ Royal navy glass ব্যাকগ্রাউন্ড + উপরের গোল্ড-গ্লো হেয়ারলাইন */}
         <div className="absolute inset-0 border-t border-white/10 bg-linear-to-b from-[#131f42]/95 to-[#0a1024]/98 backdrop-blur-xl shadow-[0_-12px_40px_-10px_rgba(4,10,30,0.85)]" />
         <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-amber-300/60 to-transparent" />
 
-        <div className="relative mx-auto flex max-w-6xl xl:max-w-7xl flex-nowrap items-center justify-between gap-2 px-2.5 py-2 sm:px-4">
+        <div className="relative mx-auto flex max-w-6xl lg:max-w-7xl flex-nowrap items-center justify-between gap-2 px-2.5 py-2 sm:px-4">
 
           {/* Left: Brand & Cloud Tools */}
           <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
@@ -356,10 +356,10 @@ export default function BottomMenu({
           </div>
 
           {/* Right: Navigation Controls — always pinned visible */}
-          <div className="flex min-w-0 shrink-0 items-center gap-1.5 xl:shrink">
+          <div className="flex min-w-0 shrink-0 items-center gap-1.5 lg:shrink">
             {/* Desktop Tabs — v1.4.81: xl (1280px+) থেকেই; টান্দা জায়গা কম পড়লে ভিতরে স্ক্রল হয়, আর কোনোদিন অন্য আইটেমের উপর চড়ে বসে না
                 ✨ v1.4.121: গ্লাস-ডকের ভেতরে ট্যাব; অ্যাকটিভ = গ্রেডিয়েন্ট পিল + গ্লো */}
-            <div className="hidden xl:flex min-w-0 items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden max-w-[48vw] 2xl:max-w-none rounded-2xl border border-white/10 bg-white/5 p-1 backdrop-blur-md shadow-inner shadow-black/20">
+            <div className="hidden lg:flex min-w-0 items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden max-w-[48vw] 2xl:max-w-none rounded-2xl border border-white/10 bg-white/5 p-1 backdrop-blur-md shadow-inner shadow-black/20">
               {pages.map((p) => (
                 <button
                   key={p.id}
@@ -385,7 +385,7 @@ export default function BottomMenu({
             <button
               type="button"
               onClick={() => setThreeLineMenuOpen(!threeLineMenuOpen)}
-              className="xl:hidden flex shrink-0 items-center gap-1.5 rounded-xl border border-amber-300/40 bg-linear-to-r from-amber-400/20 to-orange-400/10 px-2.5 py-1.5 text-xs font-black text-white shadow-sm shadow-amber-500/20 transition-all duration-200 cursor-pointer hover:border-amber-300/70 hover:bg-amber-400/25"
+              className="lg:hidden flex shrink-0 items-center gap-1.5 rounded-xl border border-amber-300/40 bg-linear-to-r from-amber-400/20 to-orange-400/10 px-2.5 py-1.5 text-xs font-black text-white shadow-sm shadow-amber-500/20 transition-all duration-200 cursor-pointer hover:border-amber-300/70 hover:bg-amber-400/25"
               title={`Open menu — current: ${activePage.label}`}
               aria-label={`Open menu (${activePage.label})`}
             >
@@ -409,7 +409,7 @@ export default function BottomMenu({
       {/* THREE-LINE HAMBURGER SLIDE-UP DRAWER (থ্রি লাইন মেনু প্যানেল)             */}
       {/* ========================================================================= */}
       {threeLineMenuOpen && (
-        <div className="fixed inset-0 z-50 flex flex-col justify-end xl:hidden">
+        <div className="fixed inset-0 z-50 flex flex-col justify-end lg:hidden">
           {/* Backdrop */}
           <div
             className="fixed inset-0 bg-slate-950/75 backdrop-blur-xs transition-opacity"
