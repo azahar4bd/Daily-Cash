@@ -411,9 +411,13 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
   const totalReturnCombined = totalAdjust + totalNogod;
 
   // Dena / Poana calculations
-  const allStaffNames = Array.from(
-    new Set([...officeStaff(), ...reports.map((r) => r.staffName.trim())])
-  ).sort(cmpStaff);
+  /* 🆕 v1.4.148: কেস-নিরপেক্ষ ডেডুপলাই — "Sakib" (স্টোর) আর "sakib" (পুরনো এন্ট্রি) আলাদা হয়ে
+     ২ বার দেখাত — একবারই রাখি (স্টোরের লেখা-রূপ অগ্রাধিকার) */
+  const seenNames = new Set<string>();
+  const allStaffNames = [...officeStaff(), ...reports.map((r) => r.staffName.trim())]
+    .map((n) => String(n || "").trim())
+    .filter((n) => n !== "" && !seenNames.has(n.toLowerCase()) && seenNames.add(n.toLowerCase()))
+    .sort(cmpStaff);
   const receiveTxs = allTxList.filter((t) => t.type === "receive" && t.txDate === selectedDate);
 
   let totalDenaPoanaAday = 0;
