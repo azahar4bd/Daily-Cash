@@ -1,4 +1,5 @@
 import type { ScRate, SubCategoryRule, KallyanRule } from "@/types";
+import { isDefaultBranch } from "./branchScope";
 
 export const DEFAULT_KALLYAN_RULE: KallyanRule = {
   percent: 1,
@@ -12,7 +13,8 @@ export const DEFAULT_KALLYAN_RULE: KallyanRule = {
   },
 };
 
-export const DEFAULT_CATEGORIES: Record<string, string[]> = {
+/** গোবরার আসল তালিকা (মডিউল-লোডে শাখা এখনো বসেনি — সরাসরি ব্যবহার নিষেধ) */
+const GOBA_CATEGORIES: Record<string, string[]> = {
   receive: [
     "bank withdraw",
     "fund receive",
@@ -44,6 +46,23 @@ export const DEFAULT_CATEGORIES: Record<string, string[]> = {
   ],
   rebate: ["monir", "sakib", "mintu", "alamgir", "customer rebate", "others"],
 };
+
+/** গোবরার কর্মীনাম (ছোট হাতের) — অন্য অফিসে এগুলো ফallback-এ যাবে না */
+const GOBA_STAFF_LOWER = ["sakib", "mintu", "alamgir", "monir"];
+
+/**
+ * 🆕 v1.4.144: ফallback ক্যাটাগরি-সিড — <b>কল করার মুহূর্তে</b> শাখা যাচাই করে।
+ * গোবরা = পুরো তালিকা; অন্য অফিস = কর্মী-নাম বাদ (সিস্টেম ক্যাটাগরি থাকবে)।
+ * মডিউল-স্কোপে স্থির করা নেই — রিলোডে শাখা তখনও বসেনি, মিথ্যা মান আসত।
+ */
+export function getDefaultCategories(): Record<string, string[]> {
+  if (isDefaultBranch()) return GOBA_CATEGORIES;
+  const out: Record<string, string[]> = {};
+  for (const [t, names] of Object.entries(GOBA_CATEGORIES)) {
+    out[t] = names.filter((n) => !GOBA_STAFF_LOWER.includes(n.toLowerCase()));
+  }
+  return out;
+}
 
 export const PAYMENT_SUB_CATEGORIES = ["1 year", "1.5 year", "2 year"];
 

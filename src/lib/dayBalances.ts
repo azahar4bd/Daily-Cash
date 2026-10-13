@@ -12,7 +12,8 @@ import { getLocalTxs, getLocalStaffReports, getSummary, getCategories } from "./
 
 import { isDefaultBranch } from "./branchScope";
 /** v1.4.142: কর্মী-ডিফল্ট শুধু গোবরা — নতুন অফিসে হিসাব লিক নয় */
-const DEFAULT_STAFF: string[] = isDefaultBranch() ? ["Sakib", "Mintu", "Alamgir", "Monir"] : [];
+/** কল করার মুহূর্তে শাখা যাচাই (v1.4.144 — মডিউল-লোডে শাখা এখনো বসেনি) */
+const gobaStaff = (): string[] => (isDefaultBranch() ? ["Sakib", "Mintu", "Alamgir", "Monir"] : []);
 
 const matchStaffCategory = (cat: string, staffName: string) => {
   const c = cat.toLowerCase().trim();
@@ -98,7 +99,7 @@ export function getReportDayBalances(date: string): ReportDayBalances {
       const c = t.category.toLowerCase().trim();
       if (c.includes("bank withdraw") || c.includes("fund receive")) return false;
       if (c.includes("welfare") || c.includes("kallayan") || c.includes("loan form")) return false;
-      if (DEFAULT_STAFF.some((st) => matchStaffCategory(c, st))) return false;
+      if (gobaStaff().some((st) => matchStaffCategory(c, st))) return false;
       return true;
     })
     .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);

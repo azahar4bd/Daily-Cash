@@ -12,7 +12,7 @@ import type {
   DayOpen,
   DayState,
 } from "@/types";
-import { DEFAULT_CATEGORIES, DEFAULT_SUBCAT_RULES, DEFAULT_KALLYAN_RULE } from "./categories";
+import { getDefaultCategories, DEFAULT_SUBCAT_RULES, DEFAULT_KALLYAN_RULE } from "./categories";
 import { isDefaultBranch } from "./branchScope";
 import { DEFAULT_REBATE_RATES } from "./defaultRebateRates";
 import { enqueueNeonAction } from "./neonSync";
@@ -406,7 +406,7 @@ export function getCategories(type: string): Cat[] {
     if (all.length === 0) {
       let idCounter = 1;
       const initial: Cat[] = [];
-      for (const [t, names] of Object.entries(DEFAULT_CATEGORIES)) {
+      for (const [t, names] of Object.entries(getDefaultCategories())) {
         for (const name of names) {
           initial.push({ id: idCounter++, type: t, name });
         }
@@ -421,7 +421,7 @@ export function getCategories(type: string): Cat[] {
     }
     return typed;
   } catch {
-    return (DEFAULT_CATEGORIES[type] || []).map((name, i) => ({
+    return (getDefaultCategories()[type] || []).map((name, i) => ({
       id: i + 1,
       type,
       name,
