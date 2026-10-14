@@ -1,4 +1,5 @@
 // 🆕 v1.4.154: TWA Android APK — Gobra BKF ক্যাশ-অ্যাপ; ওয়েব-অ্যাপই APK-এ, আপডেট=ওয়েব-আপডেটই (কোনো app-update লাগে না)
+// রিপোজিটরি settings.gradle-এই ম্যানেজ হয় (এখানে allprojects রাখলে FAIL_ON_PROJECT_REPOS-সঙ্গে সংঘর্ষ হয়)
 buildscript {
     repositories {
         google()
@@ -6,11 +7,5 @@ buildscript {
     }
     dependencies {
         classpath 'com.android.tools.build:gradle:8.5.2'
-    }
-}
-allprojects {
-    repositories {
-        google()
-        mavenCentral()
     }
 }
