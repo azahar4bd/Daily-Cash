@@ -15,7 +15,6 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-      - uses: android-actions/setup-android@v3
       - name: 🔑 রিলিজ-কী
         run: |
           if [ -z "$KEYSTORE_B64" ]; then
@@ -27,6 +26,9 @@ jobs:
         env:
           KEYSTORE_B64: ${{ secrets.TWA_KEYSTORE_B64 }}
       - name: 🏗️ বিল্ড
+        env:
+          ANDROID_HOME: /usr/local/lib/android/sdk
+          ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
         run: |
           cd android-twa
           gradle wrapper --gradle-version 8.9 --distribution-type bin
