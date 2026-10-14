@@ -7,7 +7,7 @@ import ReportDenominationModal from "./ReportDenominationModal";
 import CategoryManager from "./CategoryManager";
 import PaymentCategoryManager from "./PaymentCategoryManager";
 import { titleCase } from "@/lib/categories";
-import { getCheckEntries } from "@/lib/checkStore";
+import { getMembers } from "@/lib/memberDb";
 import {
   getLocalTxs,
   saveTx,
@@ -51,7 +51,7 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
     window.setTimeout(() => setLockPulse(false), 900);
   };
   const [cats, setCats] = useState<Cat[]>([]);
-  // 🆕 v1.4.149: Description সাজেশন — রিসিভ-হিস্টোরি (সাম্প্রতিক আগে) + চেক-পেজ ডাটা (নাম/ব্যাংক/চেক নং);
+  // 🆕 v1.4.150: Description সাজেশন — রিসিভ-হিস্টোরি (সাম্প্রতিক আগে) + মেম্বার ডাটাবেজ (কোড/নাম, সেন্টার কোড/নাম);
   // ম্যানুয়ালি যা লিখে সেভ করেন তা-ও পরেরবার আপনাআপনি এখানে চলে আসে (এন্ট্রির বিবরণ থেকে)
   const [descOpen, setDescOpen] = useState(false);
   const descSuggestions = useMemo(() => {
@@ -72,12 +72,17 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
         .sort((a, b) => Number(b.id || 0) - Number(a.id || 0)) // id বড় = সাম্প্রতিক (Tx-এ createdAt নেই)
         .forEach((t) => push(t.description || ""));
     } catch {}
+    /* 🆕 v1.4.150: চেক-পেজের মেম্বার ডাটাবেজ — মেম্বার কোড/নাম + সেন্টার কোড/নাম
+       (চেক-নির্দিষ্ট হিসাব নং/চেক নং/ব্যাংক কিছুই আসবে না) */
     try {
-      getCheckEntries().forEach((c: any) => {
-        push(c.memberName);
-        push(c.bankName);
-        (c.extraBanks || []).forEach((b: any) => push(b.bankName));
+      const centres = new Map<string, string>();
+      getMembers().forEach((m: any) => {
+        push(m.memberCode);
+        push(m.memberName);
+        if (m.centreCode && !centres.has(String(m.centreCode).toLowerCase())) centres.set(String(m.centreCode).toLowerCase(), String(m.centreCode));
+        if (m.centreName && !centres.has(String(m.centreName).toLowerCase())) centres.set(String(m.centreName).toLowerCase(), String(m.centreName));
       });
+      centres.forEach((v) => push(v));
     } catch {}
     return list;
     // rows-বদলে পুনর্গণনা — নতুন সেভ-করা বিবরণও ধরা পড়ে
