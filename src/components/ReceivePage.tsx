@@ -436,7 +436,7 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
 
           {/* Description Field — v1.4.102: PC-তে Category+Amount-এর সাথে ১ম সারির ৩য় ঘর; মোবাইলে Sub Category থাকলে তার পাশে, না থাকলে পুরো প্রস্থ */}
           <div className={`${isFundReceive ? "" : "col-span-2 md:col-span-1"} md:col-start-3 md:row-start-1`}>
-            <label className="mb-1 block text-xs font-bold text-slate-700">Description <span className="ml-1 rounded-full bg-indigo-100 px-1.5 py-0.5 text-[9px] font-black text-indigo-700 align-middle">💡 সাজেশন</span></label>
+            <label className="mb-1 block text-xs font-bold text-slate-700">Description <span className="ml-1 rounded-full bg-indigo-100 px-1.5 py-0.5 text-[9px] font-black text-indigo-700 align-middle">💡 সাজেশন ({descSuggestions.length})</span></label>
             <div className="relative">
               <input
                 type="text"
@@ -827,14 +827,38 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
               </div>
 
               <div className="md:col-span-2">
-                <label className="mb-1 block text-xs font-bold text-slate-700">Description <span className="ml-1 rounded-full bg-indigo-100 px-1.5 py-0.5 text-[9px] font-black text-indigo-700 align-middle">💡 সাজেশন</span></label>
-                <input
-                  type="text"
-                  value={edit.description}
-                  onChange={(e) => setEdit({ ...edit, description: e.target.value })}
-                  placeholder=""
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                />
+                <label className="mb-1 block text-xs font-bold text-slate-700">Description <span className="ml-1 rounded-full bg-indigo-100 px-1.5 py-0.5 text-[9px] font-black text-indigo-700 align-middle">💡 সাজেশন ({descSuggestions.length})</span></label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={edit.description}
+                    onChange={(e) => { setEdit({ ...edit, description: e.target.value }); setDescOpen(true); }}
+                    onFocus={() => setDescOpen(true)}
+                    onBlur={() => window.setTimeout(() => setDescOpen(false), 150)}
+                    placeholder=""
+                    autoComplete="off"
+                    className="w-full rounded-lg border border-slate-300 bg-orange-50 px-3 py-2 text-sm font-semibold text-slate-800 focus:border-blue-500 focus:outline-none"
+                  />
+                  {/* 🆕 v1.4.152: এডিট-মোডালেও সাজেশন-ড্রপডাউন (নতুন-এন্ট্রির মতো) */}
+                  {descOpen && (() => {
+                    const q = edit.description.trim().toLowerCase();
+                    const hits = descSuggestions.filter((d) => (q === "" ? true : d.toLowerCase().includes(q))).slice(0, 8);
+                    if (hits.length === 0) return null;
+                    return (
+                      <ul className="absolute left-0 right-0 top-[40px] z-30 max-h-48 overflow-y-auto rounded-xl border border-slate-300 bg-white shadow-xl">
+                        {hits.map((d) => (
+                          <li
+                            key={d}
+                            onMouseDown={(e) => { e.preventDefault(); setEdit({ ...edit, description: d }); setDescOpen(false); }}
+                            className="cursor-pointer border-b border-slate-100 px-3 py-2 text-sm font-semibold text-slate-800 last:border-0 hover:bg-indigo-50 active:bg-indigo-100"
+                          >
+                            {d}
+                          </li>
+                        ))}
+                      </ul>
+                    );
+                  })()}
+                </div>
               </div>
 
               <div className="flex justify-end gap-3 md:col-span-2 border-t pt-3 mt-2">
