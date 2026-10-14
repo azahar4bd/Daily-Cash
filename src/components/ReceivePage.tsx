@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import ReceiveCategoryDropdown from "./ReceiveCategoryDropdown";
 import DatePicker from "./DatePicker";
 import SearchSelect from "./SearchSelect";
@@ -7,6 +7,7 @@ import ReportDenominationModal from "./ReportDenominationModal";
 import CategoryManager from "./CategoryManager";
 import PaymentCategoryManager from "./PaymentCategoryManager";
 import { titleCase } from "@/lib/categories";
+import { getCheckEntries } from "@/lib/checkStore";
 import {
   getLocalTxs,
   saveTx,
@@ -50,6 +51,37 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
     window.setTimeout(() => setLockPulse(false), 900);
   };
   const [cats, setCats] = useState<Cat[]>([]);
+  // 🆕 v1.4.149: Description সাজেশন — রিসিভ-হিস্টোরি (সাম্প্রতিক আগে) + চেক-পেজ ডাটা (নাম/ব্যাংক/চেক নং);
+  // ম্যানুয়ালি যা লিখে সেভ করেন তা-ও পরেরবার আপনাআপনি এখানে চলে আসে (এন্ট্রির বিবরণ থেকে)
+  const [descOpen, setDescOpen] = useState(false);
+  const descSuggestions = useMemo(() => {
+    const seen = new Set<string>();
+    const list: string[] = [];
+    const push = (v?: string) => {
+      const t = (v || "").trim();
+      if (!t || t.length > 80) return;
+      const k = t.toLowerCase();
+      if (seen.has(k)) return;
+      seen.add(k);
+      list.push(t);
+    };
+    try {
+      getLocalTxs()
+        .filter((t) => t.type === "receive")
+        .slice()
+        .sort((a, b) => Number(b.id || 0) - Number(a.id || 0)) // id বড় = সাম্প্রতিক (Tx-এ createdAt নেই)
+        .forEach((t) => push(t.description || ""));
+    } catch {}
+    try {
+      getCheckEntries().forEach((c: any) => {
+        push(c.memberName);
+        push(c.bankName);
+        (c.extraBanks || []).forEach((b: any) => push(b.bankName));
+      });
+    } catch {}
+    return list;
+    // rows-বদলে পুনর্গণনা — নতুন সেভ-করা বিবরণও ধরা পড়ে
+  }, [rows]);
   /** Payment পেজের disburse category তালিকা — fund receive-এর সাব-ক্যাটাগরি এখান থেকেই আসে */
   const [disburseCats, setDisburseCats] = useState<Cat[]>([]);
   const [expenseCats, setExpenseCats] = useState<Cat[]>([]);
@@ -400,19 +432,42 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
           {/* Description Field — v1.4.102: PC-তে Category+Amount-এর সাথে ১ম সারির ৩য় ঘর; মোবাইলে Sub Category থাকলে তার পাশে, না থাকলে পুরো প্রস্থ */}
           <div className={`${isFundReceive ? "" : "col-span-2 md:col-span-1"} md:col-start-3 md:row-start-1`}>
             <label className="mb-1 block text-xs font-bold text-slate-700">Description</label>
-            <input
-              type="text"
-              disabled={isDayClosed(form.txDate)}
-              value={form.description}
-              onChange={(e) => setForm({ ...form, description: e.target.value })}
-              placeholder=""
-              autoComplete="off"
-              className={`w-full h-[42px] rounded-lg border px-3 py-2 text-sm font-semibold text-slate-800 focus:outline-none ${
-                isDayClosed(form.txDate)
-                  ? "border-slate-300 bg-slate-100 text-slate-500 cursor-not-allowed opacity-60"
-                  : "border-slate-300 bg-orange-50 focus:border-blue-500"
-              }`}
-            />
+            <div className="relative">
+              <input
+                type="text"
+                disabled={isDayClosed(form.txDate)}
+                value={form.description}
+                onChange={(e) => { setForm({ ...form, description: e.target.value }); setDescOpen(true); }}
+                onFocus={() => setDescOpen(true)}
+                onBlur={() => window.setTimeout(() => setDescOpen(false), 150)}
+                placeholder=""
+                autoComplete="off"
+                className={`w-full h-[42px] rounded-lg border px-3 py-2 text-sm font-semibold text-slate-800 focus:outline-none ${
+                  isDayClosed(form.txDate)
+                    ? "border-slate-300 bg-slate-100 text-slate-500 cursor-not-allowed opacity-60"
+                    : "border-slate-300 bg-orange-50 focus:border-blue-500"
+                }`}
+              />
+              {/* 🆕 v1.4.149: সাজেশন — রিসিভ-হিস্টোরি + চেক-পেজ ডাটা (নাম/ব্যাংক); টাইপ কর্লে ফিল্টার */}
+              {descOpen && !isDayClosed(form.txDate) && (() => {
+                const q = form.description.trim().toLowerCase();
+                const hits = descSuggestions.filter((d) => (q === "" ? true : d.toLowerCase().includes(q))).slice(0, 8);
+                if (hits.length === 0) return null;
+                return (
+                  <ul className="absolute left-0 right-0 top-[46px] z-30 max-h-48 overflow-y-auto rounded-xl border border-slate-300 bg-white shadow-xl">
+                    {hits.map((d) => (
+                      <li
+                        key={d}
+                        onMouseDown={(e) => { e.preventDefault(); setForm({ ...form, description: d }); setDescOpen(false); }}
+                        className="cursor-pointer border-b border-slate-100 px-3 py-2 text-sm font-semibold text-slate-800 last:border-0 hover:bg-indigo-50 active:bg-indigo-100"
+                      >
+                        {d}
+                      </li>
+                    ))}
+                  </ul>
+                );
+              })()}
+            </div>
           </div>
           </div>
 
