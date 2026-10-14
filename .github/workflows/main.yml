@@ -1,0 +1,53 @@
+name: 🤖 Android APK (TWA)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['android-twa/**']
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - name: 🔑 রিলিজ-কী
+        run: |
+          if [ -z "$KEYSTORE_B64" ]; then
+            echo "::error::রিপো-সিক্রেট TWA_KEYSTORE_B64 সেট করা নেই!"
+            exit 1
+          fi
+          mkdir -p android-twa/app
+          echo "$KEYSTORE_B64" | base64 -d > android-twa/app/gobra-release.keystore
+        env:
+          KEYSTORE_B64: ${{ secrets.TWA_KEYSTORE_B64 }}
+      - name: 🏗️ বিল্ড
+        run: |
+          cd android-twa
+          gradle wrapper --gradle-version 8.9 --distribution-type bin
+          ./gradlew --no-daemon :app:assembleRelease \
+            -Pandroid.injected.signing.store.file=$PWD/app/gobra-release.keystore \
+            -Pandroid.injected.signing.store.password=${{ secrets.TWA_KEYSTORE_PASSWORD }} \
+            -Pandroid.injected.signing.key.alias=gobra \
+            -Pandroid.injected.signing.key.password=${{ secrets.TWA_KEYSTORE_PASSWORD }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gobra-cash-apk
+          path: android-twa/app/build/outputs/apk/release/app-release.apk
+          retention-days: 90
+      - name: 🚀 Release-এ APK
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: apk-latest
+          name: Gobra BKF Cash — Android App
+          body: |
+            📱 **Gobra BKF Cash — Android অ্যাপ**
+            ওয়েব-আপডেট হলে অ্যাপও আপডেট হয় — নতুন APK লাগে না।
+            ইনস্টল: app-release.apk ডাউনলোড → ফোনে চাপুন → "অজানা উৎস" অনুমতি → ইনস্টল
+          files: android-twa/app/build/outputs/apk/release/app-release.apk
+          make_latest: true
