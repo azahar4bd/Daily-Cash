@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Gobra BKF Cash</string>
+    <string name="asset_statements">
+        [{
+            \"relation\": [\"delegate_permission/common.handle_all_urls\"],
+            \"target\": {
+                \"namespace\": \"android_app\",
+                \"package_name\": \"com.gobrabkf.cash\",
+                \"sha256_cert_fingerprints\": [\"72:C0:FF:E3:84:3E:BE:67:C0:19:50:ED:D8:26:85:73:99:F0:1C:B5:2F:1F:1D:A6:D9:D5:CE:51:7F:46:86:46\"]
+            }
+        }]
+    </string>
+</resources>

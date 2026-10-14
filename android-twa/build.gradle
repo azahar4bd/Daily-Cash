@@ -1,0 +1,16 @@
+// 🆕 v1.4.154: TWA Android APK — Gobra BKF ক্যাশ-অ্যাপ; ওয়েব-অ্যাপই APK-এ, আপডেট=ওয়েব-আপডেটই (কোনো app-update লাগে না)
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:8.5.2'
+    }
+}
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}

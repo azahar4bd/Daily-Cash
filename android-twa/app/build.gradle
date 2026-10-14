@@ -1,0 +1,18 @@
+apply plugin: 'com.android.application'
+
+android {
+    namespace 'com.gobrabkf.cash'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'com.gobrabkf.cash'
+        minSdk 24
+        targetSdk 34
+        versionCode 1
+        versionName '1.4.153'
+    }
+}
+
+dependencies {
+    implementation 'com.google.androidbrowserhelper:androidbrowserhelper:2.5.0'
+}
