@@ -436,7 +436,7 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
 
           {/* Description Field — v1.4.102: PC-তে Category+Amount-এর সাথে ১ম সারির ৩য় ঘর; মোবাইলে Sub Category থাকলে তার পাশে, না থাকলে পুরো প্রস্থ */}
           <div className={`${isFundReceive ? "" : "col-span-2 md:col-span-1"} md:col-start-3 md:row-start-1`}>
-            <label className="mb-1 block text-xs font-bold text-slate-700">Description</label>
+            <label className="mb-1 block text-xs font-bold text-slate-700">Description <span className="ml-1 rounded-full bg-indigo-100 px-1.5 py-0.5 text-[9px] font-black text-indigo-700 align-middle">💡 সাজেশন</span></label>
             <div className="relative">
               <input
                 type="text"
@@ -827,7 +827,7 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
               </div>
 
               <div className="md:col-span-2">
-                <label className="mb-1 block text-xs font-bold text-slate-700">Description</label>
+                <label className="mb-1 block text-xs font-bold text-slate-700">Description <span className="ml-1 rounded-full bg-indigo-100 px-1.5 py-0.5 text-[9px] font-black text-indigo-700 align-middle">💡 সাজেশন</span></label>
                 <input
                   type="text"
                   value={edit.description}
