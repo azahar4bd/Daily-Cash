@@ -6,6 +6,9 @@ on:
     branches: [main]
     paths: ['android-twa/**']
 
+permissions:
+  contents: write
+
 jobs:
   build-apk:
     runs-on: ubuntu-latest
