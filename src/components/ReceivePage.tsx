@@ -7,7 +7,8 @@ import ReportDenominationModal from "./ReportDenominationModal";
 import CategoryManager from "./CategoryManager";
 import PaymentCategoryManager from "./PaymentCategoryManager";
 import { titleCase } from "@/lib/categories";
-import { getMembers } from "@/lib/memberDb";
+import { getReceiveDescSuggestions, type DescSug } from "@/lib/receiveDescSuggest";
+import { rememberDescription } from "@/lib/paymentDescSuggest";
 import {
   getLocalTxs,
   saveTx,
@@ -51,42 +52,9 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
     window.setTimeout(() => setLockPulse(false), 900);
   };
   const [cats, setCats] = useState<Cat[]>([]);
-  // 🆕 v1.4.150: Description সাজেশন — রিসিভ-হিস্টোরি (সাম্প্রতিক আগে) + মেম্বার ডাটাবেজ (কোড/নাম, সেন্টার কোড/নাম);
-  // ম্যানুয়ালি যা লিখে সেভ করেন তা-ও পরেরবার আপনাআপনি এখানে চলে আসে (এন্ট্রির বিবরণ থেকে)
+  /* 💡 v1.4.153: Description সাজেশন — পেমেন্ট-পেজের (v1.4.128) একই আদলে: টাইপ করলেই সাজেশন; উৎস মেম্বার কোড/নাম, সেন্টার কোড/নাম, নিজের হিস্টোরি */
   const [descOpen, setDescOpen] = useState(false);
-  const descSuggestions = useMemo(() => {
-    const seen = new Set<string>();
-    const list: string[] = [];
-    const push = (v?: string) => {
-      const t = (v || "").trim();
-      if (!t || t.length > 80) return;
-      const k = t.toLowerCase();
-      if (seen.has(k)) return;
-      seen.add(k);
-      list.push(t);
-    };
-    try {
-      getLocalTxs()
-        .filter((t) => t.type === "receive")
-        .slice()
-        .sort((a, b) => Number(b.id || 0) - Number(a.id || 0)) // id বড় = সাম্প্রতিক (Tx-এ createdAt নেই)
-        .forEach((t) => push(t.description || ""));
-    } catch {}
-    /* 🆕 v1.4.150: চেক-পেজের মেম্বার ডাটাবেজ — মেম্বার কোড/নাম + সেন্টার কোড/নাম
-       (চেক-নির্দিষ্ট হিসাব নং/চেক নং/ব্যাংক কিছুই আসবে না) */
-    try {
-      const centres = new Map<string, string>();
-      getMembers().forEach((m: any) => {
-        push(m.memberCode);
-        push(m.memberName);
-        if (m.centreCode && !centres.has(String(m.centreCode).toLowerCase())) centres.set(String(m.centreCode).toLowerCase(), String(m.centreCode));
-        if (m.centreName && !centres.has(String(m.centreName).toLowerCase())) centres.set(String(m.centreName).toLowerCase(), String(m.centreName));
-      });
-      centres.forEach((v) => push(v));
-    } catch {}
-    return list;
-    // rows-বদলে পুনর্গণনা — নতুন সেভ-করা বিবরণও ধরা পড়ে
-  }, [rows]);
+  const [descOpenEdit, setDescOpenEdit] = useState(false);
   /** Payment পেজের disburse category তালিকা — fund receive-এর সাব-ক্যাটাগরি এখান থেকেই আসে */
   const [disburseCats, setDisburseCats] = useState<Cat[]>([]);
   const [expenseCats, setExpenseCats] = useState<Cat[]>([]);
@@ -114,6 +82,24 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
   const [subCatRules, setSubCatRules] = useState(() => getSubCategoryRules());
   const [denomOpen, setDenomOpen] = useState(false);
   const [editDenomOpen, setEditDenomOpen] = useState(false);
+
+  /* 💡 v1.4.153: পেমেন্ট-আদলের সাজেশন — নতুন এন্ট্রি ও এডিট মোডাল আলাদা */
+  const descSugs: DescSug[] = useMemo(
+    () => (descOpen && form.description.trim() ? getReceiveDescSuggestions(form.description) : []),
+    [descOpen, form.description]
+  );
+  const descSugsEdit: DescSug[] = useMemo(
+    () => (descOpenEdit && edit?.description?.trim() ? getReceiveDescSuggestions(edit.description) : []),
+    [descOpenEdit, edit]
+  );
+  const pickDesc = (s: DescSug) => {
+    setForm((f) => ({ ...f, description: s.insert }));
+    setDescOpen(false);
+  };
+  const pickDescEdit = (s: DescSug) => {
+    if (edit) setEdit({ ...edit, description: s.insert });
+    setDescOpenEdit(false);
+  };
   const [msg, setMsg] = useState("");
   const [opening, setOpening] = useState<{
     prevCash: number;
@@ -195,6 +181,7 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
     if (!rawAmount) return setMsg("Amount required");
     const finalAmount = rawAmount;
 
+    rememberDescription(form.description); // 💡 v1.4.153: নিজের লেখা বিবরণ পরেরবার সাজেশনে
     saveTx({
       type: "receive",
       category: form.category.trim().toLowerCase(),
@@ -234,6 +221,7 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
     // মাইনাস Amount (ফেরত) এডিটেও অনুমোদিত
     if (!edit.amount) return alert("Amount required");
 
+    rememberDescription(edit.description); // 💡 v1.4.153
     updateTx({
       id: edit.id,
       type: "receive",
@@ -435,44 +423,52 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
           )}
 
           {/* Description Field — v1.4.102: PC-তে Category+Amount-এর সাথে ১ম সারির ৩য় ঘর; মোবাইলে Sub Category থাকলে তার পাশে, না থাকলে পুরো প্রস্থ */}
-          <div className={`${isFundReceive ? "" : "col-span-2 md:col-span-1"} md:col-start-3 md:row-start-1`}>
-            <label className="mb-1 block text-xs font-bold text-slate-700">Description <span className="ml-1 rounded-full bg-indigo-100 px-1.5 py-0.5 text-[9px] font-black text-indigo-700 align-middle">💡 সাজেশন ({descSuggestions.length})</span></label>
-            <div className="relative">
-              <input
-                type="text"
-                disabled={isDayClosed(form.txDate)}
-                value={form.description}
-                onChange={(e) => { setForm({ ...form, description: e.target.value }); setDescOpen(true); }}
-                onFocus={() => setDescOpen(true)}
-                onBlur={() => window.setTimeout(() => setDescOpen(false), 150)}
-                placeholder=""
-                autoComplete="off"
-                className={`w-full h-[42px] rounded-lg border px-3 py-2 text-sm font-semibold text-slate-800 focus:outline-none ${
-                  isDayClosed(form.txDate)
-                    ? "border-slate-300 bg-slate-100 text-slate-500 cursor-not-allowed opacity-60"
-                    : "border-slate-300 bg-orange-50 focus:border-blue-500"
-                }`}
-              />
-              {/* 🆕 v1.4.149: সাজেশন — রিসিভ-হিস্টোরি + চেক-পেজ ডাটা (নাম/ব্যাংক); টাইপ কর্লে ফিল্টার */}
-              {descOpen && !isDayClosed(form.txDate) && (() => {
-                const q = form.description.trim().toLowerCase();
-                const hits = descSuggestions.filter((d) => (q === "" ? true : d.toLowerCase().includes(q))).slice(0, 8);
-                if (hits.length === 0) return null;
-                return (
-                  <ul className="absolute left-0 right-0 top-[46px] z-30 max-h-48 overflow-y-auto rounded-xl border border-slate-300 bg-white shadow-xl">
-                    {hits.map((d) => (
-                      <li
-                        key={d}
-                        onMouseDown={(e) => { e.preventDefault(); setForm({ ...form, description: d }); setDescOpen(false); }}
-                        className="cursor-pointer border-b border-slate-100 px-3 py-2 text-sm font-semibold text-slate-800 last:border-0 hover:bg-indigo-50 active:bg-indigo-100"
-                      >
-                        {d}
-                      </li>
-                    ))}
-                  </ul>
-                );
-              })()}
-            </div>
+          <div className={`${isFundReceive ? "" : "col-span-2 md:col-span-1"} md:col-start-3 md:row-start-1 relative`}>
+            <label className="mb-1 block text-xs font-bold text-slate-700">Description <span className="text-[10px] font-black text-amber-600">💡 টাইপ করলেই সাজেশন</span></label>
+            <input
+              type="text"
+              disabled={isDayClosed(form.txDate)}
+              value={form.description}
+              onChange={(e) => setForm({ ...form, description: e.target.value })}
+              onFocus={() => setDescOpen(true)}
+              onBlur={() => setTimeout(() => setDescOpen(false), 160)}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") setDescOpen(false);
+                if (e.key === "Enter" && descSugs.length) {
+                  e.preventDefault();
+                  pickDesc(descSugs[0]);
+                }
+              }}
+              placeholder="মেম্বার কোড / নাম / সেন্টার লিখুন…"
+              autoComplete="off"
+              className={`w-full h-[42px] rounded-lg border px-3 py-2 text-sm font-semibold text-slate-800 focus:outline-none ${
+                isDayClosed(form.txDate)
+                  ? "border-slate-300 bg-slate-100 text-slate-500 cursor-not-allowed opacity-60"
+                  : "border-slate-300 bg-orange-50 focus:border-blue-500"
+              }`}
+            />
+            {/* 💡 v1.4.153: সাজেশন ড্রপডাউন — পেমেন্ট-পেজের আদলে (ঘরেই relative, z-50, ট্যাপে সিলেক্ট) */}
+            {descOpen && descSugs.length > 0 && (
+              <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-56 overflow-y-auto rounded-xl border border-slate-300 bg-white shadow-2xl">
+                {descSugs.map((sug, ix) => (
+                  <button
+                    key={ix}
+                    type="button"
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      pickDesc(sug);
+                    }}
+                    className={`flex w-full items-start gap-2 px-3 py-2 text-left transition cursor-pointer hover:bg-amber-50 ${ix > 0 ? "border-t border-slate-100" : ""}`}
+                  >
+                    <span className="mt-0.5 text-sm leading-none">{sug.icon}</span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[13px] font-black text-slate-800">{sug.title}</span>
+                      <span className="block truncate text-[10px] font-bold text-slate-500">{sug.sub}</span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
           </div>
 
@@ -815,52 +811,48 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
                 </div>
               )}
 
-              <div className="md:col-span-2">
-                <label className="mb-1 block text-xs font-bold text-slate-700">Amount</label>
+              <div className="md:col-span-2 relative">
+                <label className="mb-1 block text-xs font-bold text-slate-700">Description <span className="text-[10px] font-black text-amber-600">💡 টাইপ করলেই সাজেশন</span></label>
                 <input
-                  readOnly
-                  value={edit.amount ? fmt(edit.amount) : ""}
-                  placeholder=""
-                  onClick={() => setEditDenomOpen(true)}
-                  className="w-full cursor-pointer rounded-lg border border-slate-300 bg-yellow-50 px-3 py-2 text-right font-mono text-lg font-bold"
+                  type="text"
+                  value={edit.description}
+                  onChange={(e) => setEdit({ ...edit, description: e.target.value })}
+                  onFocus={() => setDescOpenEdit(true)}
+                  onBlur={() => setTimeout(() => setDescOpenEdit(false), 160)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Escape") setDescOpenEdit(false);
+                    if (e.key === "Enter" && descSugsEdit.length) {
+                      e.preventDefault();
+                      pickDescEdit(descSugsEdit[0]);
+                    }
+                  }}
+                  placeholder="মেম্বার কোড / নাম / সেন্টার লিখুন…"
+                  autoComplete="off"
+                  className="w-full h-[42px] rounded-lg border border-slate-300 bg-orange-50 px-3 py-2 text-sm font-semibold text-slate-800 focus:border-blue-500 focus:outline-none"
                 />
+                {/* 💡 v1.4.153: এডিট-মোডালেও পেমেন্ট-আদলের ড্রপডাউন */}
+                {descOpenEdit && descSugsEdit.length > 0 && (
+                  <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-56 overflow-y-auto rounded-xl border border-slate-300 bg-white shadow-2xl">
+                    {descSugsEdit.map((sug, ix) => (
+                      <button
+                        key={ix}
+                        type="button"
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          pickDescEdit(sug);
+                        }}
+                        className={`flex w-full items-start gap-2 px-3 py-2 text-left transition cursor-pointer hover:bg-amber-50 ${ix > 0 ? "border-t border-slate-100" : ""}`}
+                      >
+                        <span className="mt-0.5 text-sm leading-none">{sug.icon}</span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-[13px] font-black text-slate-800">{sug.title}</span>
+                          <span className="block truncate text-[10px] font-bold text-slate-500">{sug.sub}</span>
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
-
-              <div className="md:col-span-2">
-                <label className="mb-1 block text-xs font-bold text-slate-700">Description <span className="ml-1 rounded-full bg-indigo-100 px-1.5 py-0.5 text-[9px] font-black text-indigo-700 align-middle">💡 সাজেশন ({descSuggestions.length})</span></label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={edit.description}
-                    onChange={(e) => { setEdit({ ...edit, description: e.target.value }); setDescOpen(true); }}
-                    onFocus={() => setDescOpen(true)}
-                    onBlur={() => window.setTimeout(() => setDescOpen(false), 150)}
-                    placeholder=""
-                    autoComplete="off"
-                    className="w-full rounded-lg border border-slate-300 bg-orange-50 px-3 py-2 text-sm font-semibold text-slate-800 focus:border-blue-500 focus:outline-none"
-                  />
-                  {/* 🆕 v1.4.152: এডিট-মোডালেও সাজেশন-ড্রপডাউন (নতুন-এন্ট্রির মতো) */}
-                  {descOpen && (() => {
-                    const q = edit.description.trim().toLowerCase();
-                    const hits = descSuggestions.filter((d) => (q === "" ? true : d.toLowerCase().includes(q))).slice(0, 8);
-                    if (hits.length === 0) return null;
-                    return (
-                      <ul className="absolute left-0 right-0 top-[40px] z-30 max-h-48 overflow-y-auto rounded-xl border border-slate-300 bg-white shadow-xl">
-                        {hits.map((d) => (
-                          <li
-                            key={d}
-                            onMouseDown={(e) => { e.preventDefault(); setEdit({ ...edit, description: d }); setDescOpen(false); }}
-                            className="cursor-pointer border-b border-slate-100 px-3 py-2 text-sm font-semibold text-slate-800 last:border-0 hover:bg-indigo-50 active:bg-indigo-100"
-                          >
-                            {d}
-                          </li>
-                        ))}
-                      </ul>
-                    );
-                  })()}
-                </div>
-              </div>
-
               <div className="flex justify-end gap-3 md:col-span-2 border-t pt-3 mt-2">
                 <button
                   onClick={() => setEdit(null)}
