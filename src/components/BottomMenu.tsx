@@ -69,11 +69,6 @@ export default function BottomMenu({
 
   const activePage = pages.find((p) => p.id === currentTab) || pages[0];
 
-  // 📌 v1.4.160: মোবাইলে নিচের বারে ৩টা প্রিয় পেজ পাশাপাশি পিন — ইউজার-নির্দেশ
-  // (বাকি পেজগুলো ☰ মেনুতেই থাকে; PC সাইডমেনু/ডক অপরিবর্তিত)
-  const PINNED_IDS = ["receive", "payment", "report"];
-  const pinnedPages = pages.filter((pg) => PINNED_IDS.includes(pg.id));
-
   /* 📺 v1.4.124: PC-র জন্য সবসময়-দৃশ্যমান সাইড মেনু (xl = 1280px+);
      মোবাইল/ট্যাবলেটের হুবহু নিচের বার ও ☰ ড্রয়ার অপরিবর্তিত */
   const dayStateVisible = !["check", "entertainment", "cashbook"].includes(currentTab);
@@ -289,29 +284,6 @@ export default function BottomMenu({
 
           {/* Center: Master Date Filter — compact so nothing overflows & the date dropdown is never clipped */}
           <div className="flex min-w-0 flex-1 items-center justify-center gap-1.5">{/* v1.4.127: overflow-x সরানো (v1.4.123-এর সেফটি মোবাইলে তারিখ-ক্যালেন্ডার ক্লিপ করত; PC-তে এখন সাইডবার — ডক-ভেঙে-ওভারফ্লোয়ের ঝুঁকি গেছে) */}
-            {/* 📌 v1.4.160: ৩টা পিন-পেজ (📥📤📊) — ছোট স্ক্রিনে আইকন-অনলি, ≥sm-এ লেবেলসহ; অ্যাকটিভ = ইন্ডিগো পিল */}
-            <div className="flex shrink-0 items-center gap-1 rounded-2xl border border-white/10 bg-white/5 p-1 backdrop-blur-md shadow-inner shadow-black/20 mr-1">
-              {pinnedPages.map((pg) => (
-                <button
-                  key={pg.id}
-                  type="button"
-                  onClick={() => onTabChange(pg.id)}
-                  aria-label={pg.label}
-                  title={pg.label}
-                  className={`flex shrink-0 items-center gap-1 whitespace-nowrap rounded-xl px-2 py-1.5 text-[11px] transition-all duration-200 cursor-pointer ${
-                    currentTab === pg.id
-                      ? "bg-linear-to-r from-indigo-500 via-blue-500 to-sky-500 font-black text-white shadow-lg shadow-indigo-500/50 ring-1 ring-white/30"
-                      : "font-bold text-slate-300 hover:bg-white/10 hover:text-white"
-                  }`}
-                >
-                  <span>{pg.icon}</span>
-                  <span className="hidden sm:inline">{pg.label}</span>
-                  {currentTab === pg.id && (
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-300 shadow-[0_0_8px_rgba(110,231,183,1)] animate-pulse" />
-                  )}
-                </button>
-              ))}
-            </div>
             <span className="text-[11px] font-bold text-slate-400 hidden 2xl:inline whitespace-nowrap">
               Date:
             </span>

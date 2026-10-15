@@ -515,6 +515,8 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
           onClose={() => setDenomOpen(false)}
           targetAmount={form.amount || 0}
           date={form.txDate || selectedDate}
+          hideSummary   /* 🧹 v1.4.161: মার্ক-করা বাক্সগুলো বাদ */
+          hideOtherRow  /* 🧹 v1.4.161: Other-সারি বাদ */
           onApplyAmount={(amt) => {
             setForm({ ...form, amount: Math.round(amt), denomination: {}, otherAmount: 0 });
             setDenomOpen(false);
@@ -895,6 +897,7 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
               onClose={() => setEditDenomOpen(false)}
               targetAmount={edit.amount || 0}
               date={edit.txDate}
+              hideSummary hideOtherRow
               onApplyAmount={(amt) => {
                 setEdit({ ...edit, amount: Math.round(amt), denomination: {}, otherAmount: 0 });
                 setEditDenomOpen(false);

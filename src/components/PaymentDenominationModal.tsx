@@ -19,13 +19,21 @@ export default function PaymentDenominationModal({
   targetAmount,
   date,
   onApplyAmount,
+  hideSummary = false,
+  hideOtherRow = false,
 }: {
   open: boolean;
   onClose: () => void;
   targetAmount: number;
   date: string;
   onApplyAmount?: (amt: number) => void;
+  /** 🧹 v1.4.161: Receive-পেজের জন্য — উপরের সামারি-বাক্স (Disburse/Total/Different) লুকানো (ইউজার-মার্কিং) */
+  hideSummary?: boolean;
+  /** 🧹 v1.4.161: Receive-পেজের জন্য — শেষের Other সারি লুকানো (ইউজার-মার্কিং) */
+  hideOtherRow?: boolean;
 }) {
+  // Other-সারি লুকালে দৃশ্যমান সারি-সংখ্যা এক কম — নেভিগেশন/রেন্ডার সব এতেই
+  const ROW_COUNT = hideOtherRow ? FIELD_COUNT - 1 : FIELD_COUNT;
   const [showKeypad, setShowKeypad] = useState(false);
   const [qtyVals, setQtyVals] = useState<string[]>(Array(FIELD_COUNT).fill(""));
   const [creditVals, setCreditVals] = useState<string[]>(Array(FIELD_COUNT).fill(""));
@@ -58,7 +66,7 @@ export default function PaymentDenominationModal({
     const qty = parseInt(qtyVals[i] || "0", 10) || 0;
     return acc + qty * note;
   }, 0);
-  const otherAmt = Number(qtyVals[FIELD_COUNT - 1]) || 0;
+  const otherAmt = hideOtherRow ? 0 : (Number(qtyVals[FIELD_COUNT - 1]) || 0);
   const totalNotesAmount = noteOnlyTotal + otherAmt;
 
   const totalCredit = creditVals.reduce((acc, v) => acc + (Number(v) || 0), 0);
@@ -118,21 +126,21 @@ export default function PaymentDenominationModal({
     let { row, col } = activeCell;
     let colIdx = colsOrder.indexOf(col);
     if (dir === "up") {
-      row = row > 0 ? row - 1 : FIELD_COUNT - 1;
+      row = row > 0 ? row - 1 : ROW_COUNT - 1;
     } else if (dir === "down") {
-      row = row < FIELD_COUNT - 1 ? row + 1 : 0;
+      row = row < ROW_COUNT - 1 ? row + 1 : 0;
     } else if (dir === "left") {
       if (colIdx > 0) colIdx--;
       else {
         colIdx = 2;
-        row = row > 0 ? row - 1 : FIELD_COUNT - 1;
+        row = row > 0 ? row - 1 : ROW_COUNT - 1;
       }
       col = colsOrder[colIdx];
     } else if (dir === "right") {
       if (colIdx < 2) colIdx++;
       else {
         colIdx = 0;
-        row = row < FIELD_COUNT - 1 ? row + 1 : 0;
+        row = row < ROW_COUNT - 1 ? row + 1 : 0;
       }
       col = colsOrder[colIdx];
     }
@@ -230,7 +238,8 @@ export default function PaymentDenominationModal({
           </button>
         </div>
       </div>
-      {/* 3-Box Dashboard */}
+      {/* 3-Box Dashboard — 🧹 v1.4.161: hideSummary হলে পুরোটাই লুকানো */}
+      {!hideSummary && (
       <div className="border-b bg-slate-100 p-2 sm:p-3 shrink-0">
         <div className="grid grid-cols-2 gap-2 max-w-5xl mx-auto">
           <div className="flex flex-col justify-center rounded-xl border border-slate-300 bg-white p-2 sm:p-2.5 shadow-xs">
@@ -276,6 +285,7 @@ export default function PaymentDenominationModal({
           </div>
         </div>
       </div>
+      )}
       {/* Denomination Table */}
       <div className="flex-1 overflow-auto p-2 sm:p-4">
         <div className="max-w-5xl mx-auto">
@@ -290,7 +300,7 @@ export default function PaymentDenominationModal({
               </tr>
             </thead>
             <tbody>
-              {Array.from({ length: FIELD_COUNT }, (_, i) => {
+              {Array.from({ length: ROW_COUNT }, (_, i) => {
                 const isOther = i === FIELD_COUNT - 1;
                 const rowAmt = rowAmountOf(i);
                 const isQtyActive = activeCell.row === i && activeCell.col === "qty";

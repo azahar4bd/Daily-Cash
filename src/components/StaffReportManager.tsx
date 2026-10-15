@@ -397,32 +397,12 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
     ? reports.filter((r) => r.staffName.toLowerCase() === filterStaff.toLowerCase())
     : reports;
 
-  // 🔽↕️ v1.4.160: কাস্টম সর্ট — ইউজার-নির্দেশ: যেকোনো কলামে উচ্চ→নিচ / নিচ→উচ্চ, নামে A-Z/Z-A
-  const sortStaffVal = (r: (typeof reports)[number], key: string) => {
-    const loan = Number(r.loan || 0), rebate = Number(r.rebate || 0);
-    const sav = Number(r.savings || 0), dps = Number(r.dps || 0);
-    const pass = Number(r.passbook || 0), adm = Number(r.admission || 0);
-    const adj = Number(r.savingsAdjust || 0), nog = Number(r.nogodReturn || 0);
-    switch (key) {
-      case "loan": return loan;
-      case "tloan": return loan + rebate;
-      case "savings": return sav;
-      case "dps": return dps;
-      case "tsav": return sav + dps;
-      case "grant": return loan + sav + dps + pass + adm;
-      case "tret": return adj + nog;
-      default: return 0;
-    }
-  };
+  // 🔤 v1.4.161: সর্ট শুধু স্টাফ-নামে (ইউজার-নির্দেশ: "শুধু মাত্র স্টাফ নামের সর্টিং") — Default / A→Z / Z→A
   const reportsForTable = (() => {
     if (!sortStaff || sortStaff === "default") return baseReportsForTable;
-    const [key, dir] = sortStaff.split("|");
-    const mul = dir === "asc" ? 1 : -1;
     const arr = [...baseReportsForTable];
-    if (key === "name") {
-      return arr.sort((x, y) => mul * String(x.staffName).localeCompare(String(y.staffName)));
-    }
-    return arr.sort((x, y) => mul * (sortStaffVal(x, key) - sortStaffVal(y, key)));
+    const mul = sortStaff === "name-asc" ? 1 : -1;
+    return arr.sort((x, y) => mul * String(x.staffName).localeCompare(String(y.staffName)));
   })();
 
   const totalLoanBase = reportsForTable.reduce((s, r) => s + Number(r.loan || 0), 0);
@@ -1030,25 +1010,21 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
                 <option key={st} value={st}>{titleCase(st)}</option>
               ))}
             </select>
-            {/* 🔽↕️ v1.4.160: কাস্টম সর্ট (Receive-এর ফিল্টার-আদলের নেটিভ ড্রপডাউন) */}
-            <select
-              value={sortStaff}
-              onChange={(e) => setSortStaff(e.target.value)}
-              title="কাস্টম সর্ট — কলাম অনুযায়ী সাজান"
-              className="w-36 cursor-pointer rounded border border-[#d4a373] bg-white px-2 py-1 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-1 focus:ring-[#d4a373] sm:w-44"
-            >
-              <option value="default">Sort: Default</option>
-              <option value="name|asc">Sort: Name A→Z</option>
-              <option value="name|desc">Sort: Name Z→A</option>
-              <option value="tloan|desc">Total Loan ↓ বেশি আগে</option>
-              <option value="tloan|asc">Total Loan ↑ কম আগে</option>
-              <option value="tsav|desc">Total Sav ↓ বেশি আগে</option>
-              <option value="tsav|asc">Total Sav ↑ কম আগে</option>
-              <option value="grant|desc">Grant Total ↓ বেশি আগে</option>
-              <option value="grant|asc">Grant Total ↑ কম আগে</option>
-              <option value="tret|desc">Total Ret ↓ বেশি আগে</option>
-              <option value="tret|asc">Total Ret ↑ কম আগে</option>
-            </select>
+            <div className="w-36 sm:w-44">
+              {/* 🔤 v1.4.161: নাম-অনলি সর্ট — Receive-এর Category Filter-আদলের SearchSelect (মোবাইলে কীবোর্ড আসে না) */}
+              <SearchSelect
+                value={sortStaff}
+                onChange={(v) => setSortStaff(v)}
+                noKeyboardOnMobile
+                options={[
+                  { value: "default", label: "Sort: Default" },
+                  { value: "name-asc", label: "Sort: Name A→Z" },
+                  { value: "name-desc", label: "Sort: Name Z→A" },
+                ]}
+                placeholder="Sort: Default"
+                className="w-full rounded border border-[#d4a373] bg-white px-2 py-1 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-1 focus:ring-[#d4a373]"
+              />
+            </div>
           </div>
         </div>
         <div className="overflow-x-auto" ref={staffTableRef}>
