@@ -1,0 +1,70 @@
+# 🆕 v1.4.154-patch: TWA Android APK অটো-বিল্ড — GitHub-রানারে Android SDK আগেই আছে,
+# তাই setup-android অ্যাকশন বাদ (অপ্রচলিত "tools" প্যাকেজ খুঁজে ফেল করত — বিল্ড-ফেলের কারণ)
+name: 🤖 Android APK (TWA)
+
+on:
+  workflow_dispatch:               # Actions ট্যাবে ১ ক্লিকে বিল্ড
+  push:
+    branches: [main]
+    paths: ['android-twa/**']      # APK-সংক্রান্ত ফাইল বদলালেই নিজে বিল্ড
+
+jobs:
+  build-apk:
+    name: 📱 APK বিল্ড
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 কোড
+        uses: actions/checkout@v4
+
+      - name: ☕ Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      # ⚠️ setup-android ইচ্ছে করে নেই — ubuntu-latest রানারে SDK (cmdline-tools, platform ৳৪,
+      #    licenses-সহ) প্রি-ইনস্টলড; ANDROID_HOME=/usr/local/lib/android/sdk গ্রেডল নিজে খুঁজে নেয়
+
+      - name: 🔑 রিলিজ-কী (সিক্রেট থেকে) — সিক্রেট না থাকলে নির্দেশনা দেখাও
+        run: |
+          if [ -z "$KEYSTORE_B64" ]; then
+            echo "::error::❌ রিপো-সিক্রেট 'TWA_KEYSTORE_B64' নেই! Settings → Secrets and variables → Actions → New repository secret-এ গাইডের দুই সিক্রেট বসান।"
+            exit 1
+          fi
+          mkdir -p android-twa/app
+          echo "$KEYSTORE_B64" | base64 -d > android-twa/app/gobra-release.keystore
+        env:
+          KEYSTORE_B64: ${{ secrets.TWA_KEYSTORE_B64 }}
+
+      - name: 🏗️ Gradle বিল্ড
+        env:
+          ANDROID_HOME: /usr/local/lib/android/sdk
+          ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
+        run: |
+          cd android-twa
+          gradle wrapper --gradle-version 8.9 --distribution-type bin
+          ./gradlew --no-daemon :app:assembleRelease \
+            -Pandroid.injected.signing.store.file=$PWD/app/gobra-release.keystore \
+            -Pandroid.injected.signing.store.password=${{ secrets.TWA_KEYSTORE_PASSWORD }} \
+            -Pandroid.injected.signing.key.alias=gobra \
+            -Pandroid.injected.signing.key.password=${{ secrets.TWA_KEYSTORE_PASSWORD }}
+
+      - name: 📤 APK আপলোড (Artifacts)
+        uses: actions/upload-artifact@v4
+        with:
+          name: gobra-cash-apk
+          path: android-twa/app/build/outputs/apk/release/app-release.apk
+          retention-days: 90
+
+      - name: 🚀 Release-এ APK (স্থায়ী ডাউনলোড-লিংক)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: apk-latest
+          name: Gobra BKF Cash — Android App
+          body: |
+            📱 **Gobra BKF Cash — Android অ্যাপ (ওয়েব-ভার্সন আবৃত)**
+            - ওয়েব-অ্যাপ আপডেট হলে অ্যাপও আপডেট হয় সঙ্গে সঙ্গে — নতুন APK লাগে না
+            - ইনস্টল: নিচের `app-release.apk` ডাউনলোড → ফোনে চাপুন → "অজানা উৎস" অনুমতি → ইনস্টল
+          files: android-twa/app/build/outputs/apk/release/app-release.apk
+          make_latest: true
+          token: ${{ secrets.TWA_RELEASE_TOKEN || secrets.GITHUB_TOKEN }}

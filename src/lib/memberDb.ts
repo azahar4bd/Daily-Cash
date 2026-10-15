@@ -259,11 +259,12 @@ export function parseMemberText(text: string): { members: Member[]; skipped: num
 }
 
 /** আমদানি করা মেম্বারগুলো বিদ্যমান ডাটাবেজের সাথে মার্জ করে */
-export function importMembers(incoming: Member[]): { added: number; updated: number; total: number } {
+export function importMembers(incoming: Member[]): { added: number; updated: number; total: number; addedCodes: string[] } {
   const list = getMembers();
   const index = new Map(list.map((m, i) => [normCode(m.memberCode), i]));
   let added = 0;
   let updated = 0;
+  const addedCodes: string[] = [];
 
   for (const m of incoming) {
     const key = normCode(m.memberCode);
@@ -272,6 +273,7 @@ export function importMembers(incoming: Member[]): { added: number; updated: num
     if (at === undefined) {
       list.push({ ...m, source: "db", updatedAt: new Date().toISOString() });
       index.set(key, list.length - 1);
+      addedCodes.push(m.memberCode);
       added++;
     } else {
       const prev = list[at];
@@ -291,7 +293,7 @@ export function importMembers(incoming: Member[]): { added: number; updated: num
   persist(list);
   // ☁️ আমদানি করা পুরো ডাটাবেজ ক্লাউডেও উঠবে
   markCloudDirty();
-  return { added, updated, total: list.length };
+  return { added, updated, total: list.length, addedCodes };
 }
 
 /** CSV আকারে এক্সপোর্ট (ব্যাকআপ) */
@@ -325,4 +327,152 @@ export function searchMembers(q: string, limit = 300): Member[] {
       );
     })
     .slice(0, limit);
+}
+
+/* ───────────────────── আপলোড-হিস্টোরি (রিপোর্ট/CSV দিয়ে আপডেট) ───────────────────── */
+
+export type MemberUploadRecord = {
+  id: string;
+  at: string; // ISO
+  fileName: string;
+  added: number;
+  updated: number;
+  skipped: number;
+  total: number;
+  centres?: number;
+  format: "report" | "csv";
+  /** এই আপলোডে নতুন বসে যাওয়া মেম্বার-কোড — ↩️ ফেরত নেওয়ার জন্য (ফেরত হলে খালি হয়) */
+  addedCodes?: string[];
+  /** ↩️ ফেরত নেওয়া হয়েছে কি না — হলে সময় */
+  undoneAt?: string;
+  /** ফেরত নেওয়ায় কতজন সরল */
+  removed?: number;
+};
+
+const MEMBER_UPLOAD_HISTORY_KEY = "gobra_member_upload_history";
+/** অ্যাপ নিজেই পুরনোগুলো পরিষ্কার করে — সর্বশেষ ১৫টাই মনে রাখে */
+const UPLOAD_HISTORY_LIMIT = 15;
+
+export function getUploadHistory(): MemberUploadRecord[] {
+  try {
+    const raw = localStorage.getItem(MEMBER_UPLOAD_HISTORY_KEY);
+    if (!raw) return [];
+    const arr = JSON.parse(raw);
+    return Array.isArray(arr) ? (arr.filter((x) => x && typeof x === "object") as MemberUploadRecord[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function addUploadRecord(rec: Omit<MemberUploadRecord, "id" | "at">): void {
+  try {
+    const list = getUploadHistory();
+    list.unshift({
+      ...rec,
+      id: `up_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      at: new Date().toISOString(),
+    });
+    localStorage.setItem(MEMBER_UPLOAD_HISTORY_KEY, JSON.stringify(list.slice(0, UPLOAD_HISTORY_LIMIT)));
+  } catch {}
+}
+
+export function deleteUploadRecord(id: string): void {
+  try {
+    localStorage.setItem(
+      MEMBER_UPLOAD_HISTORY_KEY,
+      JSON.stringify(getUploadHistory().filter((r) => r.id !== id))
+    );
+  } catch {}
+}
+
+/**
+ * ↩️ আপলোড ফেরত নেওয়া (Undo) — ওই আপলোডে "নতুন" বসে যাওয়া মেম্বারগুলোই সরে;
+ * ঝালাই (নাম/সেন্টার আপডেট) হওয়া পুরনো মেম্বার একদম অক্ষত থাকে।
+ * ক্লাউড ও অন্য ডিভাইস থেকেও সরে (member_del × প্রতিটি + পুরো-তালিকা রিফ্রেশ-দ্বৈত সুরক্ষা)।
+ * ফেরত নেওয়া না হলে/কোড না থাকলে null ফেরত দেয়।
+ */
+export function undoUploadRecord(id: string): { removed: number; total: number } | null {
+  const rec = getUploadHistory().find((r) => r.id === id);
+  if (!rec || rec.undoneAt || !rec.addedCodes || !rec.addedCodes.length) return null;
+
+  const doomed = new Set(rec.addedCodes.map(normalizeMemberCodeForUndo));
+  const before = getMembers();
+  const after = before.filter((m) => !doomed.has(normCode(m.memberCode)));
+  const removed = before.length - after.length;
+
+  persist(after);
+  // ☁️ ক্লাউড/অন্য ডিভাইসে মোছার নির্দেশ (খুব বড় তালিকা হলেও একে এককে — নিরাপদ)
+  for (const m of before) {
+    if (doomed.has(normCode(m.memberCode))) {
+      try { enqueueNeonAction({ type: "member_del", payload: clean(m.memberCode) }); } catch {}
+    }
+  }
+  try { markCloudDirty(); } catch {}
+
+  // রেকর্ডে দাগ — addedCodes খালি, আবার ফেরত নেওয়া যাবে না
+  try {
+    const list = getUploadHistory().map((r) =>
+      r.id === id ? { ...r, undoneAt: new Date().toISOString(), removed, addedCodes: [] } : r
+    );
+    localStorage.setItem(MEMBER_UPLOAD_HISTORY_KEY, JSON.stringify(list.slice(0, UPLOAD_HISTORY_LIMIT)));
+  } catch {}
+  return { removed, total: after.length };
+}
+
+/** আনডু-কোড নরমালাইজ (normCode-এর ওপর চাদর — নামটা পরিষ্কার রাখতে) */
+function normalizeMemberCodeForUndo(v: unknown): string {
+  return normCode(v);
+}
+
+/* ───────────── ক্লাউড-মার্জ (দ্বিমুখী সিঙ্ক — v1.4.158) ───────────── */
+
+/**
+ * মেম্বার ডাটাবেজ: লোকাল ↔ ক্লাউড মার্জ (খাঁটি ফাংশন — কোনো storage छোঁয় না)।
+ * নিয়ম:
+ *  ① দুই দিকেই থাকলে → যেটার updatedAt নতুন সেটা জেতে (নাম/সেন্টার ঝালাই প্রচার)
+ *  ② শুধু ক্লাউডে → লোকালে যোগ (অন্য ডিভাইসের আপলোড পৌঁছে যায় ✓)
+ *  ③ শুধু লোকালে → শেষ-সিঙ্কের পরে যোগ হলে রাখা (পরে আপলোড হবে);
+ *     নইলে ক্লাউডে ডিলিট হয়েছে বুঝে লোকাল থেকেও সরে যায় (ডিলিট প্রচার ✓)
+ *  টাইমস্ট্যাম্প-হীন পুরনো রেকর্ড নিরাপত্তায় "নতুন" ধরা হয় (হারিয়ে যায় না)।
+ */
+export function mergeMemberCloud(
+  local: Member[],
+  cloud: Member[],
+  lastSyncedAt?: string
+): { merged: Member[]; changed: boolean } {
+  const lastSyncT = Date.parse(lastSyncedAt || "") || 0;
+  const cmap = new Map(cloud.map((m) => [normCode(m.memberCode), m]));
+  const seen = new Set<string>();
+  const merged: Member[] = [];
+  let changed = false;
+
+  for (const lm of local) {
+    const key = normCode(lm.memberCode);
+    seen.add(key);
+    const cm = cmap.get(key);
+    if (cm) {
+      const lT = Date.parse(lm.updatedAt || "") || 0;
+      const cT = Date.parse(cm.updatedAt || "") || 0;
+      if (cT > lT) {
+        merged.push(cm);
+        changed = true;
+      } else {
+        merged.push(lm);
+      }
+    } else {
+      const lT = Date.parse(lm.updatedAt || "") || lastSyncT + 1;
+      if (lT > lastSyncT) {
+        merged.push(lm);
+      } else {
+        changed = true; // ক্লাউড-ডিলিট প্রচারিত
+      }
+    }
+  }
+  for (const cm of cloud) {
+    if (!seen.has(normCode(cm.memberCode))) {
+      merged.push(cm);
+      changed = true;
+    }
+  }
+  return { merged, changed };
 }

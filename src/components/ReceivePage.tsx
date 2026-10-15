@@ -811,6 +811,24 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
                 </div>
               )}
 
+              {/* 💵 v1.4.159: Amount ঘর (আগে এডিট-মোডালে ছিলই না!) — ডেনোমিনেশন পপআপ দিয়ে বদলায়; মাইনাস হলে লাল */}
+              <div>
+                <label className="mb-1 block text-xs font-bold text-slate-700">Amount</label>
+                <input
+                  readOnly
+                  value={edit.amount ? fmt(edit.amount) : ""}
+                  placeholder=""
+                  onClick={() => setEditDenomOpen(true)}
+                  onFocus={() => setEditDenomOpen(true)}
+                  title="Amount চাপলে ডেনোমিনেশন পপআপ খুলবে"
+                  className={`w-full h-[42px] rounded-lg border px-3 py-2 text-right font-mono text-lg font-bold transition shadow-2xs ${
+                    (edit.amount || 0) < 0
+                      ? "cursor-pointer border-rose-400 bg-rose-50 text-rose-700 focus:border-rose-500 focus:outline-none hover:bg-rose-100"
+                      : "cursor-pointer border-slate-300 bg-orange-50 focus:border-blue-500 focus:outline-none hover:bg-orange-100/70"
+                  }`}
+                />
+              </div>
+
               <div className="md:col-span-2 relative">
                 <label className="mb-1 block text-xs font-bold text-slate-700">Description <span className="text-[10px] font-black text-amber-600">💡 টাইপ করলেই সাজেশন</span></label>
                 <input

@@ -33,12 +33,14 @@ import {
   upsertCheckEntryInNeon,
   deleteCheckEntryFromNeon,
   fetchMembersFromNeon,
+  fetchMembersStampFromNeon,
   upsertMembersBulkInNeon,
   deleteMemberFromNeon,
   clearMembersInNeon,
 } from "./neon";
 import type { CheckEntry } from "@/types";
 import type { Member } from "./memberDb";
+import { mergeMemberCloud, normCode } from "./memberDb";
 import { ENT_TOMBSTONE_CLOUD_KEY, getEntTombstones, storeEntTombstones, mergeEntEntries } from "./entStore";
 import type {
   Tx,
@@ -452,7 +454,10 @@ async function doSyncAllWithNeon(): Promise<{ success: boolean; message: string 
       console.warn("[neon] চেক এন্ট্রি সিংক ব্যর্থ:", e);
     }
 
-    /* ── 🗄️ মেম্বার ডাটাবেজ (চেক লুকআপ ডাটাবেজ) সিংক ── */
+    /* ── 🗄️ মেম্বার ডাটাবেজ — সম্পূর্ণ দ্বিমুখী সিংক (v1.4.158) ──
+       আগে: শুধু আপলোড, অথবা লোকাল একদম খালি হলেই ডাউনলোড — ফলে অন্য ডিভাইসের
+       CSV-আপলোড কোনোদিনই পৌঁছাত না। এখন: আপলোড → সস্তা স্ট্যাম্প-তুলনা →
+       বদল থাকলেই পূর্ণ-মার্জ (নতুন যোগ/নাম-ঝালাই/ডিলিট প্রচার)। */
     try {
       const rawMem = localStorage.getItem(MEMBER_DB_KEY);
       let localMembers: Member[] = [];
@@ -460,28 +465,64 @@ async function doSyncAllWithNeon(): Promise<{ success: boolean; message: string 
         localMembers = rawMem ? JSON.parse(rawMem) : [];
       } catch {}
 
-      const cloudState = localStorage.getItem(MEMBER_CLOUD_STATE_KEY);
+      const cloudStateRaw = localStorage.getItem(MEMBER_CLOUD_STATE_KEY);
+      let lastSyncedAt = "";
+      let savedStamp = "";
+      try {
+        const cs = cloudStateRaw ? JSON.parse(cloudStateRaw) : {};
+        lastSyncedAt = cs.syncedAt || "";
+        savedStamp = cs.stamp || "";
+      } catch {}
       const dirty = localStorage.getItem(MEMBER_DIRTY_KEY) === "1";
-      if ((dirty || !cloudState) && localMembers.length > 0) {
-        // লোকালে বদলেছে বা কখনো ক্লাউডে ওঠেনি → আপলোড (ব্যাচে)
+
+      // ① লোকালে বদলেছে → আগে আপলোড (আগের মতোই)
+      if (dirty && localMembers.length > 0) {
         const n = await upsertMembersBulkInNeon(localMembers);
         localStorage.removeItem(MEMBER_DIRTY_KEY);
-        localStorage.setItem(
-          MEMBER_CLOUD_STATE_KEY,
-          JSON.stringify({ count: n, syncedAt: new Date().toISOString(), schema: branchSchema() })
-        );
         window.dispatchEvent(
           new CustomEvent("member-cloud-synced", { detail: { count: n, schema: branchSchema() } })
         );
-      } else if (localMembers.length === 0) {
-        // লোকাল খালি (নতুন ডিভাইস/নতুন ইনস্টল) → ক্লাউড থেকে ফিরিয়ে আনা
+      }
+
+      // ② সস্তা স্ট্যাম্প — বদল নেই থাকলে ভারী ফেচ এড়িয়ে যাওয়া
+      const stamp = await fetchMembersStampFromNeon();
+      const stampSig = stamp.ok ? `${stamp.count}|${stamp.maxUpdated}` : "";
+      const needMerge = stamp.ok && (!lastSyncedAt || stampSig !== savedStamp);
+
+      if (needMerge) {
         const cloudMembers = await fetchMembersFromNeon();
-        if (cloudMembers.length > 0) {
-          localStorage.setItem(MEMBER_DB_KEY, JSON.stringify(cloudMembers));
-          window.dispatchEvent(
-            new CustomEvent("member-db-changed", { detail: { count: cloudMembers.length, cloud: true } })
-          );
+        // 🛡️ ফেচ-ব্যর্থতায় লোকাল ধুয়ে যাওয়া রোধ: স্ট্যাম্পে রো আছে অথচ ফেচ ফাঁকা → মার্জ থামো
+        const fetchLooksBroken = cloudMembers.length === 0 && stamp.count > 0;
+        if (!fetchLooksBroken) {
+          const { merged, changed } = mergeMemberCloud(localMembers, cloudMembers, lastSyncedAt);
+          if (changed) {
+            localStorage.setItem(MEMBER_DB_KEY, JSON.stringify(merged));
+            window.dispatchEvent(
+              new CustomEvent("member-db-changed", { detail: { count: merged.length, cloud: true } })
+            );
+          }
+          // ③ লোকালে আছে কিন্তু ক্লাউডে নেই (নতুন যোগ) → পুশ
+          const cloudKeys = new Set(cloudMembers.map((m) => normCode(m.memberCode)));
+          const missing = merged.filter((m) => !cloudKeys.has(normCode(m.memberCode)));
+          if (missing.length > 0) {
+            try {
+              await upsertMembersBulkInNeon(missing);
+            } catch (e) {
+              console.warn("[neon] মেম্বার পুশ-মিসিং ব্যর্থ:", e);
+            }
+          }
         }
+        localStorage.setItem(
+          MEMBER_CLOUD_STATE_KEY,
+          JSON.stringify({
+            count: stamp.ok ? stamp.count : localMembers.length,
+            syncedAt: new Date().toISOString(),
+            stamp: stampSig,
+            schema: branchSchema(),
+          })
+        );
+      } else if (!stamp.ok) {
+        console.warn("[neon] মেম্বার-স্ট্যাম্প নামানো যায়নি — এবারের মার্জ এড়িয়ে যাওয়া হলো");
       }
     } catch (e) {
       console.warn("[neon] মেম্বার ডাটাবেজ সিংক ব্যর্থ:", e);

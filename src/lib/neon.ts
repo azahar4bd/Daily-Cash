@@ -967,6 +967,22 @@ export async function fetchMembersFromNeon(): Promise<Member[]> {
   }
 }
 
+/** মেম্বার-টেবিলের সস্তা "স্ট্যাম্প" — পুরো তালিকা না নামিয়েই বদল আছে কি না বোঝা যায় */
+export async function fetchMembersStampFromNeon(): Promise<{ count: number; maxUpdated: string; ok: boolean }> {
+  try {
+    await ensureBranchSchema();
+    const rows: any = await sql`
+      SELECT COUNT(*)::int AS c, COALESCE(MAX(updated_at)::text, '') AS m
+      FROM ${tbl("members")}
+    `;
+    const r = (rows as any[])?.[0] || {};
+    return { count: Number(r.c || 0), maxUpdated: String(r.m || ""), ok: true };
+  } catch (e) {
+    console.warn("fetchMembersStampFromNeon error:", e);
+    return { count: -1, maxUpdated: "", ok: false };
+  }
+}
+
 /**
  * মেম্বার ডাটাবেজ ব্যাচে আপলোড (এক রিকোয়েস্টে অনেক সারি — দ্রুত ও সাশ্রয়ী)।
  * @returns ক্লাউডে লেখা সারির সংখ্যা

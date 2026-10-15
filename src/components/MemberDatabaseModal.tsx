@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { getMembers, normCode, parseMemberText, importMembers, deleteMember } from "@/lib/memberDb";
-import type { Member } from "@/lib/memberDb";
+import { getMembers, normCode, parseMemberText, importMembers, deleteMember, getUploadHistory, addUploadRecord, deleteUploadRecord, undoUploadRecord } from "@/lib/memberDb";
+import type { Member, MemberUploadRecord } from "@/lib/memberDb";
+import { parseSamityReport } from "@/lib/memberReportCsv";
 
 /**
  * 🗄️ মেম্বার ডাটাবেজ উইন্ডো (পপআপ)
@@ -27,9 +28,34 @@ export default function MemberDatabaseModal({
   const [upDrag, setUpDrag] = useState(false);
   const [upMsg, setUpMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
+  /** v1.4.155: ডাটাবেজ থাকলেও CSV/রিপোর্ট দিয়ে আপডেট-ঘর (ভাঁজ করা যায়) */
+  const [showUpdate, setShowUpdate] = useState(false);
+  /** v1.4.157: ডুপ্লিকেট-মার্ক + নির্বাচন(মার্ক) মোড + ইনফিনিট-স্ক্রল + বড় উইন্ডো */
+  const [dupeMode, setDupeMode] = useState(false);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set<string>());
 
   /** ডাটাবেজ একবারই পড়া হবে (৪,৭০০+ রো — বার বার পড়লে ধীর হবে) */
   const members = useMemo<Member[]>(() => (open ? getMembers() : []), [open, reloadKey]);
+
+  /** আপলোড-হিস্টোরি (রিলোড-কী বদলালে নতুন করে পড়া হয়) */
+  const upHistory = useMemo<MemberUploadRecord[]>(() => (open ? getUploadHistory() : []), [open, reloadKey]);
+
+  /** 🔁 ডুপ্লিকেট শনাক্তকরণ — একই নাম+সেন্টার ২জন+ হলে "ডুপ্লিকেট" মার্ক (নিজে কিছু মুছে না) */
+  const dupeInfo = useMemo(() => {
+    const key = (m: Member) => `${normCode(m.memberName)}|${normCode(m.centreCode)}`;
+    const cnt = new Map<string, number>();
+    for (const m of members) cnt.set(key(m), (cnt.get(key(m)) || 0) + 1);
+    const groups = new Set<string>();
+    const rows = members.filter((m) => {
+      if ((cnt.get(key(m)) || 0) > 1) {
+        groups.add(key(m));
+        return true;
+      }
+      return false;
+    });
+    return { rows, groups: groups.size };
+  }, [members]);
 
   /** সফল বার্তা কিছুক্ষণ পর নিজে থেকেই সরে যাবে */
   useEffect(() => {
@@ -58,9 +84,12 @@ export default function MemberDatabaseModal({
   }, [open]);
 
   /**
-   * 📤 CSV আপলোড — বাকি সব নিজে থেকেই হয়:
-   * ফাইল পড়া → কলাম শনাক্ত → ডুপ্লিকেট বাদ (মেম্বার কোড অনুযায়ী) → ডাটাবেজে বসানো
-   * → ক্লাউডে (এই অফিসের নিজের ঘরে) সংরক্ষণ। একবার ডাটাবেজ থাকলে এই ঘর আর দেখায় না।
+   * 📤 CSV/রিপোর্ট আপলোড — বাকি সব নিজে থেকেই হয়:
+   * ① আগে স্যামিটি-রিপোর্ট ফরমেট চেনার চেষ্টা (MIS-এর মাসিক রিপোর্ট,
+   *    "Samity: 0001, ..." সহ) → মেম্বার কোড/নাম/সেন্টার নিজে বের হয়
+   * ② না মিললে সাধারণ CSV-পার্সার (Member Code, Member Name, Centre Code, Centre Name)
+   * দুটোতেই: আগে থেকে থাকা কোড বাদ (নাম/সেন্টার ঝালাই হয়), নতুন মেম্বারই বসে;
+   * আপলোড-হিস্টোরিতে রেকর্ড থাকে (মোছা যায়; ১৫টির বেশি হলে পুরনোগুলো নিজেই মুছে যায়)।
    */
   const handleFiles = async (files: FileList | null) => {
     const f = files && files[0] ? files[0] : null;
@@ -69,15 +98,55 @@ export default function MemberDatabaseModal({
     setUpMsg(null);
     try {
       const text = await f.text();
+
+      // ① স্যামিটি-রিপোর্ট ফরমেট?
+      const report = parseSamityReport(text);
+      if (report) {
+        if (!report.members.length) {
+          setUpMsg({
+            ok: false,
+            text: "ফাইলটা স্যামিটি-রিপোর্টের মতো মনে হচ্ছে, কিন্তু কোনো মেম্বার-সারি পাওয়া যায়নি — ফাইলটি ঠিক আছে কি না দেখুন।",
+          });
+          return;
+        }
+        const res = importMembers(report.members);
+        addUploadRecord({
+          fileName: f.name,
+          added: res.added,
+          updated: res.updated,
+          skipped: report.skipped,
+          total: res.total,
+          centres: report.centres.length,
+          format: "report",
+          addedCodes: res.addedCodes,
+        });
+        setUpMsg({
+          ok: true,
+          text: `✓ স্যামিটি-রিপোর্ট পড়ে গেছে — ${report.centres.length.toLocaleString("en-IN")}টি সেন্টার থেকে নতুন ${res.added.toLocaleString("en-IN")} জন বসেছে, ${res.updated.toLocaleString("en-IN")} জনের নাম/সেন্টার ঝালাই হয়েছে (বাদ/ডুপ্লিকেট ${report.skipped.toLocaleString("en-IN")})। মোট ${res.total.toLocaleString("en-IN")} জন — ক্লাউডে সংরক্ষণ হচ্ছে…`,
+        });
+        setReloadKey((k) => k + 1);
+        return;
+      }
+
+      // ② সাধারণ CSV ফরমেট
       const { members: parsed, skipped } = parseMemberText(text);
       if (!parsed.length) {
         setUpMsg({
           ok: false,
-          text: "ফাইলে কোনো মেম্বার পাওয়া যায়নি। কলাম ঠিক আছে কি না দেখুন — Member Code, Member Name, Centre Code, Centre Name (হেডার না থাকলেও এই ক্রমেই পড়বে)।",
+          text: "ফাইলে কোনো মেম্বার পাওয়া যায়নি। কলাম ঠিক আছে কি না দেখুন — Member Code, Member Name, Centre Code, Centre Name (হেডার না থাকলেও এই ক্রমেই পড়বে)। অথবা MIS-এর মাসিক স্যামিটি-রিপোর্ট সরাসরি দিন।",
         });
         return;
       }
       const res = importMembers(parsed);
+      addUploadRecord({
+        fileName: f.name,
+        added: res.added,
+        updated: res.updated,
+        skipped,
+        total: res.total,
+        format: "csv",
+        addedCodes: res.addedCodes,
+      });
       setUpMsg({
         ok: true,
         text: `✓ ${res.total.toLocaleString("en-IN")} জন মেম্বার ডাটাবেজে বসে গেছে (নতুন ${res.added.toLocaleString("en-IN")}, আপডেট ${res.updated.toLocaleString("en-IN")}${skipped ? `, বাদ পড়েছে ${skipped.toLocaleString("en-IN")}` : ""})। ক্লাউডে সংরক্ষণ হচ্ছে…`,
@@ -94,7 +163,10 @@ export default function MemberDatabaseModal({
   useEffect(() => {
     if (!open) return;
     setQuery("");
-    setLimit(50);
+    setLimit(200);
+    setSelected(new Set<string>());
+    setSelectMode(false);
+    setDupeMode(false);
     const t = window.setTimeout(() => searchRef.current?.focus(), 60);
     return () => window.clearTimeout(t);
   }, [open]);
@@ -109,21 +181,21 @@ export default function MemberDatabaseModal({
   }, [open, onClose]);
 
   const matches = useMemo<Member[]>(() => {
+    const base = dupeMode ? dupeInfo.rows : members;
     const q = query.trim().toLowerCase();
-    if (!q) return members;
+    if (!q) return base;
     const nq = normCode(query);
-    return members.filter((m) => {
+    return base.filter((m) => {
       if (nq && normCode(m.memberCode).includes(nq)) return true;
       if (nq && normCode(m.centreCode).includes(nq)) return true;
       if (nq && m.checkNo && normCode(m.checkNo).includes(nq)) return true;
       if ((m.memberName || "").toLowerCase().includes(q)) return true;
       if ((m.centreName || "").toLowerCase().includes(q)) return true;
-      if ((m.bankName || "").toLowerCase().includes(q)) return true;
       return false;
     });
-  }, [members, query]);
+  }, [members, query, dupeMode, dupeInfo]);
 
-  useEffect(() => setLimit(50), [query]);
+  useEffect(() => setLimit(200), [query, dupeMode]);
 
   if (!open) return null;
 
@@ -131,7 +203,7 @@ export default function MemberDatabaseModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/70 p-3 backdrop-blur-xs animate-in fade-in duration-150">
-      <div className="flex h-[88vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+      <div className="flex h-[94vh] w-[96vw] max-w-5xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
         {/* ── Header ── */}
         <div className="flex items-center justify-between gap-2 border-b border-indigo-200 bg-linear-to-r from-indigo-600 to-blue-600 px-4 py-3 text-white">
           <div className="flex items-center gap-2.5">
@@ -149,6 +221,20 @@ export default function MemberDatabaseModal({
               </p>
             </div>
           </div>
+          {members.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setShowUpdate((s) => !s)}
+              title="মাসিক রিপোর্ট/CSV দিয়ে ডাটাবেজ আপডেট করুন"
+              className={`shrink-0 rounded-full px-3 py-1.5 text-[11px] font-black transition cursor-pointer ${
+                showUpdate
+                  ? "bg-amber-300 text-slate-900 hover:bg-amber-200"
+                  : "bg-white/15 text-white hover:bg-white/25"
+              }`}
+            >
+              {showUpdate ? "✕ আপডেট ঘর" : "📤 আপডেট"}
+            </button>
+          )}
           <button
             type="button"
             onClick={onClose}
@@ -198,11 +284,162 @@ export default function MemberDatabaseModal({
                 <>সব মেম্বার — খুঁজতে উপরে লিখুন</>
               )}
             </span>
-            <span className="text-[10px] font-semibold text-slate-400">
+            <span className="flex flex-wrap items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => setDupeMode((d) => !d)}
+              title="একই নাম+সেন্টারে ২জন+ আছে এমন সারিগুলোই দেখাবে"
+              className={`rounded-full px-2.5 py-1 text-[10px] font-black transition cursor-pointer ${
+                dupeMode
+                  ? "bg-amber-500 text-white shadow hover:bg-amber-600"
+                  : "bg-amber-100 text-amber-800 hover:bg-amber-200"
+              }`}
+            >
+              🔁 ডুপ্লিকেট{dupeMode ? ` — ${dupeInfo.rows.length.toLocaleString("en-IN")}টি (${dupeInfo.groups.toLocaleString("en-IN")} গ্রুপ) ✕` : " খুঁজুন"}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setSelectMode((v) => !v);
+                setSelected(new Set<string>());
+              }}
+              title="সারি মার্ক (টিক) করে একসাথে মোছার মোড"
+              className={`rounded-full px-2.5 py-1 text-[10px] font-black transition cursor-pointer ${
+                selectMode
+                  ? "bg-indigo-600 text-white shadow hover:bg-indigo-700"
+                  : "bg-indigo-100 text-indigo-800 hover:bg-indigo-200"
+              }`}
+            >
+              {selectMode ? "✕ নির্বাচন বন্ধ" : "☑️ নির্বাচন"}
+            </button>
+          </span>
+          <span className="text-[10px] font-semibold text-slate-400">
               যেকোনো সারিতে ট্যাপ করলে কোডটি ফর্মে বসে যাবে
             </span>
           </div>
         </div>
+
+        {/* ── v1.4.155: সবসময়ের আপডেট-ঘর (ডাটাবেজ থাকলেও মাসিক রিপোর্ট দিয়ে আপডেট) ── */}
+        {showUpdate && members.length > 0 && (
+          <div className="border-b border-indigo-100 bg-linear-to-b from-indigo-50/80 to-white px-4 py-3">
+            <div
+              onDragOver={(e) => {
+                e.preventDefault();
+                setUpDrag(true);
+              }}
+              onDragLeave={() => setUpDrag(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setUpDrag(false);
+                handleFiles(e.dataTransfer.files);
+              }}
+              className={`rounded-xl border-2 border-dashed px-4 py-3 text-center transition ${
+                upDrag ? "border-indigo-500 bg-indigo-100" : "border-indigo-300 bg-indigo-50/50"
+              }`}
+            >
+              <p className="text-xs font-black text-indigo-950">
+                📤 মাসিক স্যামিটি-রিপোর্ট বা CSV ফাইল দিন
+              </p>
+              <p className="mx-auto mt-1 max-w-lg text-[10px] font-semibold leading-relaxed text-slate-600">
+                MIS-এর মাসিক রিপোর্ট (<span className="font-mono">Samity: …</span> ফরমেট) দিলেই অ্যাপ
+                নিজে মেম্বার-কোড, নাম ও সেন্টার চিনে <b>যা ডাটাবেজে নেই তাই যোগ</b> করবে — পুরনো ডেটা
+                অক্ষত থাকে, নাম/সেন্টার বদলালে ঝালাই হয়। ফাইল এখানে টেনে ছাড়ুন বা বোতাম চাপুন।
+              </p>
+              <input
+                ref={fileRef}
+                type="file"
+                accept=".csv,.txt,text/csv,text/plain"
+                onChange={(e) => handleFiles(e.target.files)}
+                className="hidden"
+              />
+              <button
+                type="button"
+                disabled={upBusy}
+                onClick={() => fileRef.current?.click()}
+                className="mt-2 rounded-xl bg-linear-to-r from-indigo-600 to-blue-600 px-4 py-2 text-[11px] font-black text-white shadow-md transition hover:from-indigo-700 hover:to-blue-700 disabled:opacity-50 cursor-pointer"
+              >
+                {upBusy ? "⏳ ফাইল পড়া হচ্ছে…" : "📁 ফাইল বেছে নিন"}
+              </button>
+            </div>
+
+            {upHistory.length > 0 && (
+              <div className="mt-2.5 overflow-hidden rounded-xl border border-slate-200 bg-white">
+                <div className="flex items-center justify-between gap-2 border-b border-slate-100 bg-slate-50 px-3 py-1.5">
+                  <span className="text-[10px] font-black text-slate-700">📜 আপলোড-হিস্টোরি</span>
+                  <span className="text-[9px] font-bold text-slate-400">
+                    সর্বশেষ ১৫টি থাকে, পুরনোগুলো নিজেই মুছে যায়
+                  </span>
+                </div>
+                <ul className="max-h-36 divide-y divide-slate-100 overflow-auto">
+                  {upHistory.map((r) => (
+                    <li key={r.id} className="flex items-center justify-between gap-2 px-3 py-1.5">
+                      <div className="min-w-0">
+                        <p className="truncate text-[11px] font-black text-slate-800">
+                          {r.format === "report" ? "📊" : "🗂️"} {r.fileName}
+                        </p>
+                        <p className="text-[10px] font-semibold text-slate-500">
+                          {new Date(r.at).toLocaleString("bn-BD", {
+                            dateStyle: "medium",
+                            timeStyle: "short",
+                          })}
+                          {" — "}নতুন <span className="font-black text-emerald-700">{r.added}</span>,
+                          ঝালাই <span className="font-black text-sky-700">{r.updated}</span>
+                          {typeof r.centres === "number" ? `, সেন্টার ${r.centres}` : ""}
+                        </p>
+                      </div>
+                      {r.undoneAt ? (
+                        <span className="shrink-0 rounded-lg bg-slate-100 px-2 py-1 text-[9px] font-black text-slate-500">
+                          ↩️ ফেরত নেওয়া{typeof r.removed === "number" ? ` (−${r.removed})` : ""}
+                        </span>
+                      ) : r.addedCodes && r.addedCodes.length > 0 ? (
+                        <button
+                          type="button"
+                          title="এই আপলোডের নতুন মেম্বাররা ডাটাবেজ থেকে সরে যাবে — ঝালাই হওয়া পুরনোরা অক্ষত"
+                          onClick={() => {
+                            if (
+                              confirm(
+                                `↩️ এই আপলোড ফেরত নেবেন?\n\nএই ফাইল দিয়ে নতুন বসে যাওয়া ${r.added} জন মেম্বার ডাটাবেজ থেকে সরে যাবে (এই অ্যাপের সব ডিভাইস ও ক্লাউড থেকে)।\n\nনাম/সেন্টার ঝালাই হওয়া পুরনো মেম্বার একদম অক্ষত থাকবে।`
+                              )
+                            ) {
+                              const out = undoUploadRecord(r.id);
+                              setReloadKey((k) => k + 1);
+                              if (out) {
+                                setUpMsg({
+                                  ok: true,
+                                  text: `↩️ ফেরত নেওয়া হয়েছে — ${out.removed.toLocaleString("en-IN")} জন মেম্বার সরে গেছে, এখন মোট ${out.total.toLocaleString("en-IN")} জন। ক্লাউডেও কাটছাঁট হচ্ছে…`,
+                                });
+                              }
+                            }
+                          }}
+                          className="shrink-0 rounded-lg px-2 py-1 text-xs text-amber-600 transition hover:bg-amber-50 hover:text-amber-700 cursor-pointer"
+                        >
+                          ↩️
+                        </button>
+                      ) : null}
+                      <button
+                        type="button"
+                        title="এই রেকর্ডটি মুছুন — ডাটাবেজের মেম্বার অক্ষত থাকবে"
+                        onClick={() => {
+                          if (
+                            confirm(
+                              "শুধু এই রেকর্ডটি মুছে যাবে — ডাটাবেজে বসে যাওয়া মেম্বাররা অক্ষত থাকবে। মুছে ফেলবেন?"
+                            )
+                          ) {
+                            deleteUploadRecord(r.id);
+                            setReloadKey((k) => k + 1);
+                          }
+                        }}
+                        className="shrink-0 rounded-lg px-2 py-1 text-xs text-rose-500 transition hover:bg-rose-50 hover:text-rose-700 cursor-pointer"
+                      >
+                        🗑️
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* ── আপলোডের ফল (ঘর বদলে গেলেও বার্তা থেকে যাবে) ── */}
         {upMsg && (
@@ -228,7 +465,15 @@ export default function MemberDatabaseModal({
         )}
 
         {/* ── Results ── */}
-        <div className="flex-1 overflow-auto">
+        <div
+          className="flex-1 overflow-auto"
+          onScroll={(e) => {
+            const el = e.currentTarget;
+            if (el.scrollTop + el.clientHeight >= el.scrollHeight - 300) {
+              setLimit((l) => l + 200);
+            }
+          }}
+        >
           {members.length === 0 ? (
             /* 📤 এই অফিসের ডাটাবেজ এখনো খালি → CSV আপলোড ঘর (একবার আপলোড হলে আর দেখাবে না) */
             <div className="px-4 py-8">
@@ -278,9 +523,10 @@ export default function MemberDatabaseModal({
                 </p>
 
                 <div className="mx-auto mt-3 max-w-md rounded-xl border border-slate-200 bg-white px-3 py-2 text-left text-[10px] font-semibold leading-relaxed text-slate-500">
-                  কলাম থাকলে ভালো: <span className="font-mono">Member Code, Member Name, Centre
-                  Code, Centre Name, Bank Name, Check No</span> — হেডার ছাড়া CSV হলেও চলবে
-                  (এই ক্রমেই পড়বে)। কমা / ট্যাব / সেমিকোলন — তিনভাবেই চলে।
+                  MIS-এর মাসিক স্যামিটি-রিপোর্ট (<span className="font-mono">Samity: …</span> ফরমেট)
+                  সরাসরি দিলেই চলবে — অ্যাপ নিজেই মেম্বার-কোড, নাম ও সেন্টার বের করবে। সাধারণ CSV-ও
+                  চলে: <span className="font-mono">Member Code, Member Name, Centre Code, Centre
+                  Name, Bank Name, Check No</span> (হেডার ছাড়াও এই ক্রমে)।
                 </div>
 
                 <p className="mt-2 text-[10px] font-black text-amber-700">
@@ -300,9 +546,39 @@ export default function MemberDatabaseModal({
             <ul className="divide-y divide-slate-200">
               {shown.map((m, i) => (
                 <li key={`${m.memberCode}-${i}`} className="flex items-stretch">
+                  {selectMode && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelected((prev) => {
+                          const nx = new Set(prev);
+                          if (nx.has(m.memberCode)) nx.delete(m.memberCode);
+                          else nx.add(m.memberCode);
+                          return nx;
+                        });
+                      }}
+                      title={selected.has(m.memberCode) ? "নির্বাচন তুলুন" : "নির্বাচন করুন"}
+                      className={`shrink-0 border-r px-3 text-base transition cursor-pointer ${
+                        selected.has(m.memberCode)
+                          ? "border-indigo-300 bg-indigo-600 text-white"
+                          : "border-slate-200 bg-slate-100 text-slate-400 hover:bg-slate-200"
+                      }`}
+                    >
+                      {selected.has(m.memberCode) ? "☑️" : "⬜"}
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => {
+                      if (selectMode) {
+                        setSelected((prev) => {
+                          const nx = new Set(prev);
+                          if (nx.has(m.memberCode)) nx.delete(m.memberCode);
+                          else nx.add(m.memberCode);
+                          return nx;
+                        });
+                        return;
+                      }
                       if (onPick) onPick(m);
                       onClose();
                     }}
@@ -318,6 +594,11 @@ export default function MemberDatabaseModal({
                       <span className="text-sm font-bold text-slate-900">
                         {m.memberName || "—"}
                       </span>
+                      {dupeMode && (
+                        <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[9px] font-black text-amber-800 ring-1 ring-amber-300">
+                          ডুপ্লিকেট
+                        </span>
+                      )}
                       <span className="ml-auto flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] font-bold text-slate-600">
                         <span className="rounded bg-slate-100 px-1.5 py-0.5 font-mono">
                           {m.centreCode || "—"}
@@ -354,21 +635,55 @@ export default function MemberDatabaseModal({
           )}
 
           {matches.length > shown.length && (
-            <div className="p-3 text-center">
-              <button
-                type="button"
-                onClick={() => setLimit((l) => l + 100)}
-                className="rounded-xl border border-indigo-300 bg-indigo-50 px-4 py-2 text-xs font-black text-indigo-700 transition hover:bg-indigo-100 cursor-pointer"
-              >
-                আরও দেখান (বাকি{" "}
-                <span className="font-mono">
-                  {(matches.length - shown.length).toLocaleString("en-IN")}
-                </span>{" "}
-                টি)
-              </button>
+            <div className="p-3 text-center text-[10px] font-bold text-slate-400">
+              ↓ নিচে স্ক্রল করলেই পরেরগুলো নিজে থেকে আসবে…
             </div>
           )}
         </div>
+
+        {/* ── ☑️ নির্বাচন-অ্যাকশন-বার ── */}
+        {selectMode && selected.size > 0 && (
+          <div className="flex items-center justify-between gap-2 border-t border-indigo-200 bg-indigo-50 px-4 py-2">
+            <span className="text-[11px] font-black text-indigo-900">
+              ☑️ {selected.size.toLocaleString("en-IN")} জন নির্বাচিত
+            </span>
+            <span className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setSelected(new Set<string>())}
+                className="rounded-lg bg-slate-200 px-3 py-1.5 text-[10px] font-black text-slate-700 transition hover:bg-slate-300 cursor-pointer"
+              >
+                নির্বাচন মুছুন
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const codes = Array.from(selected) as string[];
+                  if (
+                    !confirm(
+                      `🗑️ নির্বাচিত ${codes.length} জন মেম্বার স্থায়ীভাবে মুছে ফেলবেন?\n\n(সব ডিভাইস ও ক্লাউড থেকে মুছে যাবে; ভুল হলে পরের রিপোর্ট-আপডেটে প্রয়োজনীয় মেম্বার ফিরে আসবে)`
+                    )
+                  )
+                    return;
+                  for (const c of codes) {
+                    try {
+                      deleteMember(c);
+                    } catch {}
+                  }
+                  setSelected(new Set<string>());
+                  setReloadKey((k) => k + 1);
+                  setUpMsg({
+                    ok: true,
+                    text: `🗑️ নির্বাচিত ${codes.length.toLocaleString("en-IN")} জন মেম্বার মুছে ফেলা হয়েছে — ক্লাউডেও কাটছাঁট হবে।`,
+                  });
+                }}
+                className="rounded-lg bg-rose-600 px-3 py-1.5 text-[10px] font-black text-white shadow transition hover:bg-rose-700 cursor-pointer"
+              >
+                🗑️ মুছে ফেলুন
+              </button>
+            </span>
+          </div>
+        )}
 
         {/* ── Footer ── */}
         <div className="flex items-center justify-between gap-2 border-t border-slate-200 bg-slate-50 px-4 py-3">
