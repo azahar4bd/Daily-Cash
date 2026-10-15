@@ -623,6 +623,7 @@ export default function PaymentPage({ selectedDate }: { selectedDate: string }) 
             <SearchSelect
               value={filterCategory}
               onChange={(v) => setFilterCategory(v)}
+              noKeyboardOnMobile
               options={[
                 { value: "all", label: `All Categories (${rows.length})` },
                 ...uniqueCategories.map((cat) => ({ value: cat, label: titleCase(cat) })),

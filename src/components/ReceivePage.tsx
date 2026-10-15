@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import ReceiveCategoryDropdown from "./ReceiveCategoryDropdown";
 import DatePicker from "./DatePicker";
 import SearchSelect from "./SearchSelect";
-import DenominationPopup, { fmt } from "./DenominationPopup";
+import { fmt } from "./DenominationPopup";
+import PaymentDenominationModal from "./PaymentDenominationModal"; // 💰 v1.4.160: পেমেন্ট-আদলের (নোট/Qty/Credit/Debit) উইন্ডো
 import ReportDenominationModal from "./ReportDenominationModal";
 import CategoryManager from "./CategoryManager";
 import PaymentCategoryManager from "./PaymentCategoryManager";
@@ -508,13 +509,14 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
         </div>
         {msg && <p className="mt-2 text-xs font-bold text-emerald-700">{msg}</p>}
 
-        <DenominationPopup
+        {/* 💰 v1.4.160: পেমেন্ট পেজের হুবহু Denomination উইন্ডো (নোট/Qty/Credit/Debit) — Apply-এ মোট Amount-এ বসে */}
+        <PaymentDenominationModal
           open={denomOpen}
-          initial={form.denomination}
-          initialOther={form.otherAmount}
           onClose={() => setDenomOpen(false)}
-          onDone={(d, other, total) => {
-            setForm({ ...form, denomination: d, otherAmount: other, amount: total });
+          targetAmount={form.amount || 0}
+          date={form.txDate || selectedDate}
+          onApplyAmount={(amt) => {
+            setForm({ ...form, amount: Math.round(amt), denomination: {}, otherAmount: 0 });
             setDenomOpen(false);
           }}
         />
@@ -559,6 +561,7 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
             <SearchSelect
               value={filterCategory}
               onChange={(v) => setFilterCategory(v)}
+              noKeyboardOnMobile
               options={[
                 { value: "all", label: `All Categories (${rows.length})` },
                 ...uniqueCategories.map((cat) => ({ value: cat, label: titleCase(cat) })),
@@ -886,13 +889,14 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
                 </button>
               </div>
             </div>
-            <DenominationPopup
+            {/* 💰 v1.4.160: এডিটেও পেমেন্ট-আদলের একই উইন্ডো */}
+            <PaymentDenominationModal
               open={editDenomOpen}
-              initial={edit.denomination}
-              initialOther={edit.otherAmount}
               onClose={() => setEditDenomOpen(false)}
-              onDone={(d, other, total) => {
-                setEdit({ ...edit, denomination: d, otherAmount: other, amount: total });
+              targetAmount={edit.amount || 0}
+              date={edit.txDate}
+              onApplyAmount={(amt) => {
+                setEdit({ ...edit, amount: Math.round(amt), denomination: {}, otherAmount: 0 });
                 setEditDenomOpen(false);
               }}
             />
