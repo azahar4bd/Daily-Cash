@@ -146,7 +146,7 @@ export default function App() {
   };
 
   return (
-    <div className="app-bg min-h-screen text-slate-900 font-sans antialiased pb-20 lg:pb-4 lg:pl-60 print:p-0 print:m-0 print:pl-0 print:pb-0 print:bg-white">
+    <div className="app-bg min-h-screen text-slate-900 font-sans antialiased pb-16 lg:pb-4  // v1.4.162: ফ্লোটিং-মেনুস্থলে বার নেই — প্যাডিং কিছুটা সরহ lg:pl-60 print:p-0 print:m-0 print:pl-0 print:pb-0 print:bg-white">
       {/* 🔔 (admin) লগইন-অনুমতি কেন্দ্র — সার্ভার-অ্যাডমিন হলে ভাসমান ঘণ্টা */}
       <AdminApprovals />
       {/* Main Container */}
