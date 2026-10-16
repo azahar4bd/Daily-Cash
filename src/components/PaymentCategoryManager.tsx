@@ -24,11 +24,11 @@ export default function PaymentCategoryManager({
 
   const add = () => {
     if (!newName.trim()) return;
-    const clean = newName.trim().toLowerCase();
-    if (currentCats.some((c) => c.name.toLowerCase() === clean)) {
+    const typed = newName.trim(); // 🔤 v1.4.164: ইউজার যেমন লিখল (MFCE) তেমনই থাক — মিল-তুলনা ছোট-হাতেই
+    if (currentCats.some((c) => c.name.toLowerCase() === typed.toLowerCase())) {
       return setErr("Already exists");
     }
-    addCategory(activeTab, clean);
+    addCategory(activeTab, typed);
     setErr("");
     setNewName("");
     onChanged();

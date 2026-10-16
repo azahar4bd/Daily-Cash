@@ -482,7 +482,7 @@ export function getCategories(type: string): Cat[] {
 export function addCategory(type: string, name: string): Cat {
   const raw = localStorage.getItem(CAT_KEY);
   const all: Cat[] = raw ? JSON.parse(raw) : [];
-  const clean = name.trim().toLowerCase();
+  const clean = name.trim(); // 🔤 v1.4.164: টাইপ-কেস সংরক্ষণ (MFCE আর mfce হবে না!) — সব তুলনা case-insensitive
   const maxSo = all
     .filter((c) => c.type === type)
     .reduce((m, c) => Math.max(m, c.sortOrder ?? 0), 0);
@@ -499,7 +499,7 @@ export function updateCategory(id: number, name: string): void {
   const all: Cat[] = raw ? JSON.parse(raw) : [];
   const item = all.find((c) => c.id === id);
   if (item) {
-    item.name = name.trim().toLowerCase();
+    item.name = name.trim(); // 🔤 v1.4.164: এডিটেও কেস সংরক্ষণ
     localStorage.setItem(CAT_KEY, JSON.stringify(all));
     enqueueNeonAction({ type: "cat", payload: item });
     window.dispatchEvent(

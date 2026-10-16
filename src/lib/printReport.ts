@@ -59,6 +59,70 @@ export function printSection(
   w.document.close();
 }
 
+/**
+ * 🖨️ v1.4.164: এক বাটনে সব রিপোর্ট-সেকশন একসাথে (এক A4 পাতায় ধরানোর লক্ষ্যে কমপ্যাক্ট)
+ * প্রতিটি সেকশনের ঘসে ছোট হেডিং বসে; টেবিল ভাঙা এড়ানোর চেষ্টা page-break-avoid।
+ */
+export function printCombined(
+  sections: { el: HTMLElement | null; heading: string }[],
+  opts: { title: string; subtitle?: string; landscape?: boolean }
+): void {
+  const blocks = sections
+    .map((sec) => {
+      if (!sec.el) return "";
+      const clone = sec.el.cloneNode(true) as HTMLElement;
+      const srcFields = sec.el.querySelectorAll("input, select, textarea");
+      const cloneFields = clone.querySelectorAll("input, select, textarea");
+      srcFields.forEach((inp, i) => {
+        const target = cloneFields[i] as HTMLElement | undefined;
+        if (!target) return;
+        const span = document.createElement("span");
+        span.style.fontWeight = "600";
+        span.textContent = (inp as HTMLInputElement).value ?? "";
+        target.replaceWith(span);
+      });
+      return `<h3 class="sec-h">${escapeHtml(sec.heading)}</h3>
+${clone.outerHTML}`;
+    })
+    .join("\n");
+
+  const html = `<!doctype html>
+<html lang="bn"><head><meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>${escapeHtml(opts.title)}</title>
+<style>
+  @page { size: A4 ${opts.landscape ? "landscape" : "portrait"}; margin: 7mm 8mm; }
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; box-sizing: border-box; }
+  body { font-family: Georgia, 'Times New Roman', serif; color: #0f172a; margin: 0; padding: 2px; }
+  .hdr { text-align: center; margin-bottom: 6px; }
+  .hdr h2 { margin: 0 0 2px; font-size: 19px; }
+  .hdr p { margin: 0; font-size: 11px; font-weight: 700; color: #334155; }
+  .sec-h { text-align: center; margin: 9px 0 3px; font-size: 14.5px; color: #0f172a; border-bottom: 1.6px solid #b8a280; padding-bottom: 1px; page-break-after: avoid; }
+  table { width: 100%; border-collapse: collapse; font-size: 10px; page-break-inside: avoid; }
+  th, td { border: 1px solid #999 !important; padding: 2.6px 4px; }
+  thead th, thead td { background: #fdecd2 !important; font-weight: 800; text-align: center; }
+  tfoot th, tfoot td { background: #f1dcb6 !important; font-weight: 800; }
+  td { font-weight: 600; }
+  tr:last-child td:first-child { font-weight: 800; }
+</style></head>
+<body>
+  <div class="hdr">
+    <h2>${escapeHtml(opts.title)}</h2>
+    ${opts.subtitle ? `<p>${escapeHtml(opts.subtitle)}</p>` : ""}
+  </div>
+  ${blocks}
+  <script>window.addEventListener("load", function(){ setTimeout(function(){ window.focus(); window.print(); }, 150); });</script>
+</body></html>`;
+
+  const w = window.open("", "_blank", "width=1100,height=760");
+  if (!w) {
+    window.print();
+    return;
+  }
+  w.document.write(html);
+  w.document.close();
+}
+
 function escapeHtml(s: string): string {
   return String(s || "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c] || c);
 }

@@ -23,7 +23,7 @@ import {
 import { cmpStaff } from "@/lib/sortOrder";
 import SearchSelect from "./SearchSelect";
 import { currentBranchName } from "@/lib/auth";
-import { printSection } from "@/lib/printReport";
+import { printSection, printCombined } from "@/lib/printReport"; // 🖨️ v1.4.164
 import type { StaffReportItem, Tx } from "@/types";
 
 import { getStaffList } from "@/lib/storage";
@@ -989,27 +989,38 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
             <button
               type="button"
               onClick={() =>
-                printSection(staffTableRef.current, {
-                  title: "Staff Collection Report Table",
-                  subtitle: `${currentBranchName()} • Date: ${selectedDate}${filterStaff ? ` • Staff: ${titleCase(filterStaff)}` : ""}`,
-                  landscape: true,
-                })
+                printCombined(
+                  [
+                    { el: staffTableRef.current, heading: "Staff Collection Report Table" },
+                    { el: denaPoanaRef.current, heading: "Dena / Poana" },
+                    { el: todayAllRef.current, heading: "Today All Report" },
+                  ],
+                  {
+                    title: "Gobra Daily Cash — Full Report",
+                    subtitle: `${currentBranchName()} • Date: ${selectedDate}${filterStaff ? ` • Staff: ${titleCase(filterStaff)}` : ""}`,
+                    landscape: true,
+                  }
+                )
               }
-              title="এই রিপোর্ট প্রিন্ট করুন (A4 ল্যান্ডস্কেপ)"
+              title="একদম সব রিপোর্ট একসাথে প্রিন্ট (এক A4 পাতা)"
               className="print:hidden cursor-pointer rounded-lg bg-indigo-700 px-2.5 py-1 text-[11px] font-black text-white hover:bg-indigo-800 shadow-sm"
             >
-              🖨️ Print
+              🖨️ Print All
             </button>
-            <select
-              value={filterStaff}
-              onChange={(e) => setFilterStaff(e.target.value)}
-              className="w-32 cursor-pointer rounded border border-[#d4a373] bg-white px-2 py-1 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-1 focus:ring-[#d4a373] sm:w-40"
-            >
-              <option value="">All Staff</option>
-              {allStaffNames.map((st) => (
-                <option key={st} value={st}>{titleCase(st)}</option>
-              ))}
-            </select>
+            <div className="w-32 sm:w-40">
+              {/* 🔤 v1.4.164: স্টাফ ফিল্টারও Receive-আদলের SearchSelect (কাস্টম অর্ডার = স্টাফ-ম্যানেজারের ক্রম; মোবাইলে কীবোর্ড আসে না) */}
+              <SearchSelect
+                value={filterStaff}
+                onChange={(v) => setFilterStaff(v)}
+                noKeyboardOnMobile
+                options={[
+                  { value: "", label: "All Staff" },
+                  ...allStaffNames.map((st) => ({ value: st, label: titleCase(st) })),
+                ]}
+                placeholder="All Staff"
+                className="w-full cursor-pointer rounded border border-[#d4a373] bg-white px-2 py-1 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-1 focus:ring-[#d4a373]"
+              />
+            </div>
             <div className="w-36 sm:w-44">
               {/* 🔤 v1.4.161: নাম-অনলি সর্ট — Receive-এর Category Filter-আদলের SearchSelect (মোবাইলে কীবোর্ড আসে না) */}
               <SearchSelect
@@ -1198,19 +1209,7 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
       <div className="rounded-2xl border-2 border-blue-900 bg-white shadow-sm overflow-hidden max-w-2xl mx-auto">
         <div className="bg-[#fdecd2] py-2 text-center border-b-2 border-blue-900 relative">
           <h3 className="font-serif font-black text-xl sm:text-2xl text-slate-900">Dena / Poana</h3>
-          <button
-            type="button"
-            onClick={() =>
-              printSection(denaPoanaRef.current, {
-                title: "Dena / Poana",
-                subtitle: `${currentBranchName()} • Date: ${selectedDate}`,
-              })
-            }
-            title="এই রিপোর্ট প্রিন্ট করুন"
-            className="print:hidden absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer rounded-lg bg-indigo-700 px-2.5 py-1 text-[11px] font-black text-white hover:bg-indigo-800 shadow-sm"
-          >
-            🖨️
-          </button>
+
         </div>
         <div className="overflow-x-auto" ref={denaPoanaRef}>
           <table className="w-full border-collapse border border-amber-200 text-xs sm:text-sm">
@@ -1259,19 +1258,7 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
       <div className="rounded-2xl border-2 border-blue-900 bg-white shadow-sm overflow-hidden max-w-3xl mx-auto">
         <div className="bg-[#fdecd2] py-2 text-center border-b-2 border-blue-900 relative">
           <h3 className="font-serif font-black text-xl sm:text-2xl text-slate-900">Today All Report</h3>
-          <button
-            type="button"
-            onClick={() =>
-              printSection(todayAllRef.current, {
-                title: "Today All Report",
-                subtitle: `${currentBranchName()} • Date: ${selectedDate}`,
-              })
-            }
-            title="এই রিপোর্ট প্রিন্ট করুন"
-            className="print:hidden absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer rounded-lg bg-indigo-700 px-2.5 py-1 text-[11px] font-black text-white hover:bg-indigo-800 shadow-sm"
-          >
-            🖨️
-          </button>
+
         </div>
         <div className="overflow-x-auto" ref={todayAllRef}>
           <table className="w-full border-collapse border border-amber-200 text-xs sm:text-sm">
@@ -1408,6 +1395,7 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
                 </label>
                 <SearchSelect
                   value={edit.staffName}
+                  noKeyboardOnMobile
                   onChange={(v) => {
                     setEdit({ ...edit, staffName: v });
                     if (isMobile) setActiveKeyboardField("loan");
