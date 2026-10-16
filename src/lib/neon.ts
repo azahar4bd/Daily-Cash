@@ -43,15 +43,29 @@ function buildQuery(a: any, rest: any[]): { text: string; params: any[] } {
   return { text, params };
 }
 
+/** 🛰️ v1.4.164: ফাংশনহীন স্ট্যাটিক হোস্ট (GitHub Pages ইত্যাদি) — 404/405 পেলে চুপচাপ "লোকাল মোড";
+ * আর "HTTP 405" দেখিয়ে ইউজারকে ভয় দেখাই না */
+export const NO_SERVER = "__no_server__";
+let noServerHost = false;
+export function isNoServerHost(): boolean {
+  return noServerHost;
+}
+
 /** প্রহরীর কাছে কোয়েরি পাঠাই → প্রতিটির rows ফেরায় */
 async function remoteExec(queries: { text: string; params: any[] }[], transaction: boolean): Promise<any[][]> {
   const token = getServerToken();
   if (!token) throw new Error("সার্ভার-লগইন নেই — আগে সাইন ইন করুন");
+  if (noServerHost) throw new Error(NO_SERVER);
   const res = await fetch("/.netlify/functions/neon-api", {
     method: "POST",
     headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
     body: JSON.stringify({ action: "sql", queries, transaction }),
   });
+  if (res.status === 404 || res.status === 405) {
+    // স্ট্যাটিক হোস্টে POST .netlify/functions → 404/405 — ফাংশন এখানে নেই
+    noServerHost = true;
+    throw new Error(NO_SERVER);
+  }
   let data: any = null;
   try { data = await res.json(); } catch { data = { ok: false, error: `HTTP ${res.status}` }; }
   if (!data?.ok) throw new Error(data?.error || `HTTP ${res.status}`);

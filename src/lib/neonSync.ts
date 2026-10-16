@@ -37,6 +37,8 @@ import {
   upsertMembersBulkInNeon,
   deleteMemberFromNeon,
   clearMembersInNeon,
+  NO_SERVER,
+  isNoServerHost,
 } from "./neon";
 import type { CheckEntry } from "@/types";
 import type { Member } from "./memberDb";
@@ -547,6 +549,19 @@ async function doSyncAllWithNeon(): Promise<{ success: boolean; message: string 
       message: `Neon Database-এ সফলভাবে সিঙ্ক সম্পন্ন! (${neonTxs.length} Transactions, ${neonSrs.length} Reports)`,
     };
   } catch (err: any) {
+    if (err?.message === NO_SERVER) {
+      // 🛰️ v1.4.164: GitHub Pages-এর মতো ফাংশনহীন হোস্ট — চুপচাপ লোকাল মোড (লাল 405 নয়!)
+      updateSyncState({
+        connected: false,
+        isSyncing: false,
+        lastError: "",
+        pendingCount: getQueue().length,
+      });
+      return {
+        success: false,
+        message: "🌐 এই হোস্টে ক্লাউড-সিঙ্ক নেই — ডেটা ডিভাইসে লোকাল থাকছে",
+      };
+    }
     console.error("Neon sync failed:", err);
     updateSyncState({
       connected: false,
@@ -587,14 +602,14 @@ export function initNeonSync(): void {
 
   // Visibility listener
   document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "visible") {
+    if (document.visibilityState === "visible" && !isNoServerHost()) {
       syncAllWithNeon().catch(() => {});
     }
   });
 
-  // Periodic background sync every 45 seconds
+  // Periodic background sync every 45 seconds (🛰️ v1.4.164: ফাংশনহীন হোস্টে লুপ বন্ধ)
   setInterval(() => {
-    syncAllWithNeon().catch(() => {});
+    if (!isNoServerHost()) syncAllWithNeon().catch(() => {});
   }, 45000);
 }
 
