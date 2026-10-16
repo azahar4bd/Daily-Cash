@@ -81,10 +81,16 @@ async function call(action: string, extra: Record<string, unknown> = {}, token =
     },
     body: JSON.stringify({ action, ...extra }),
   });
+  /* 🛰️ v1.4.166: ফাংশনহীন স্ট্যাটিক হোস্ট (GitHub Pages ইত্যাদি) — POST 404/405 পেলে
+     "সার্ভার অসুবিধা" হিসেবে বলি, যাতে লগইন/নিবন্ধন লোকাল ফলব্যাকে যায় (HTTP 405 লাল আর নয়!) */
+  if (res.status === 404 || res.status === 405) {
+    return { ok: false, error: "server error" };
+  }
   let data: any = null;
   try {
     data = await res.json();
   } catch {
+    if (res.status === 404 || res.status === 405) return { ok: false, error: "server error" };
     data = { ok: false, error: `HTTP ${res.status}` };
   }
   /* 🆕 v1.4.139: পুরনো/আর্কাইভ ঠিকানায় পৌঁছে গেলে Netlify-র কাঁচা "usage_exceeded" বাংলায় বোঝাই */
