@@ -283,30 +283,6 @@ export default function BottomMenu({
               </button>
             </div>
 
-            {/* 🗓️ v1.4.162: কাজের তারিখ + ডে-স্টেট — নিচের বার উঠে যাওয়ায় এখন ড্রয়ারেই */}
-            <div className="mb-3 flex flex-wrap items-center gap-2 rounded-2xl border border-white/10 bg-white/5 p-2.5">
-              <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">কাজের তারিখ:</span>
-              <div className="w-36 text-slate-900">
-                <DatePicker
-                  value={selectedDate}
-                  onChange={(v) => onDateChange(v || today)}
-                  className="w-full rounded-xl border border-white/60 bg-white px-2.5 py-1.5 text-xs font-bold shadow-md shadow-black/30"
-                  onOpenTracker={onOpenTracker}
-                />
-              </div>
-              {selectedDate !== today && (
-                <button
-                  type="button"
-                  onClick={() => onDateChange(today)}
-                  className="rounded-full bg-linear-to-r from-sky-500 to-blue-600 px-2.5 py-1 text-[10px] font-black text-white shadow-md shadow-blue-500/40 transition cursor-pointer active:scale-95"
-                  title="Back to today"
-                >
-                  📆 আজ
-                </button>
-              )}
-              {dayChip}
-            </div>
-
             {/* Menu Items Grid */}
             <div className="space-y-1.5 mb-4">
               {pages.map((p) => {
