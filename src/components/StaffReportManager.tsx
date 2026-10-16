@@ -20,7 +20,8 @@ import {
   evaluateMathExpression,
   isIntermediateBlockedDate,
 } from "@/lib/storage";
-import { cmpStaff } from "@/lib/sortOrder";
+import { cmpStaff, cmpStaffByMode } from "@/lib/sortOrder";
+import StaffSortToggle, { useStaffSort } from "./StaffSortToggle";
 import SearchSelect from "./SearchSelect";
 import { currentBranchName } from "@/lib/auth";
 import { printSection, printCombined } from "@/lib/printReport"; // 🖨️ v1.4.164
@@ -78,6 +79,7 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
   const [originalEditReport, setOriginalEditReport] = useState<StaffReportItem | null>(null);
   const [filterStaff, setFilterStaff] = useState<string>("");
   const [sortStaff, setSortStaff] = useState<string>("default"); // 🔽↕️ v1.4.160: Staff Collection Report-টেবিলের কাস্টম সর্ট
+  const [dpMode, setDpMode] = useStaffSort(); // 🆕 v1.4.168: Dena/Poana স্টাফ-সর্ট (শেয়ার্ড পছন্দ)
   const [denomModalOpen, setDenomModalOpen] = useState(false);
   const [staffPopupOpen, setStaffPopupOpen] = useState(false);
   const [staffPopupMinimized, setStaffPopupMinimized] = useState(false);
@@ -426,7 +428,7 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
   const allStaffNames = [...officeStaff(), ...reports.map((r) => r.staffName.trim())]
     .map((n) => String(n || "").trim())
     .filter((n) => n !== "" && !seenNames.has(n.toLowerCase()) && seenNames.add(n.toLowerCase()))
-    .sort(cmpStaff);
+    .sort((a1, a2) => cmpStaffByMode(a1, a2, dpMode)); // 🆕 v1.4.168: ম্যানুয়াল/A→Z/Z→A
   const receiveTxs = allTxList.filter((t) => t.type === "receive" && t.txDate === selectedDate);
 
   let totalDenaPoanaAday = 0;
@@ -1209,7 +1211,10 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
       <div className="rounded-2xl border-2 border-blue-900 bg-white shadow-sm overflow-hidden max-w-2xl mx-auto">
         <div className="bg-[#fdecd2] py-2 text-center border-b-2 border-blue-900 relative">
           <h3 className="font-serif font-black text-xl sm:text-2xl text-slate-900">Dena / Poana</h3>
-
+          {/* 🆕 v1.4.168: স্টাফ-সারি সর্ট — 🖐️ ম্যানুয়াল/A→Z/Z→A */}
+          <div className="absolute right-2 top-1/2 -translate-y-1/2">
+            <StaffSortToggle mode={dpMode} onChange={setDpMode} />
+          </div>
         </div>
         <div className="overflow-x-auto" ref={denaPoanaRef}>
           <table className="w-full border-collapse border border-amber-200 text-xs sm:text-sm">

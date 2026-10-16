@@ -3,7 +3,7 @@ import { fmt } from "./DenominationPopup";
 import { formatDisplay } from "./DatePicker";
 import { getSummary, isDayClosed, isDayOpen, getDayState, getStaffList } from "@/lib/storage";
 import { cmpStaffByMode } from "@/lib/sortOrder";
-import StaffSortToggle, { useStaffSort } from "./StaffSortToggle";
+import { useStaffSort } from "./StaffSortToggle";
 import type { Summary } from "@/types";
 
 export default function Dashboard({ selectedDate }: { selectedDate: string }) {
@@ -71,8 +71,8 @@ export default function Dashboard({ selectedDate }: { selectedDate: string }) {
     </div>
   );
 
-  /* 🆕 v1.4.167: স্টাফ-তালিকা এখন অফিসের আসল তালিকা থেকে (আর হার্ডকোড নয়) + সর্ট-টগল */
-  const [staffMode, setStaffMode] = useStaffSort();
+  /* 🆕 v1.4.167/1.4.168: স্টাফ-তালিকা অফিসের আসল তালিকা থেকে; সর্ট-পছন্দ গ্লোবালি ভাগ হয় (এখানে টগল নেই) */
+  const [staffMode] = useStaffSort();
   const staffNames = getStaffList()
     .map((x) => x.name)
     .sort((a1, a2) => cmpStaffByMode(a1, a2, staffMode));
@@ -144,7 +144,6 @@ export default function Dashboard({ selectedDate }: { selectedDate: string }) {
         <div className="mb-1 flex items-center justify-between px-1">
           <div className="text-[11px] font-bold text-slate-700 flex items-center gap-1.5">
             <span>👥 Staff Wise</span>
-            <StaffSortToggle compact mode={staffMode} onChange={setStaffMode} />
           </div>
           <div className="text-[11px] font-mono font-black text-sky-800 bg-sky-50 px-2 py-0.2 rounded border border-sky-200">
             Total: {fmt(totalStaffReceive)}
