@@ -1028,11 +1028,11 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
                 onChange={(v) => setSortStaff(v)}
                 noKeyboardOnMobile
                 options={[
-                  { value: "default", label: "Sort: Default" },
+                  { value: "default", label: "Sort: 🖐️ ম্যানুয়াল" },
                   { value: "name-asc", label: "Sort: Name A→Z" },
                   { value: "name-desc", label: "Sort: Name Z→A" },
                 ]}
-                placeholder="Sort: Default"
+                placeholder="Sort: 🖐️ ম্যানুয়াল"
                 className="w-full rounded border border-[#d4a373] bg-white px-2 py-1 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-1 focus:ring-[#d4a373]"
               />
             </div>

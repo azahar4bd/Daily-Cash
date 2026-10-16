@@ -1,7 +1,9 @@
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { fmt } from "./DenominationPopup";
 import { formatDisplay } from "./DatePicker";
-import { getSummary, isDayClosed, isDayOpen, getDayState } from "@/lib/storage";
+import { getSummary, isDayClosed, isDayOpen, getDayState, getStaffList } from "@/lib/storage";
+import { cmpStaffByMode } from "@/lib/sortOrder";
+import StaffSortToggle, { useStaffSort } from "./StaffSortToggle";
 import type { Summary } from "@/types";
 
 export default function Dashboard({ selectedDate }: { selectedDate: string }) {
@@ -69,11 +71,13 @@ export default function Dashboard({ selectedDate }: { selectedDate: string }) {
     </div>
   );
 
-  const staffList = ["monir", "sakib", "mintu", "alamgir"];
-  const totalStaffReceive = staffList.reduce(
-    (acc, p) => acc + (s?.persons?.[p] ?? 0),
-    0
-  );
+  /* 🆕 v1.4.167: স্টাফ-তালিকা এখন অফিসের আসল তালিকা থেকে (আর হার্ডকোড নয়) + সর্ট-টগল */
+  const [staffMode, setStaffMode] = useStaffSort();
+  const staffNames = getStaffList()
+    .map((x) => x.name)
+    .sort((a1, a2) => cmpStaffByMode(a1, a2, staffMode));
+  const staffVal = (nm: string) => s?.persons?.[nm.toLowerCase()] ?? 0;
+  const totalStaffReceive = staffNames.reduce((acc, nm) => acc + staffVal(nm), 0);
 
   return (
     <div className="mb-3 rounded-2xl bg-white p-2.5 sm:p-3 shadow-sm border border-slate-200">
@@ -140,16 +144,23 @@ export default function Dashboard({ selectedDate }: { selectedDate: string }) {
         <div className="mb-1 flex items-center justify-between px-1">
           <div className="text-[11px] font-bold text-slate-700 flex items-center gap-1.5">
             <span>👥 Staff Wise</span>
+            <StaffSortToggle compact mode={staffMode} onChange={setStaffMode} />
           </div>
           <div className="text-[11px] font-mono font-black text-sky-800 bg-sky-50 px-2 py-0.2 rounded border border-sky-200">
             Total: {fmt(totalStaffReceive)}
           </div>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
-          <StaffCard name="Monir" value={s?.persons?.monir ?? 0} />
-          <StaffCard name="Sakib" value={s?.persons?.sakib ?? 0} />
-          <StaffCard name="Mintu" value={s?.persons?.mintu ?? 0} />
-          <StaffCard name="Alamgir" value={s?.persons?.alamgir ?? 0} />
+          {staffNames.map((nm) => (
+            <Fragment key={nm}>
+              <StaffCard name={nm} value={staffVal(nm)} />
+            </Fragment>
+          ))}
+          {staffNames.length === 0 && (
+            <div className="col-span-2 text-[10px] font-semibold text-slate-400 px-1 py-1">
+              কর্মী নেই — Receive পেজের Category ⚙️ Manage-এ Staff Name যোগ করুন
+            </div>
+          )}
         </div>
       </div>
     </div>

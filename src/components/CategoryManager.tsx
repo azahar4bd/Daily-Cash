@@ -10,6 +10,8 @@ import {
   addStaffName,
   deleteStaffName,
 } from "@/lib/storage";
+import { cmpStaffByMode } from "@/lib/sortOrder";
+import StaffSortToggle, { useStaffSort } from "./StaffSortToggle";
 
 /**
  * 🆕 v1.4.145: রিসিভ-ক্যাটাগরি ম্যানেজ ২ ভাগে —
@@ -35,7 +37,9 @@ export default function CategoryManager({
   const [err, setErr] = useState("");
   const [staffTick, setStaffTick] = useState(0);
 
-  const staffList = staffTick >= 0 ? getStaffList() : []; // tick → পুনঃপঠন
+  const baseStaffList = staffTick >= 0 ? getStaffList() : []; // tick → পুনঃপঠন
+  const [staffMode, setStaffMode] = useStaffSort(); // 🆕 v1.4.167: ম্যানুয়াল/A→Z/Z→A সর্ট
+  const staffList = [...baseStaffList].sort((x, y) => cmpStaffByMode(x.name, y.name, staffMode));
   const isReceive = type === "receive";
 
   const staffNamesLower = staffList.map((s) => s.name.toLowerCase());
@@ -112,7 +116,11 @@ export default function CategoryManager({
           {/* ══ ① 👷 Staff Name ══ */}
           {isReceive && (
             <div className="rounded-xl border-2 border-indigo-200 bg-indigo-50/50 p-3 mb-4">
-              <div className="text-[13px] font-black text-indigo-900">👷 Staff Name</div>
+              <div className="flex items-center justify-between gap-2">
+                <div className="text-[13px] font-black text-indigo-900">👷 Staff Name</div>
+                {/* 🆕 v1.4.167: স্টাফ-সর্ট — ম্যানুয়াল/A→Z/Z→A */}
+                <StaffSortToggle mode={staffMode} onChange={setStaffMode} />
+              </div>
               <div className="text-[10px] font-semibold text-slate-500 mt-0.5">
                 কর্মীর নাম এখানেই যোগ করুন — Dena/Poana ও Staff Collection টেবিল এই তালিকাতেই চলে। নতুন অফিসে একদম খালি থাকে।
               </div>
