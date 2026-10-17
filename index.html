@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Cash Gobra - Bandhu Kallyan Foundation</title>
+    <meta name="description" content="Cash Gobra Microfinance and Cash Management App for Bandhu Kallyan Foundation, Netlify deploy-ready" />
+    
+    <!-- PWA & Mobile Web App Meta Tags -->
+    <link rel="manifest" href="/Daily-Cash/manifest.json" />
+    <meta name="theme-color" content="#0f172a" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Cash Gobra" />
+    <link rel="apple-touch-icon" href="/Daily-Cash/icon-192.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/Daily-Cash/icon-192.png" />
+    <link rel="icon" type="image/png" sizes="512x512" href="/Daily-Cash/icon-512.png" />
+
+    <meta property="og:title" content="Cash Gobra - Bandhu Kallyan Foundation" />
+    <meta property="og:description" content="Cash Gobra Microfinance and Cash Management App for Bandhu Kallyan Foundation, Netlify deploy-ready" />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <script type="module" crossorigin src="/Daily-Cash/assets/index-Co8XDRjB.js"></script>
+    <link rel="stylesheet" crossorigin href="/Daily-Cash/assets/index-BbuRi3SA.css">
+  </head>
+  <body>
+    <div id="root"></div>
+
+    <!-- Service Worker: always revalidate (no stale cache) -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' })
+          .then(function (reg) { reg.update(); })
+          .catch(function (err) { console.warn('Service Worker skipped:', err); });
+      }
+    </script>
+  </body>
+</html>
