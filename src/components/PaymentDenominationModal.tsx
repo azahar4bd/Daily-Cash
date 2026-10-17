@@ -74,6 +74,8 @@ export default function PaymentDenominationModal({
 
   const denominationTotalCash = totalNotesAmount + totalCredit - totalDebit;
   const different = denominationTotalCash - targetAmount;
+  /* 🆕 v1.4.170: Apply এখন শুধু নোট নয় — ক্রেডিট/ডেবিট লিখলেও আসে (net ≠ 0 হলেই); মাইনাস net = ফেরত-এন্ট্রি */
+  const applyable = onApplyAmount && denominationTotalCash !== 0;
 
   const handleQtyChange = (i: number, val: string) => {
     setQtyVals((prev) => {
@@ -448,7 +450,7 @@ export default function PaymentDenominationModal({
               <Key label="0" onClick={() => press("0")} className="bg-white" />
               <Key label="00" onClick={() => press("00")} className="bg-white" />
               <Key label="Reset" onClick={handleReset} className="bg-slate-500 !text-xs sm:!text-sm text-white hover:bg-slate-600" />
-              {onApplyAmount && denominationTotalCash > 0 ? (
+              {applyable ? (
                 <Key
                   label="Apply"
                   onClick={() => {
@@ -487,7 +489,7 @@ export default function PaymentDenominationModal({
             >
               Reset
             </button>
-            {onApplyAmount && denominationTotalCash > 0 && (
+            {applyable && (
               <button
                 type="button"
                 onClick={() => {
