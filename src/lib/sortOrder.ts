@@ -26,7 +26,21 @@ export const cmpProduct = (a: string, b: string) => {
   return d !== 0 ? d : String(a).localeCompare(String(b));
 };
 
+import { getStaffList } from "./storage";
+
 export const cmpStaff = (a: string, b: string) => {
+  /* 🆕 v1.4.169: "ম্যানুয়াল" ক্রম এখন = স্টোরে সংরক্ষিত অফিস-তালিকার ক্রম (↑↓-এ সাজানো যায়);
+     তালিকায় না থাকলে ফিক্সড STAFF_ORDER, শেষমেশ নাম */
+  let office: string[] = [];
+  try { office = getStaffList().map((x) => String(x.name || "").trim().toLowerCase()); } catch {}
+  const ia = office.indexOf(String(a || "").trim().toLowerCase());
+  const ib = office.indexOf(String(b || "").trim().toLowerCase());
+  if (ia !== -1 || ib !== -1) {
+    const ra = ia === -1 ? Number.MAX_SAFE_INTEGER : ia;
+    const rb = ib === -1 ? Number.MAX_SAFE_INTEGER : ib;
+    if (ra !== rb) return ra - rb;
+    return String(a).localeCompare(String(b));
+  }
   const d = rank(a, STAFF_ORDER) - rank(b, STAFF_ORDER);
   return d !== 0 ? d : String(a).localeCompare(String(b));
 };

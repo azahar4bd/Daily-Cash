@@ -435,6 +435,18 @@ export function saveStaffList(list: StaffItem[]): void {
   try { localStorage.setItem(STAFF_NAMES_KEY, JSON.stringify(list)); } catch {}
 }
 
+/** 🆕 v1.4.169: ↑↓ দিয়ে স্টাফ-ক্রম নিজের মতো সাজাও (Unique ক্যাটাগরির মতোই) — সব জায়গায় এই ক্রমই */
+export function moveStaff(id: number, dir: -1 | 1): void {
+  const seq = getStaffList();
+  const i = seq.findIndex((x) => x.id === id);
+  const j = i + dir;
+  if (i < 0 || j < 0 || j >= seq.length) return; // প্রান্তের বাইরে নয়
+  const t = seq[i];
+  seq[i] = seq[j];
+  seq[j] = t;
+  saveStaffList(seq);
+}
+
 export function addStaffName(name: string): StaffItem | null {
   const nm = String(name || "").trim();
   if (!nm) return null;

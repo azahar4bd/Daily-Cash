@@ -9,6 +9,7 @@ import {
   getStaffList,
   addStaffName,
   deleteStaffName,
+  moveStaff,
 } from "@/lib/storage";
 import { cmpStaffByMode } from "@/lib/sortOrder";
 import StaffSortToggle, { useStaffSort } from "./StaffSortToggle";
@@ -73,6 +74,12 @@ export default function CategoryManager({
   };
 
   /** 👷 কর্মী মোছা — স্টাফ-তালিকা + মিলে-যাওয়া receive-ক্যাটাগরি (পুরনো এন্ট্রি/রিপোর্ট অক্ষত) */
+  /* 🆕 v1.4.169: ↑↓ দিয়ে নিজের ক্রমে সাজান — ড্যাশবোর্ড/Dena-Poana/রিপোর্ট/ড্রপডাউন সব জায়গায় এই ক্রমই */
+  const moveSt = (staffId: number, dir: -1 | 1) => {
+    moveStaff(staffId, dir);
+    setStaffTick((t) => t + 1);
+  };
+
   const delStaff = (staffId: number, nm: string) => {
     if (!confirm(`"${titleCase(nm)}" কর্মী মুছবেন? আগের এন্ট্রিগুলো রিপোর্টে থেকে যাবে।`)) return;
     deleteStaffName(staffId);
@@ -122,7 +129,7 @@ export default function CategoryManager({
                 <StaffSortToggle mode={staffMode} onChange={setStaffMode} />
               </div>
               <div className="text-[10px] font-semibold text-slate-500 mt-0.5">
-                কর্মীর নাম এখানেই যোগ করুন — Dena/Poana ও Staff Collection টেবিল এই তালিকাতেই চলে। নতুন অফিসে একদম খালি থাকে।
+                কর্মীর নাম এখানেই যোগ করুন — Dena/Poana ও Staff Collection টেবিল এই তালিকাতেই চলে। নতুন অফিসে একদম খালি থাকে। 🖐️ ম্যানুয়ালে ↑↓ চেপে নিজের ক্রম সাজান — সব জায়গায় সেই ক্রমই আসবে।
               </div>
               <div className="mt-2 flex gap-2">
                 <input
@@ -140,9 +147,28 @@ export default function CategoryManager({
                 </button>
               </div>
               <ul className="mt-2 max-h-40 divide-y divide-indigo-100 rounded-xl border border-indigo-200 bg-white overflow-auto">
-                {staffList.map((s) => (
+                {staffList.map((s, idx) => (
                   <li key={s.id} className="flex items-center gap-2 px-3 py-2">
                     <span className="flex-1 text-sm font-bold text-slate-800">👷 {titleCase(s.name)}</span>
+                    {/* 🆕 v1.4.169: ↑↓ ক্রম-সরণ — ম্যানুয়াল দর্শনে দেখায় (ছবি-১-এর মতো) */}
+                    {staffMode === "manual" && (
+                      <>
+                        <button
+                          onClick={() => moveSt(s.id, -1)}
+                          disabled={idx === 0}
+                          className="rounded-md bg-slate-200 px-1.5 py-1 text-xs font-black text-slate-700 hover:bg-slate-300 disabled:opacity-30 disabled:cursor-not-allowed"
+                        >
+                          ↑
+                        </button>
+                        <button
+                          onClick={() => moveSt(s.id, 1)}
+                          disabled={idx === staffList.length - 1}
+                          className="rounded-md bg-slate-200 px-1.5 py-1 text-xs font-black text-slate-700 hover:bg-slate-300 disabled:opacity-30 disabled:cursor-not-allowed"
+                        >
+                          ↓
+                        </button>
+                      </>
+                    )}
                     <button
                       onClick={() => delStaff(s.id, s.name)}
                       className="rounded bg-rose-600 px-2.5 py-1 text-xs font-semibold text-white hover:bg-rose-700"
