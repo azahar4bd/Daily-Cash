@@ -1829,8 +1829,9 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
           </div>
         </div>
 
-        {/* Search box + 🧭 কলাম-ফিল্টার (v1.4.171) + 📅 তারিখ হতে তারিখ ফিল্টার — একই লাইনে (v1.4.55) */}
-        <div className="mb-3 flex items-stretch gap-2">
+        {/* Search box + 🧭 কলাম-ফিল্টার (v1.4.171) + 📅 তারিখ হতে তারিখ ফিল্টার — ডেস্কটপে এক লাইনে (v1.4.55); 
+            🆕 v1.4.172: মোবাইলে সার্চ-ঘর নিচের পুরো লাইনে — ড্রপডাউন ও তারিখে চেপে ঢুকে লেখা অদৃশ্য থাকে না */}
+        <div className="mb-3 flex flex-wrap items-stretch gap-2">
           {/* 🆕 v1.4.171: কোন কলামে সার্চ হবে — ড্রপডাউন ফিল্টার বাটন */}
           <div className="w-[8.5rem] sm:w-44 shrink-0">
             <SearchSelect
@@ -1842,7 +1843,8 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
               className="w-full h-full cursor-pointer rounded-xl border border-slate-300 bg-white px-2.5 py-2.5 text-xs sm:text-sm font-bold text-slate-800 focus:border-blue-500 focus:outline-none"
             />
           </div>
-          <div className="relative min-w-0 flex-1">
+          {/* 🆕 v1.4.172: মোবাইলে পুরো প্রস্থ নেয় (order-3 → নতুন লাইন), ডেস্কটপে মাঝের flex-ঘর */}
+          <div className="relative w-full min-w-0 flex-1 order-3 sm:order-none sm:w-auto">
             <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
               🔍
             </span>
