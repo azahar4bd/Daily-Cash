@@ -1843,8 +1843,8 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
               className="w-full h-full cursor-pointer rounded-xl border border-slate-300 bg-white px-2.5 py-2.5 text-xs sm:text-sm font-bold text-slate-800 focus:border-blue-500 focus:outline-none"
             />
           </div>
-          {/* 🆕 v1.4.172: মোবাইলে পুরো প্রস্থ নেয় (order-3 → নতুন লাইন), ডেস্কটপে মাঝের flex-ঘর */}
-          <div className="relative w-full min-w-0 flex-1 order-3 sm:order-none sm:w-auto">
+          {/* 🆕 v1.4.172/1.4.173: মোবাইলে পুরো লাইন (basis-full + shrink-0 → flex শ্রিঙ্ক হারে না!); ডেস্কটপে আগের মতো মাঝের flex-ঘর */}
+          <div className="relative order-3 basis-full shrink-0 sm:order-none sm:basis-auto sm:flex-1 sm:min-w-0">
             <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
               🔍
             </span>
