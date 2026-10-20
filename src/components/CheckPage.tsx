@@ -167,10 +167,42 @@ const dedupeViewRows = (list: CheckEntry[]): { row: CheckEntry; dupes: CheckEntr
  *      এগুলোতে আংশিক মিল এসে চাওয়া মেম্বারের মাঝে অপ্রয়োজনীয় এন্ট্রি ভেসে উঠত।
  *      (তারিখ-ভিত্তিক দেখার জন্য পাশের 📅 তারিখ হতে তারিখ ফিল্টার আছেই।)
  */
-const entryMatches = (e: CheckEntry, rawQuery: string): boolean => {
+/* 🆕 v1.4.171: কলাম-নির্দিষ্ট সার্চ — ড্রপডাউনে যে কলাম সিলেক্ট, টেবিল থেকে শুধু সেটাই ফিল্টার হবে */
+export type CheckSearchCol = "all" | "memberCode" | "memberName" | "centreCode" | "centreName" | "accountNo";
+
+export const CHECK_SEARCH_COLS: { value: CheckSearchCol; label: string }[] = [
+  { value: "all", label: "🔍 সব কলাম" },
+  { value: "memberCode", label: "মেম্বার কোড" },
+  { value: "memberName", label: "মেম্বার নাম" },
+  { value: "centreCode", label: "সেন্টার কোড" },
+  { value: "centreName", label: "সেন্টার নাম" },
+  { value: "accountNo", label: "হিসাব নং" },
+];
+
+export const CHECK_COL_PLACEHOLDERS: Record<CheckSearchCol, string> = {
+  all: "Search — মেম্বার কোড, সেন্টার কোড, মেম্বার নাম, সেন্টার নাম, হিসাব নং…",
+  memberCode: "মেম্বার কোড লিখুন…",
+  memberName: "মেম্বার নাম লিখুন…",
+  centreCode: "সেন্টার কোড লিখুন…",
+  centreName: "সেন্টার নাম লিখুন…",
+  accountNo: "হিসাব নং লিখুন…",
+};
+
+const entryMatches = (e: CheckEntry, rawQuery: string, col: CheckSearchCol = "all"): boolean => {
   const q = String(rawQuery || "").trim().toLowerCase();
   if (!q) return true;
   const nq = normCode(rawQuery);
+  /* 🆕 v1.4.171: নির্দিষ্ট কলাম — শুধু সেটাতেই মিল */
+  if (col === "memberCode") return nq ? normCode(e.memberCode).includes(nq) : (e.memberCode || "").toLowerCase().includes(q);
+  if (col === "centreCode") return nq ? normCode(e.centreCode).includes(nq) : (e.centreCode || "").toLowerCase().includes(q);
+  if (col === "accountNo")
+    return nq
+      ? normCode(e.accountNo).includes(nq) ||
+          (e.extraBanks || []).some((b) => normCode(b?.accountNo || "").includes(nq))
+      : (e.accountNo || "").toLowerCase().includes(q) ||
+          (e.extraBanks || []).some((b) => String(b?.accountNo || "").toLowerCase().includes(q));
+  if (col === "memberName") return (e.memberName || "").toLowerCase().includes(q);
+  if (col === "centreName") return (e.centreName || "").toLowerCase().includes(q);
   if (nq) {
     if (normCode(e.memberCode).includes(nq)) return true; // ① মেম্বার কোড
     if (normCode(e.centreCode).includes(nq)) return true; // ② সেন্টার কোড
@@ -238,10 +270,10 @@ export const isFullDate = (s: string): boolean => {
  * তার জায়গায় রি-ইস্যু চেইনের সর্বশেষ (নতুন) এন্ট্রিটিই দেখাবে।
  * (তবে রেকর্ডে অর্থাৎ স্টোরে পুরনো এন্ট্রিটিও অক্ষত থাকে — শুধু সার্চের টেবিল থেকে বাদ।)
  */
-export const searchVisibleEntries = (list: CheckEntry[], search: string): CheckEntry[] => {
+export const searchVisibleEntries = (list: CheckEntry[], search: string, col: CheckSearchCol = "all"): CheckEntry[] => {
   const q = (search || "").trim();
   if (!q) return list;
-  const hits = list.filter((e) => entryMatches(e, q));
+  const hits = list.filter((e) => entryMatches(e, q, col));
   const byId = new Map(list.map((e) => [Number(e.id), e]));
   const show = new Map<number, CheckEntry>();
   for (const h of hits) {
@@ -308,6 +340,7 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
   const [form, setForm] = useState(emptyForm(baseDate));
   const [edit, setEdit] = useState<CheckEntry | null>(null);
   const [search, setSearch] = useState("");
+  const [searchCol, setSearchCol] = useState<CheckSearchCol>("all"); // 🆕 v1.4.171: কোন কলামে সার্চ
   const [searchQ, setSearchQ] = useState(""); // ⚡ v1.4.130: ডিবাউন্সড সার্চ-ক্যোয়ারি
   useEffect(() => {
     const t = setTimeout(() => setSearchQ(search), 140);
@@ -583,7 +616,7 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
 
     // সেভ/আপডেটের পর এন্ট্রিটি বর্তমান সার্চ ফিল্টারের বাইরে চলে গেলে ফিল্টার সরিয়ে দেওয়া হয় —
     // না হলে এন্ট্রিটি টেবিলে দেখা যায় না এবং "মুছে গেছে" বলে মনে হয়
-    const hiddenBySearch = Boolean(search.trim()) && !entryMatches(savedEntry, search);
+    const hiddenBySearch = Boolean(search.trim()) && !entryMatches(savedEntry, search, searchCol);
     if (hiddenBySearch) {
       setSearch("");
       setPage(1);
@@ -732,8 +765,8 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
 
   const filtered = useMemo(
     // v1.4.106: সার্চে রি-ইস্যুকৃত পুরনো এন্ট্রি বাদ — নতুন (চেইনের সর্বশেষ) এন্ট্রিটিই দেখাবে
-    () => searchVisibleEntries(entries, searchQ),
-    [entries, searchQ]
+    () => searchVisibleEntries(entries, searchQ, searchCol),
+    [entries, searchQ, searchCol]
   );
 
   /** 📅 v1.4.55: তারিখ হতে তারিখ — সার্চ ফলাফলের উপর প্রয়োগ হয় (দুই প্রান্তই অন্তর্ভুক্ত) */
@@ -756,7 +789,7 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
   useEffect(() => {
     setPage(1);
     setRetPage(1);
-  }, [searchQ, dateRange]);
+  }, [searchQ, searchCol, dateRange]);
 
   /* ⚡ v1.4.130: সার্চ-ল্যাগ ফিক্স — ইনপুট `search` তৎক্ষণাৎ আপডেট হয় (পেইন্ট কখনোই দেরি নয়);
    * ভারী কাজ (entryMatches-ফিল্টার + টুকরো হাইলাইট + রো-রেন্ডার) শুধু ১৪০ms ডিবাউন্সড `searchQ`-তে চলে */
@@ -1796,8 +1829,19 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
           </div>
         </div>
 
-        {/* Search box + 📅 তারিখ হতে তারিখ ফিল্টার — একই লাইনে (v1.4.55) */}
+        {/* Search box + 🧭 কলাম-ফিল্টার (v1.4.171) + 📅 তারিখ হতে তারিখ ফিল্টার — একই লাইনে (v1.4.55) */}
         <div className="mb-3 flex items-stretch gap-2">
+          {/* 🆕 v1.4.171: কোন কলামে সার্চ হবে — ড্রপডাউন ফিল্টার বাটন */}
+          <div className="w-[8.5rem] sm:w-44 shrink-0">
+            <SearchSelect
+              value={searchCol}
+              onChange={(v) => setSearchCol(v as CheckSearchCol)}
+              noKeyboardOnMobile
+              options={CHECK_SEARCH_COLS}
+              placeholder="🔍 সব কলাম"
+              className="w-full h-full cursor-pointer rounded-xl border border-slate-300 bg-white px-2.5 py-2.5 text-xs sm:text-sm font-bold text-slate-800 focus:border-blue-500 focus:outline-none"
+            />
+          </div>
           <div className="relative min-w-0 flex-1">
             <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
               🔍
@@ -1805,7 +1849,7 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search — মেম্বার কোড, সেন্টার কোড, মেম্বার নাম, সেন্টার নাম, হিসাব নং…"
+            placeholder={CHECK_COL_PLACEHOLDERS[searchCol]} // 🆕 v1.4.171: নির্বাচিত কলাম-অনুযায়ী ইঙ্গিত
             className="w-full rounded-xl border border-slate-300 bg-orange-50 py-2.5 pl-10 pr-28 text-sm font-semibold text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
             autoComplete="off"
           />
