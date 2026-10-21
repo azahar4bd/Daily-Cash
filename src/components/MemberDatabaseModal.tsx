@@ -111,6 +111,45 @@ export default function MemberDatabaseModal({
     setUpBusy(true);
     setUpMsg(null);
     try {
+      /* 🆕 v1.4.175: মাসিক রিকভারি-রিপোর্টের PDF সরাসরি — sheet/সারি চিনে একই ইমপোর্ট */
+      if ((f.name || "").toLowerCase().endsWith(".pdf")) {
+        try {
+          const [{ pdfToLines }, { parseRecoveryPdfLines }] = await Promise.all([
+            import("@/lib/pdfReportLoader"),
+            import("@/lib/memberReportPdf"),
+          ]);
+          const buf = await f.arrayBuffer();
+          const lines = await pdfToLines(buf);
+          const report = parseRecoveryPdfLines(lines);
+          if (!report || !report.members.length) {
+            setUpMsg({
+              ok: false,
+              text: "PDF-টা পড়া গেছে, কিন্তু মেম্বার-সারির ছক মেলেনি — MIS-এর মাসিক 'Savings & Loan Collection Report' (GenerateOrganizerRecoveryReport)-এর PDF দিন।",
+            });
+            return;
+          }
+          const res = importMembers(report.members);
+          addUploadRecord({
+            fileName: f.name,
+            added: res.added,
+            updated: res.updated,
+            skipped: report.skipped,
+            total: res.total,
+            centres: report.centres.length,
+            format: "report",
+            addedCodes: res.addedCodes,
+          });
+          setUpMsg({
+            ok: true,
+            text: `✓ PDF রিপোর্ট পড়ে গেছে — ${report.centres.length.toLocaleString("en-IN")}টি সেন্টার থেকে নতুন ${res.added.toLocaleString("en-IN")} জন বসেছে, ${res.updated.toLocaleString("en-IN")} জনের নাম/সেন্টার ঝালাই হয়েছে (বাদ/ডুপ্লিকেট ${report.skipped.toLocaleString("en-IN")})। মোট ${res.total.toLocaleString("en-IN")} জন — ক্লাউডে সংরক্ষণ হচ্ছে…`,
+          });
+          setReloadKey((k) => k + 1);
+          return;
+        } catch {
+          setUpMsg({ ok: false, text: "⚠️ PDF পড়তে সমস্যা হয়েছে — ফাইলটি নষ্ট/স্ক্যানড তো নয়, দেখে আবার দিন।" });
+          return;
+        }
+      }
       /* 🆕 v1.4.174: Excel হলে CSV-বদল — পরের ধাপে স্যামিটি-পার্সার/CSV-পার্সার একইভাবে চলে */
       const text = await readUploadText(f);
 
@@ -353,7 +392,7 @@ export default function MemberDatabaseModal({
               }`}
             >
               <p className="text-xs font-black text-indigo-950">
-                📤 মাসিক স্যামিটি-রিপোর্ট (Excel/.xlsx) বা CSV ফাইল দিন
+                📤 মাসিক স্যামিটি/রিকভারি-রিপোর্ট — Excel, PDF বা CSV ফাইল দিন
               </p>
               <p className="mx-auto mt-1 max-w-lg text-[10px] font-semibold leading-relaxed text-slate-600">
                 MIS-এর মাসিক রিপোর্ট (<span className="font-mono">Samity: …</span> ফরমেট) দিলেই অ্যাপ
@@ -363,7 +402,7 @@ export default function MemberDatabaseModal({
               <input
                 ref={fileRef}
                 type="file"
-                accept=".csv,.txt,.xlsx,.xls,.xlsm,text/csv,text/plain,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+                accept=".csv,.txt,.xlsx,.xls,.xlsm,.pdf,text/csv,text/plain,application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
                 onChange={(e) => handleFiles(e.target.files)}
                 className="hidden"
               />
@@ -512,7 +551,7 @@ export default function MemberDatabaseModal({
                   এই অফিসের মেম্বার ডাটাবেজ আপলোড করুন
                 </h4>
                 <p className="mx-auto mt-1.5 max-w-md text-[11px] font-semibold leading-relaxed text-slate-600">
-                  Excel (.xlsx) বা CSV ফাইল দিলেই বাকি সব নিজে থেকেই হয়ে যাবে — ফাইল পড়া, কলাম শনাক্ত করা,
+                  Excel (.xlsx), PDF বা CSV ফাইল দিলেই বাকি সব নিজে থেকেই হয়ে যাবে — ফাইল পড়া, কলাম শনাক্ত করা,
                   মেম্বার কোড অনুযায়ী ডুপ্লিকেট বাদ দেওয়া, ডাটাবেজে বসানো এবং ক্লাউডে এই
                   অফিসের নিজের ঘরে সংরক্ষণ। এরপর চেক এন্ট্রিতে কোড লিখলেই নাম ও সেন্টার
                   নিজে থেকে চলে আসবে।
@@ -521,7 +560,7 @@ export default function MemberDatabaseModal({
                 <input
                   ref={fileRef}
                   type="file"
-                  accept=".csv,.txt,.xlsx,.xls,.xlsm,text/csv,text/plain,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+                  accept=".csv,.txt,.xlsx,.xls,.xlsm,.pdf,text/csv,text/plain,application/pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
                   onChange={(e) => handleFiles(e.target.files)}
                   className="hidden"
                 />
@@ -531,7 +570,7 @@ export default function MemberDatabaseModal({
                   onClick={() => fileRef.current?.click()}
                   className="mt-3 rounded-xl bg-linear-to-r from-indigo-600 to-blue-600 px-5 py-2.5 text-xs font-black text-white shadow-md transition hover:from-indigo-700 hover:to-blue-700 disabled:opacity-50 cursor-pointer"
                 >
-                  {upBusy ? "⏳ ফাইল পড়া হচ্ছে…" : "📁 Excel/CSV ফাইল বেছে নিন"}
+                  {upBusy ? "⏳ ফাইল পড়া হচ্ছে…" : "📁 Excel/PDF/CSV ফাইল বেছে নিন"}
                 </button>
                 <p className="mt-1.5 text-[10px] font-bold text-slate-500">
                   অথবা ফাইলটি এখানে টেনে আনুন
