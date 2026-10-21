@@ -3,6 +3,20 @@ import { getMembers, normCode, parseMemberText, importMembers, deleteMember, get
 import type { Member, MemberUploadRecord } from "@/lib/memberDb";
 import { parseSamityReport } from "@/lib/memberReportCsv";
 
+/* 🆕 v1.4.174: Excel (.xlsx/.xls) ফাইলও সরাসরি — আগের মাসিক রিপোর্টের হুবহু হেডার;
+   SheetJS শুধু Excel ফাইল এলেই লোড হয় (মূল বান্ডল হালকা থাকে) */
+async function readUploadText(f: File): Promise<string> {
+  const nm = (f.name || "").toLowerCase();
+  if (nm.endsWith(".xlsx") || nm.endsWith(".xls") || nm.endsWith(".xlsm") || nm.endsWith(".xlsb")) {
+    const XLSX = await import("xlsx");
+    const buf = await f.arrayBuffer();
+    const wb = XLSX.read(buf, { type: "array" });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    return XLSX.utils.sheet_to_csv(ws, { blankrows: false });
+  }
+  return f.text();
+}
+
 /**
  * 🗄️ মেম্বার ডাটাবেজ উইন্ডো (পপআপ)
  * ------------------------------------------------------------------
@@ -97,7 +111,8 @@ export default function MemberDatabaseModal({
     setUpBusy(true);
     setUpMsg(null);
     try {
-      const text = await f.text();
+      /* 🆕 v1.4.174: Excel হলে CSV-বদল — পরের ধাপে স্যামিটি-পার্সার/CSV-পার্সার একইভাবে চলে */
+      const text = await readUploadText(f);
 
       // ① স্যামিটি-রিপোর্ট ফরমেট?
       const report = parseSamityReport(text);
@@ -338,7 +353,7 @@ export default function MemberDatabaseModal({
               }`}
             >
               <p className="text-xs font-black text-indigo-950">
-                📤 মাসিক স্যামিটি-রিপোর্ট বা CSV ফাইল দিন
+                📤 মাসিক স্যামিটি-রিপোর্ট (Excel/.xlsx) বা CSV ফাইল দিন
               </p>
               <p className="mx-auto mt-1 max-w-lg text-[10px] font-semibold leading-relaxed text-slate-600">
                 MIS-এর মাসিক রিপোর্ট (<span className="font-mono">Samity: …</span> ফরমেট) দিলেই অ্যাপ
@@ -348,7 +363,7 @@ export default function MemberDatabaseModal({
               <input
                 ref={fileRef}
                 type="file"
-                accept=".csv,.txt,text/csv,text/plain"
+                accept=".csv,.txt,.xlsx,.xls,.xlsm,text/csv,text/plain,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
                 onChange={(e) => handleFiles(e.target.files)}
                 className="hidden"
               />
@@ -497,7 +512,7 @@ export default function MemberDatabaseModal({
                   এই অফিসের মেম্বার ডাটাবেজ আপলোড করুন
                 </h4>
                 <p className="mx-auto mt-1.5 max-w-md text-[11px] font-semibold leading-relaxed text-slate-600">
-                  CSV ফাইল দিলেই বাকি সব নিজে থেকেই হয়ে যাবে — ফাইল পড়া, কলাম শনাক্ত করা,
+                  Excel (.xlsx) বা CSV ফাইল দিলেই বাকি সব নিজে থেকেই হয়ে যাবে — ফাইল পড়া, কলাম শনাক্ত করা,
                   মেম্বার কোড অনুযায়ী ডুপ্লিকেট বাদ দেওয়া, ডাটাবেজে বসানো এবং ক্লাউডে এই
                   অফিসের নিজের ঘরে সংরক্ষণ। এরপর চেক এন্ট্রিতে কোড লিখলেই নাম ও সেন্টার
                   নিজে থেকে চলে আসবে।
@@ -506,7 +521,7 @@ export default function MemberDatabaseModal({
                 <input
                   ref={fileRef}
                   type="file"
-                  accept=".csv,.txt,text/csv,text/plain"
+                  accept=".csv,.txt,.xlsx,.xls,.xlsm,text/csv,text/plain,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
                   onChange={(e) => handleFiles(e.target.files)}
                   className="hidden"
                 />
@@ -516,7 +531,7 @@ export default function MemberDatabaseModal({
                   onClick={() => fileRef.current?.click()}
                   className="mt-3 rounded-xl bg-linear-to-r from-indigo-600 to-blue-600 px-5 py-2.5 text-xs font-black text-white shadow-md transition hover:from-indigo-700 hover:to-blue-700 disabled:opacity-50 cursor-pointer"
                 >
-                  {upBusy ? "⏳ ফাইল পড়া হচ্ছে…" : "📁 CSV ফাইল বেছে নিন"}
+                  {upBusy ? "⏳ ফাইল পড়া হচ্ছে…" : "📁 Excel/CSV ফাইল বেছে নিন"}
                 </button>
                 <p className="mt-1.5 text-[10px] font-bold text-slate-500">
                   অথবা ফাইলটি এখানে টেনে আনুন
