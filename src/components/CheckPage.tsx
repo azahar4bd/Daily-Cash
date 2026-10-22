@@ -179,6 +179,9 @@ export const CHECK_SEARCH_COLS: { value: CheckSearchCol; label: string }[] = [
   { value: "accountNo", label: "হিসাব নং" },
 ];
 
+/* 🆕 v1.4.177: এই কলামে সার্চ-ঘরে নাম্বার-প্যাড খুলবে */
+export const CHECK_NUMERIC_COLS: CheckSearchCol[] = ["memberCode", "centreCode", "accountNo"];
+
 export const CHECK_COL_PLACEHOLDERS: Record<CheckSearchCol, string> = {
   all: "Search — মেম্বার কোড, সেন্টার কোড, মেম্বার নাম, সেন্টার নাম, হিসাব নং…",
   memberCode: "মেম্বার কোড লিখুন…",
@@ -1852,6 +1855,8 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
             </span>
           <input
             value={search}
+            inputMode={CHECK_NUMERIC_COLS.includes(searchCol) ? "numeric" : undefined} /* 🆕 v1.4.177: কোড/হিসাব নং-কলামে নাম্বার-প্যাড */
+            pattern={CHECK_NUMERIC_COLS.includes(searchCol) ? "[0-9]*" : undefined}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={CHECK_COL_PLACEHOLDERS[searchCol]} // 🆕 v1.4.171: নির্বাচিত কলাম-অনুযায়ী ইঙ্গিত
             className="w-full rounded-xl border border-slate-300 bg-orange-50 py-2.5 pl-10 pr-28 text-sm font-semibold text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
