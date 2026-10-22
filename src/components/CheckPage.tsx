@@ -1746,6 +1746,8 @@ export default function CheckPage({ selectedDate }: { selectedDate?: string }) {
                 </label>
                 <input
                   value={form.centreCode}
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   onChange={(e) => setForm((f) => ({ ...f, centreCode: e.target.value }))}
                   placeholder="সেন্টার কোড"
                   className={inputCls}
