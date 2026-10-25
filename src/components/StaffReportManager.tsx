@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import CategoryInput from "./CategoryInput";
 import { fmt } from "./DenominationPopup";
 import ReportDenominationModal from "./ReportDenominationModal";
+import KallyanSettings from "./KallyanSettings";
 import StaffCustomKeyboard, { StaffFieldKey, STAFF_FIELDS } from "./StaffCustomKeyboard";
 import { titleCase } from "@/lib/categories";
 import {
@@ -25,9 +26,9 @@ import StaffSortToggle, { useStaffSort } from "./StaffSortToggle";
 import SearchSelect from "./SearchSelect";
 import { currentBranchName } from "@/lib/auth";
 import { printSection, printCombined } from "@/lib/printReport"; // 🖨️ v1.4.164
-import type { StaffReportItem, Tx } from "@/types";
+import type { StaffReportItem, Tx, KallyanRule } from "@/types";
 
-import { getStaffList } from "@/lib/storage";
+import { getStaffList, getKallyanRule } from "@/lib/storage";
 /** v1.4.145: কর্মী-তালিকা নিজস্ব স্টোর থেকে (গোবরায় ডিফল্ট ৪ জন, নতুন অফিসে খালি — ম্যানেজ উইন্ডোতেই যোগ হয়) */
 const officeStaff = (): string[] => getStaffList().map((sf) => sf.name);
 
@@ -201,6 +202,9 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
   const [allTxList, setAllTxList] = useState<Tx[]>([]);
   const [disburseCatList, setDisburseCatList] = useState<string[]>([]);
   const [dayClosed, setDayClosed] = useState(false);
+  // 🤝 v1.4.178: Today All Report থেকেই কল্যাণ নিয়ম ম্যানেজ
+  const [kallyanRule, setKallyanRule] = useState<KallyanRule>(getKallyanRule());
+  const [kallyanOpen, setKallyanOpen] = useState(false);
 
   const focusNextField = (curr: StaffFieldKey, isEditModal = false) => {
     const idx = FIELD_ORDER.indexOf(curr);
@@ -248,9 +252,13 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
     const onDayClose = () => loadData();
     window.addEventListener("tx-changed", onTx);
     window.addEventListener("day-close-changed", onDayClose);
+    // 🤝 v1.4.178: কল্যাণ-নিয়ম বদল গেলে ব্যাজ/מোডাল পাশ-রিলেটেড স্টেট রিফ্রেশ
+    const onKallyan = () => setKallyanRule(getKallyanRule());
+    window.addEventListener("kallyan-rule-changed", onKallyan);
     return () => {
       window.removeEventListener("tx-changed", onTx);
       window.removeEventListener("day-close-changed", onDayClose);
+      window.removeEventListener("kallyan-rule-changed", onKallyan);
     };
   }, [selectedDate]);
 
@@ -1263,7 +1271,16 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
       <div className="rounded-2xl border-2 border-blue-900 bg-white shadow-sm overflow-hidden max-w-3xl mx-auto">
         <div className="bg-[#fdecd2] py-2 text-center border-b-2 border-blue-900 relative">
           <h3 className="font-serif font-black text-xl sm:text-2xl text-slate-900">Today All Report</h3>
-
+          {/* 🤝 v1.4.178: কল্যাণ তহবিল ম্যানেজ — রিপোর্ট থেকেই */}
+          <button
+            type="button"
+            onClick={() => setKallyanOpen(true)}
+            title="কল্যাণ তহবিল ম্যানেজ করুন (হার/ফি বদলান, নিয়ম দেখুন)"
+            className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 rounded-lg bg-teal-600 hover:bg-teal-700 active:scale-95 border border-teal-800 px-2 py-1 text-[11px] font-bold text-white shadow-sm transition cursor-pointer"
+          >
+            <span>🤝</span>
+            <span>⚙️ কল্যাণ</span>
+          </button>
         </div>
         <div className="overflow-x-auto" ref={todayAllRef}>
           <table className="w-full border-collapse border border-amber-200 text-xs sm:text-sm">
@@ -1284,8 +1301,17 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
                   const exp = expenditureList[i];
                   return (
                     <tr key={i} className="border-b border-amber-200">
-                      <td className="border border-amber-200 px-3 py-1.5 font-bold bg-[#fdecd2] w-1/3">
+                      <td
+                        className={`border border-amber-200 px-3 py-1.5 font-bold bg-[#fdecd2] w-1/3 ${inc?.label === "Kallayan" ? "cursor-pointer text-teal-800 hover:bg-teal-100 underline decoration-dotted decoration-teal-400 underline-offset-2" : ""}`}
+                        onClick={() => { if (inc?.label === "Kallayan") setKallyanOpen(true); }}
+                        title={inc?.label === "Kallayan" ? "কল্যাণ তহবিল ম্যানেজ করতে ট্যাপ করুন" : undefined}
+                      >
                         {inc ? inc.label : ""}
+                        {inc?.label === "Kallayan" && (
+                          <span className="ml-1 text-[9px] font-semibold text-slate-500 not-italic">
+                            ({kallyanRule.percent}%+{kallyanRule.fixed}৳)
+                          </span>
+                        )}
                       </td>
                       <td className="border border-amber-200 px-3 py-1.5 text-right font-mono font-bold w-1/6">
                         {inc ? fmt(inc.amount) : ""}
@@ -1312,6 +1338,16 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
           </table>
         </div>
       </div>
+
+      {/* 🤝 v1.4.178: কল্যাণ তহবিল ম্যানেজ (রিপোর্ট পেজ থেকে) */}
+      {kallyanOpen && (
+        <KallyanSettings
+          rule={kallyanRule}
+          disburseCategories={disburseCatList}
+          onChanged={() => { setKallyanRule(getKallyanRule()); loadData(); }}
+          onClose={() => setKallyanOpen(false)}
+        />
+      )}
 
       {denomModalOpen && (
         <ReportDenominationModal
