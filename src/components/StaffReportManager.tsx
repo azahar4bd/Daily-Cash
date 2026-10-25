@@ -5,7 +5,7 @@ import { fmt } from "./DenominationPopup";
 import ReportDenominationModal from "./ReportDenominationModal";
 import KallyanSettings from "./KallyanSettings";
 import StaffCustomKeyboard, { StaffFieldKey, STAFF_FIELDS } from "./StaffCustomKeyboard";
-import { titleCase } from "@/lib/categories";
+import { titleCase, calcKallyan } from "@/lib/categories";
 import {
   getLocalStaffReports,
   saveStaffReport,
@@ -504,15 +504,12 @@ export default function StaffReportManager({ selectedDate }: { selectedDate: str
     );
   });
 
-  let buniyadDisburseSum = 0;
-  let otherDisburseSum = 0;
-  for (const t of disburseLoans) {
-    const amt = Number(t.amount) || 0;
-    const cat = t.category.toLowerCase().trim();
-    if (cat.includes("buni")) buniyadDisburseSum += amt;
-    else otherDisburseSum += amt;
-  }
-  const incomeKallayan = Math.round(otherDisburseSum * 0.01 + buniyadDisburseSum * 0.005);
+  // 🤝 v1.4.179: Kallayan এখন ম্যানেজ করা নিয়ম মেনে হিসাব হয়
+  //   (আগে হার্ডকোড: অন্য-ঋণ ১% + বুনিয়াদ ০.৫% ছিল — সেটিংস পাল্টালেও বদলাত না!)
+  const incomeKallayan = disburseLoans.reduce(
+    (sum, t) => sum + calcKallyan(Number(t.amount) || 0, t.category, kallyanRule),
+    0
+  );
   const incomeLoanForm = disburseLoans.length * 5;
 
   const incomeOthers = targetReceives
