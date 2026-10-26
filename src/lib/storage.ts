@@ -12,7 +12,7 @@ import type {
   DayOpen,
   DayState,
 } from "@/types";
-import { getDefaultCategories, DEFAULT_SUBCAT_RULES, DEFAULT_KALLYAN_RULE } from "./categories";
+import { getDefaultCategories, DEFAULT_SUBCAT_RULES, DEFAULT_KALLYAN_RULE, calcKallyan } from "./categories";
 import { isDefaultBranch } from "./branchScope";
 import { DEFAULT_REBATE_RATES } from "./defaultRebateRates";
 import { enqueueNeonAction } from "./neonSync";
@@ -993,16 +993,10 @@ export function getSummary(
       );
     });
 
-    let buniyadDisburseSum = 0;
-    let otherDisburseSum = 0;
-    for (const t of disburseLoans) {
-      const amt = Number(t.amount) || 0;
-      const cat = t.category.toLowerCase().trim();
-      if (cat.includes("buni")) buniyadDisburseSum += amt;
-      else otherDisburseSum += amt;
-    }
-    const dayKallayan = Math.round(
-      otherDisburseSum * 0.01 + buniyadDisburseSum * 0.005
+    // 🤝 v1.4.180: ম্যানেজ করা কল্যাণ-নিয়ম (চক্রভুক্ত প্রতি ডিসবার্সে) — পুরনো হার্ডকোড ১%/০.৫% বাতিল
+    const dayKallayan = disburseLoans.reduce(
+      (s, t) => s + calcKallyan(Number(t.amount) || 0, t.category, getKallyanRule()),
+      0
     );
     const dayLoanForm = disburseLoans.length * 5;
 
@@ -1180,15 +1174,11 @@ export function getReportPageFigures(selectedDate: string): {
     );
   });
 
-  let buniyadDisburseSum = 0;
-  let otherDisburseSum = 0;
-  for (const t of disburseLoans) {
-    const amt = Number(t.amount) || 0;
-    const cat = t.category.toLowerCase().trim();
-    if (cat.includes("buni")) buniyadDisburseSum += amt;
-    else otherDisburseSum += amt;
-  }
-  const incomeKallayan = Math.round(otherDisburseSum * 0.01 + buniyadDisburseSum * 0.005);
+  // 🤝 v1.4.180: ম্যানেজ করা কল্যাণ-নিয়ম (চক্রভুক্ত প্রতি ডিসবার্সে) — পুরনো হার্ডকোড ১%/০.৫% বাতিল
+  const incomeKallayan = disburseLoans.reduce(
+    (s, t) => s + calcKallyan(Number(t.amount) || 0, t.category, getKallyanRule()),
+    0
+  );
   const incomeLoanForm = disburseLoans.length * 5;
 
   const incomeOthers = targetReceives

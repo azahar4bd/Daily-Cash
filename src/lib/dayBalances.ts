@@ -8,7 +8,8 @@
    জায়গায় দুই সংখ্যা (যেমন 520 বনাম 1,075) দেখাত। এখন ডে ক্লোজ
    ওই একই সূত্র ব্যবহার করে, তাই Closing = Today ব্যালেন্স সবসময় মিলবে।
    ────────────────────────────────────────────────────────────── */
-import { getLocalTxs, getLocalStaffReports, getSummary, getCategories, getStaffList } from "./storage";
+import { getLocalTxs, getLocalStaffReports, getSummary, getCategories, getStaffList, getKallyanRule } from "./storage";
+import { calcKallyan } from "./categories";
 
 /** v1.4.145: কর্মী-তালিকা নিজস্ব স্টোর থেকে — গোবরা ৪ জন, নতুন অফিসে খালি */
 const officeStaff = (): string[] => getStaffList().map((sf) => sf.name);
@@ -81,15 +82,11 @@ export function getReportDayBalances(date: string): ReportDayBalances {
     );
   });
 
-  let buniyadDisburseSum = 0;
-  let otherDisburseSum = 0;
-  for (const t of disburseLoans) {
-    const amt = Number(t.amount) || 0;
-    const cat = t.category.toLowerCase().trim();
-    if (cat.includes("buni")) buniyadDisburseSum += amt;
-    else otherDisburseSum += amt;
-  }
-  const incomeKallayan = Math.round(otherDisburseSum * 0.01 + buniyadDisburseSum * 0.005);
+  // 🤝 v1.4.180: ম্যানেজ করা কল্যাণ-নিয়ম (চক্রে ডিসবার্স-কেন্দ্রিক) — পুরনো হার্ডকোড ১%/০.৫% বাতিল
+  const incomeKallayan = disburseLoans.reduce(
+    (s, t) => s + calcKallyan(Number(t.amount) || 0, t.category, getKallyanRule()),
+    0
+  );
   const incomeLoanForm = disburseLoans.length * 5;
 
   const incomeOthers = targetReceives
