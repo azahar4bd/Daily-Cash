@@ -48,6 +48,51 @@ export function installFieldArrowNav(doc: Document = document): void {
     const el = e.target instanceof HTMLInputElement ? e.target : null;
     if (!el || !isNavField(el)) return;
 
+    // 🧭 v1.4.181: গ্রিড-সেল (ডিনোমিনেশন মোডাল) — ↑↓ = একই কলামের আগের/পরের সারি,
+    // ←→ = একই সারির আগের/পরের কলাম। (আগে DOM-ক্রমে "পরের ঘর" হতো — নিচে চাপলে
+    // ডান পাশের ক্রেডিট ঘরে চলে যেত!)
+    const gcol = el.getAttribute("data-grid-col");
+    const grow = el.getAttribute("data-grid-row");
+    if (gcol && grow) {
+      if (menuOpenUnder(el)) return;
+      const r = parseInt(grow, 10);
+      const gscope: ParentNode = el.closest<HTMLElement>(".fixed") || doc;
+      const gridCols = ["qty", "credit", "debit"];
+      if (key === "Enter" || key === "ArrowDown" || key === "ArrowUp") {
+        const d2 = key === "ArrowUp" ? -1 : 1;
+        const t = gscope.querySelector<HTMLInputElement>(
+          `input[data-grid-col="${gcol}"][data-grid-row="${r + d2}"]`
+        );
+        if (!t) return; // প্রান্তে এসে থাম
+        e.preventDefault();
+        t.focus();
+        try { t.select?.(); } catch {}
+        return;
+      }
+      if (key === "ArrowRight" || key === "ArrowLeft") {
+        const ci = gridCols.indexOf(gcol);
+        if (ci < 0) return;
+        // ক্যারেট প্রান্তে থাকলেই পাশের কলামে — মাঝখানে থাকলে নেটিভ কার্সর
+        let atStart = true, atEnd = true;
+        try {
+          const v = (el.value || "").length;
+          const s = el.selectionStart, en = el.selectionEnd;
+          if (s != null && en != null) { atStart = s === 0 && en === 0; atEnd = s === v && en === v; }
+        } catch {}
+        const tgt = key === "ArrowRight" ? (atEnd ? gridCols[ci + 1] : null) : (atStart ? gridCols[ci - 1] : null);
+        if (!tgt) return;
+        const t = gscope.querySelector<HTMLInputElement>(
+          `input[data-grid-col="${tgt}"][data-grid-row="${r}"]`
+        );
+        if (!t) return; // সারির প্রান্তে থাম
+        e.preventDefault();
+        t.focus();
+        try { t.select?.(); } catch {}
+        return;
+      }
+      return;
+    }
+
     let dir = 0;
     if (key === "Enter" || key === "ArrowDown") dir = 1;
     else if (key === "ArrowUp") dir = -1;

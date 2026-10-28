@@ -328,6 +328,8 @@ export default function ReportDenominationModal({
                         ref={(el) => {
                           inputRefs.current[`${i}-qty`] = el;
                         }}
+                        data-grid-row={i}
+                        data-grid-col="qty"
                         type="text"
                         inputMode={showKeypad ? "none" : "numeric"}
                         readOnly={showKeypad}
@@ -360,6 +362,8 @@ export default function ReportDenominationModal({
                         ref={(el) => {
                           inputRefs.current[`${i}-credit`] = el;
                         }}
+                        data-grid-row={i}
+                        data-grid-col="credit"
                         type="text"
                         inputMode={showKeypad ? "none" : "decimal"}
                         readOnly={showKeypad}
@@ -389,6 +393,8 @@ export default function ReportDenominationModal({
                         ref={(el) => {
                           inputRefs.current[`${i}-debit`] = el;
                         }}
+                        data-grid-row={i}
+                        data-grid-col="debit"
                         type="text"
                         inputMode={showKeypad ? "none" : "decimal"}
                         readOnly={showKeypad}
