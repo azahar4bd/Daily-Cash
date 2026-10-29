@@ -80,6 +80,34 @@ export default function PaymentDenominationModal({
     }
   }, [open]);
 
+  // ⌨️ v1.4.183: PC-তে শেষ সারিতে Enter চাপলেই Apply (কিবোর্ড-অonly ফ্লো সমাধান)
+  const applyableNow = (onApplyAmount || onApplyBreakdown) !== undefined;
+  useEffect(() => {
+    if (!open || showKeypad) return;
+    const onk = (e: KeyboardEvent) => {
+      if (e.key !== "Enter") return;
+      if (activeCell.row !== ROW_COUNT - 1) return;
+      const d: Denom = {};
+      NOTES.forEach((n, i) => {
+        const qv = parseInt(qtyVals[i] || "0", 10) || 0;
+        if (qv) d[String(n)] = qv;
+      });
+      const other = hideOtherRow ? 0 : (Number(qtyVals[FIELD_COUNT - 1]) || 0);
+      const net =
+        NOTES.reduce((acc, n, i) => acc + (parseInt(qtyVals[i] || "0", 10) || 0) * n, 0) +
+        other +
+        creditVals.reduce((a, v) => a + (Number(v) || 0), 0) -
+        debitVals.reduce((a, v) => a + (Number(v) || 0), 0);
+      if (net === 0 || !applyableNow) return;
+      e.preventDefault();
+      onApplyAmount?.(net);
+      onApplyBreakdown?.(d, other, net);
+      onClose();
+    };
+    document.addEventListener("keydown", onk);
+    return () => document.removeEventListener("keydown", onk);
+  }, [open, showKeypad, activeCell, qtyVals, creditVals, debitVals, ROW_COUNT, hideOtherRow]);
+
   if (!open) return null;
 
   const noteOnlyTotal = NOTES.reduce((acc, note, i) => {
@@ -527,18 +555,24 @@ export default function PaymentDenominationModal({
             >
               Reset
             </button>
-            {applyable && (
-              <button
-                type="button"
-                onClick={() => {
-                  applyNow();
-                  onClose();
-                }}
-                className="rounded-lg bg-emerald-600 px-4 py-2 text-xs sm:text-sm font-bold text-white hover:bg-emerald-700 transition"
-              >
-                Apply ({fmt(denominationTotalCash)})
-              </button>
-            )}
+            {/* 🖥️ v1.4.183: Apply সবসময় দৃশ্যমান — নোট না-লিখলে ধূসর/অচল */}
+            <button
+              type="button"
+              disabled={!applyable}
+              onClick={() => {
+                if (!applyable) return;
+                applyNow();
+                onClose();
+              }}
+              className={`rounded-lg px-4 py-2 text-xs sm:text-sm font-bold transition ${
+                applyable
+                  ? "bg-emerald-600 text-white hover:bg-emerald-700 cursor-pointer"
+                  : "bg-slate-300 text-slate-500 cursor-not-allowed"
+              }`}
+              title={applyable ? "মোট প্রয়োগ করুন" : "আগে কোনো নোটের সংখ্যা লিখুন"}
+            >
+              Apply ({fmt(denominationTotalCash)})
+            </button>
           </div>
           <button
             type="button"
