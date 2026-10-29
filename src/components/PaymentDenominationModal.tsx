@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { fmt } from "./DenominationPopup";
+import type { Denom } from "@/types";
 
 export const NOTES = [1000, 500, 200, 100, 50, 20, 10, 5, 2, 1] as const;
 const FIELD_COUNT = NOTES.length + 1; // 10 notes + 1 other
@@ -21,6 +22,9 @@ export default function PaymentDenominationModal({
   onApplyAmount,
   hideSummary = false,
   hideOtherRow = false,
+  initialDenom,
+  initialOther,
+  onApplyBreakdown,
 }: {
   open: boolean;
   onClose: () => void;
@@ -31,6 +35,11 @@ export default function PaymentDenominationModal({
   hideSummary?: boolean;
   /** 🧹 v1.4.161: Receive-পেজের জন্য — শেষের Other সারি লুকানো (ইউজার-মার্কিং) */
   hideOtherRow?: boolean;
+  /** ♻️ v1.4.182: এডিটে খোলার সময় আগে সেভ করা নোট-বিবরণ দিয়ে শুরু */
+  initialDenom?: Denom;
+  initialOther?: number;
+  /** ♻️ v1.4.182: Apply-এ পুরো বিবরণও ফেরায় (পার-এন্ট্রি ডিনোমিনেশন সংরক্ষণের জন্য) */
+  onApplyBreakdown?: (d: Denom, other: number, total: number) => void;
 }) {
   // Other-সারি লুকালে দৃশ্যমান সারি-সংখ্যা এক কম — নেভিগেশন/রেন্ডার সব এতেই
   const ROW_COUNT = hideOtherRow ? FIELD_COUNT - 1 : FIELD_COUNT;
@@ -48,7 +57,18 @@ export default function PaymentDenominationModal({
     if (open) {
       const m = detectMobile();
       setShowKeypad(m);
-      setQtyVals(Array(FIELD_COUNT).fill(""));
+      // ♻️ v1.4.182: এডিট-মোডে আগের সেভ করা নোট-বিবরণ দিয়ে শুরু, নতুন এন্ট্রিতে ফাঁকা
+      const q = Array(FIELD_COUNT).fill("");
+      if (initialDenom) {
+        NOTES.forEach((n, i) => {
+          const v = initialDenom[String(n)] || 0;
+          q[i] = v ? String(v) : "";
+        });
+      }
+      if (initialOther && Number(initialOther) !== 0) {
+        q[FIELD_COUNT - 1] = String(initialOther);
+      }
+      setQtyVals(q);
       setCreditVals(Array(FIELD_COUNT).fill(""));
       setDebitVals(Array(FIELD_COUNT).fill(""));
       setActiveCell({ row: 0, col: "qty" });
@@ -75,7 +95,19 @@ export default function PaymentDenominationModal({
   const denominationTotalCash = totalNotesAmount + totalCredit - totalDebit;
   const different = denominationTotalCash - targetAmount;
   /* 🆕 v1.4.170: Apply এখন শুধু নোট নয় — ক্রেডিট/ডেবিট লিখলেও আসে (net ≠ 0 হলেই); মাইনাস net = ফেরত-এন্ট্রি */
-  const applyable = onApplyAmount && denominationTotalCash !== 0;
+  const applyable = (onApplyAmount || onApplyBreakdown) && denominationTotalCash !== 0;
+
+  // ♻️ v1.4.182: Apply — মোট + পুরো নোট-বিবরণ (Denom) দুটোই ফেরায়
+  const applyNow = () => {
+    const d: Denom = {};
+    NOTES.forEach((n, i) => {
+      const qv = parseInt(qtyVals[i] || "0", 10) || 0;
+      if (qv) d[String(n)] = qv;
+    });
+    const other = hideOtherRow ? 0 : (Number(qtyVals[FIELD_COUNT - 1]) || 0);
+    onApplyAmount?.(denominationTotalCash);
+    onApplyBreakdown?.(d, other, denominationTotalCash);
+  };
 
   const handleQtyChange = (i: number, val: string) => {
     setQtyVals((prev) => {
@@ -460,7 +492,7 @@ export default function PaymentDenominationModal({
                 <Key
                   label="Apply"
                   onClick={() => {
-                    onApplyAmount(denominationTotalCash);
+                    applyNow();
                     onClose();
                   }}
                   className="bg-emerald-600 !text-xs sm:!text-sm text-white hover:bg-emerald-700 font-bold"
@@ -499,7 +531,7 @@ export default function PaymentDenominationModal({
               <button
                 type="button"
                 onClick={() => {
-                  onApplyAmount(denominationTotalCash);
+                  applyNow();
                   onClose();
                 }}
                 className="rounded-lg bg-emerald-600 px-4 py-2 text-xs sm:text-sm font-bold text-white hover:bg-emerald-700 transition"

@@ -517,8 +517,9 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
           date={form.txDate || selectedDate}
           hideSummary   /* 🧹 v1.4.161: মার্ক-করা বাক্সগুলো বাদ */
           hideOtherRow  /* 🧹 v1.4.161: Other-সারি বাদ */
-          onApplyAmount={(amt) => {
-            setForm({ ...form, amount: Math.round(amt), denomination: {}, otherAmount: 0 });
+          onApplyBreakdown={(d, other, total) => {
+            // ♻️ v1.4.182: নোট-বিবরণও এন্ট্রিতে সংরক্ষিত — পরে এডিটে ফিরে আসবে
+            setForm({ ...form, amount: Math.round(total), denomination: d, otherAmount: other });
             setDenomOpen(false);
           }}
         />
@@ -898,8 +899,11 @@ export default function ReceivePage({ selectedDate }: { selectedDate: string }) 
               targetAmount={edit.amount || 0}
               date={edit.txDate}
               hideSummary hideOtherRow
-              onApplyAmount={(amt) => {
-                setEdit({ ...edit, amount: Math.round(amt), denomination: {}, otherAmount: 0 });
+              initialDenom={edit.denomination}
+              initialOther={edit.otherAmount}
+              onApplyBreakdown={(d, other, total) => {
+                // ♻️ v1.4.182: এডিটেও নোট-বিবরণ ধরে রাখে
+                setEdit({ ...edit, amount: Math.round(total), denomination: d, otherAmount: other });
                 setEditDenomOpen(false);
               }}
             />
